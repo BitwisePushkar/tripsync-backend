@@ -2,33 +2,47 @@ from django.contrib import admin
 from account.models import User
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
 
-# Register your models here.
 class UserModelAdmin(BaseUserAdmin):
-    # The fields to be used in displaying the User model.
-    # These override the definitions on the base UserModelAdmin
-    # that reference specific fields on auth.User.
-    list_display = ["id","email", "name","tc","phone_number", "is_admin"]
-    list_filter = ["is_admin"]
+    list_display = ["id", "email", "name", "phone_number", "is_email_verified", "is_admin", "created_at"]
+    list_filter = ["is_admin", "is_active", "is_email_verified", "created_at"]
+    
     fieldsets = [
-        ('User Credentials', {"fields": ["email", "password"]}),
-        ("Personal info", {"fields": ["name","tc","phone_number"]}),
-        ("Permissions", {"fields": ["is_admin"]}),
+        ('Authentication', {"fields": ["email", "password"]}),
+        ("Personal Info", {"fields": ["name", "phone_number"]}),
+        ("Permissions", {"fields": ["is_admin", "is_active", "is_email_verified"]}),
+        ("Terms", {"fields": ["terms_accepted"]}),
+        ("Important Dates", {"fields": ["created_at", "updated_at", "last_login"]}),
     ]
-    # add_fieldsets is not a standard ModelAdmin attribute. UserModelAdmin
-    # overrides get_fieldsets to use this attribute when creating a user.
+    
     add_fieldsets = [
         (
             None,
             {
                 "classes": ["wide"],
-                "fields": ["email", "name","tc","phone_number","password1", "password2"],
+                "fields": [
+                    "email",
+                    "name",
+                    "phone_number",
+                    "terms_accepted",
+                    "password1",
+                    "password2"
+                ],
             },
         ),
     ]
-    search_fields = ["email"]
-    ordering = ["email","id"]
+    
+    readonly_fields = ["created_at", "updated_at", "last_login"]
+    search_fields = ["email", "name", "phone_number"]
+    ordering = ["-created_at"]
     filter_horizontal = []
+    
+    def get_readonly_fields(self, request, obj=None):
+        if obj:
+            return self.readonly_fields + ["email"]
+        return self.readonly_fields
 
 
-# Now register the new UserModelAdmin.
 admin.site.register(User, UserModelAdmin)
+admin.site.site_header = "Travel Planning Admin"
+admin.site.site_title = "Travel Planning Admin Portal"
+admin.site.index_title = "Welcome to Travel Planning Admin Portal"
