@@ -3,14 +3,18 @@ from rest_framework import status
 from rest_framework.views import APIView
 from rest_framework.generics import ListAPIView
 from rest_framework.permissions import IsAuthenticated, IsAdminUser
-from account.serializers import (UserRegistrationSerializer, UserLoginSerializer, UserProfileSerializer,VerifyEmailOTPSerializer, PasswordResetVerifyOTPSerializer, PasswordResetConfirmSerializer)
+from account.serializers import (
+    UserRegistrationSerializer, UserLoginSerializer, UserProfileSerializer,
+    VerifyEmailOTPSerializer, PasswordResetVerifyOTPSerializer, 
+    PasswordResetConfirmSerializer
+)
 from account.models import User
 from django.contrib.auth import authenticate
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.exceptions import AuthenticationFailed
 from drf_spectacular.utils import extend_schema, OpenApiResponse, OpenApiExample, OpenApiParameter
 from drf_spectacular.types import OpenApiTypes
-from account.pagination import StandardResultsSetPagination, LargeResultsSetPagination, CustomLimitOffsetPagination
+from account.pagination import StandardResultsSetPagination
 from django.db import models
 
 
@@ -65,9 +69,13 @@ class UserRegistrationView(APIView):
             if serializer.is_valid(raise_exception=True):
                 user = serializer.save()
                 tokens = get_tokens_for_user(user)
+                otp = user.generate_otp()
+                from account.utils import send_otp_email
+                send_otp_email(user.email, otp, purpose="verification")
+                
                 return Response({
                     'status': 'success',
-                    'message': 'Registration successful! Please verify your email.',
+                    'message': 'Registration successful! Please verify your email with the OTP sent.',
                     'data': {
                         'user': {
                             'id': user.id,
@@ -117,7 +125,6 @@ class UserLoginView(APIView):
                 ]
             ),
             401: OpenApiResponse(description="Invalid credentials"),
-            404: OpenApiResponse(description="User not found"),
         },
         tags=['Authentication'],
         summary="Login user",
@@ -130,6 +137,7 @@ class UserLoginView(APIView):
                 email = serializer.validated_data.get('email')
                 password = serializer.validated_data.get('password')
                 user = authenticate(request, email=email, password=password)
+                
                 if user is not None:
                     if not user.is_active:
                         return Response({
@@ -137,6 +145,7 @@ class UserLoginView(APIView):
                             'message': 'Account is deactivated. Please contact support.',
                             'errors': {'account': ['Your account has been deactivated']}
                         }, status=status.HTTP_403_FORBIDDEN)
+                    
                     tokens = get_tokens_for_user(user)
                     return Response({
                         'status': 'success',
@@ -167,6 +176,56 @@ class UserLoginView(APIView):
             }, status=status.HTTP_400_BAD_REQUEST)
 
 
+class UserLogoutView(APIView):
+    permission_classes = [IsAuthenticated]
+    
+    @extend_schema(
+        request={'application/json': {'type': 'object', 'properties': {'refresh': {'type': 'string'}}}},
+        responses={
+            200: OpenApiResponse(
+                response=OpenApiTypes.OBJECT,
+                description="Logged out successfully",
+                examples=[
+                    OpenApiExample(
+                        'Success Response',
+                        value={
+                            'status': 'success',
+                            'message': 'Logged out successfully'
+                        }
+                    )
+                ]
+            ),
+            400: OpenApiResponse(description="Invalid token"),
+        },
+        tags=['Authentication'],
+        summary="Logout user",
+        description="Blacklist the refresh token to logout user"
+    )
+    def post(self, request):
+        try:
+            refresh_token = request.data.get("refresh")
+            if not refresh_token:
+                return Response({
+                    'status': 'error',
+                    'message': 'Refresh token is required',
+                    'errors': {'refresh': ['This field is required']}
+                }, status=status.HTTP_400_BAD_REQUEST)
+            
+            token = RefreshToken(refresh_token)
+            token.blacklist()
+            
+            return Response({
+                'status': 'success',
+                'message': 'Logged out successfully'
+            }, status=status.HTTP_200_OK)
+        except Exception as e:
+            return Response({
+                'status': 'error',
+                'message': 'Logout failed',
+                'errors': str(e)
+            }, status=status.HTTP_400_BAD_REQUEST)
+
+
 class UserListView(ListAPIView):
     queryset = User.objects.all().order_by('-created_at')
     serializer_class = UserProfileSerializer
@@ -183,31 +242,7 @@ class UserListView(ListAPIView):
         responses={
             200: OpenApiResponse(
                 response=UserProfileSerializer(many=True),
-                description="List of users with pagination",
-                examples=[
-                    OpenApiExample(
-                        'Success Response',
-                        value={
-                            'status': 'success',
-                            'count': 50,
-                            'total_pages': 5,
-                            'current_page': 1,
-                            'page_size': 10,
-                            'next': 'http://api.example.com/users/?page=2',
-                            'previous': None,
-                            'results': [
-                                {
-                                    'id': 1,
-                                    'email': 'user1@example.com',
-                                    'name': 'John Doe',
-                                    'phone_number': '+919876543210',
-                                    'is_email_verified': True,
-                                    'created_at': '2024-01-15T10:30:00Z'
-                                }
-                            ]
-                        }
-                    )
-                ]
+                description="List of users with pagination"
             ),
             401: OpenApiResponse(description="Unauthorized - Token required"),
             403: OpenApiResponse(description="Forbidden - Admin access only"),
@@ -241,23 +276,7 @@ class UserProfileView(APIView):
         responses={
             200: OpenApiResponse(
                 response=UserProfileSerializer,
-                description="User profile retrieved successfully",
-                examples=[
-                    OpenApiExample(
-                        'Success Response',
-                        value={
-                            'status': 'success',
-                            'data': {
-                                'id': 1,
-                                'email': 'user@example.com',
-                                'name': 'John Doe',
-                                'phone_number': '+919876543210',
-                                'is_email_verified': True,
-                                'created_at': '2024-01-15T10:30:00Z'
-                            }
-                        }
-                    )
-                ]
+                description="User profile retrieved successfully"
             ),
             401: OpenApiResponse(description="Unauthorized - Token required"),
         },
@@ -276,20 +295,7 @@ class SendEmailOTPView(APIView):
         responses={
             200: OpenApiResponse(
                 response=OpenApiTypes.OBJECT,
-                description="OTP sent successfully",
-                examples=[
-                    OpenApiExample(
-                        'Success Response',
-                        value={
-                            'status': 'success',
-                            'message': 'OTP has been sent to your email address.',
-                            'data': {
-                                'email': 'user@example.com',
-                                'otp_expires_in': '10 minutes'
-                            }
-                        }
-                    )
-                ]
+                description="OTP sent successfully"
             ),
             400: OpenApiResponse(description="Validation error"),
         },
@@ -313,9 +319,9 @@ class SendEmailOTPView(APIView):
             except User.DoesNotExist:
                 return Response({
                     'status': 'error',
-                    'message': 'User not found',
-                    'errors': {'email': ['User with this email does not exist']}
-                }, status=status.HTTP_404_NOT_FOUND)
+                    'message': 'Invalid request',
+                    'errors': {'email': ['Unable to process request']}
+                }, status=status.HTTP_400_BAD_REQUEST)
             
             if user.is_email_verified:
                 return Response({
@@ -323,6 +329,15 @@ class SendEmailOTPView(APIView):
                     'message': 'Email already verified',
                     'errors': {'email': ['This email is already verified']}
                 }, status=status.HTTP_400_BAD_REQUEST)
+            
+            # Check if user is locked
+            if user.is_otp_locked():
+                time_remaining = (user.otp_locked_until - timezone.now()).seconds // 60
+                return Response({
+                    'status': 'error',
+                    'message': f'Too many failed attempts. Try again in {time_remaining} minutes.',
+                    'errors': {'otp': ['Account temporarily locked']}
+                }, status=status.HTTP_429_TOO_MANY_REQUESTS)
             
             otp = user.generate_otp()
             
@@ -356,41 +371,39 @@ class VerifyEmailOTPView(APIView):
         responses={
             200: OpenApiResponse(
                 response=OpenApiTypes.OBJECT,
-                description="Email verified successfully",
-                examples=[
-                    OpenApiExample(
-                        'Success Response',
-                        value={
-                            'status': 'success',
-                            'message': 'Email verified successfully!',
-                            'data': {
-                                'email': 'user@example.com',
-                                'is_email_verified': True
-                            }
-                        }
-                    )
-                ]
+                description="Email verified successfully"
             ),
             400: OpenApiResponse(description="Invalid or expired OTP"),
         },
         tags=['Email Verification'],
         summary="Verify email with OTP",
-        description="Verifies the user's email address using the OTP code"
+        description="Verifies the user's email address using the OTP code with attempt tracking"
     )
     def post(self, request):
         try:
             serializer = VerifyEmailOTPSerializer(data=request.data)
             if serializer.is_valid(raise_exception=True):
                 user = serializer.validated_data['user']
-                user.is_email_verified = True
-                user.otp_verified = True
-                user.clear_otp()
+                otp_code = serializer.validated_data['otp']
+                success, message, attempts_remaining = user.verify_otp(otp_code)
                 
-                return Response({
-                    'status': 'success',
-                    'message': 'Email verified successfully!',
-                    'data': {'email': user.email, 'is_email_verified': user.is_email_verified}
-                }, status=status.HTTP_200_OK)
+                if success:
+                    user.is_email_verified = True
+                    user.clear_otp()
+                    
+                    return Response({
+                        'status': 'success',
+                        'message': 'Email verified successfully!',
+                        'data': {'email': user.email, 'is_email_verified': user.is_email_verified}
+                    }, status=status.HTTP_200_OK)
+                else:
+                    status_code = status.HTTP_429_TOO_MANY_REQUESTS if attempts_remaining == 0 else status.HTTP_400_BAD_REQUEST
+                    return Response({
+                        'status': 'error',
+                        'message': message,
+                        'errors': {'otp': [message]},
+                        'attempts_remaining': attempts_remaining
+                    }, status=status_code)
                 
         except Exception as e:
             return Response({
@@ -406,20 +419,7 @@ class PasswordResetRequestView(APIView):
         responses={
             200: OpenApiResponse(
                 response=OpenApiTypes.OBJECT,
-                description="Password reset OTP sent",
-                examples=[
-                    OpenApiExample(
-                        'Success Response',
-                        value={
-                            'status': 'success',
-                            'message': 'Password reset OTP has been sent to your email.',
-                            'data': {
-                                'email': 'user@example.com',
-                                'next_step': 'Verify OTP to proceed with password reset'
-                            }
-                        }
-                    )
-                ]
+                description="Password reset OTP sent"
             ),
             400: OpenApiResponse(description="Validation error"),
         },
@@ -443,9 +443,18 @@ class PasswordResetRequestView(APIView):
             except User.DoesNotExist:
                 return Response({
                     'status': 'error',
-                    'message': 'User not found',
-                    'errors': {'email': ['User with this email does not exist']}
-                }, status=status.HTTP_404_NOT_FOUND)
+                    'message': 'Invalid request',
+                    'errors': {'email': ['Unable to process request']}
+                }, status=status.HTTP_400_BAD_REQUEST)
+            
+            if user.is_otp_locked():
+                from django.utils import timezone
+                time_remaining = (user.otp_locked_until - timezone.now()).seconds // 60
+                return Response({
+                    'status': 'error',
+                    'message': f'Too many failed attempts. Try again in {time_remaining} minutes.',
+                    'errors': {'otp': ['Account temporarily locked']}
+                }, status=status.HTTP_429_TOO_MANY_REQUESTS)
             
             otp = user.generate_otp()
             
@@ -479,41 +488,39 @@ class PasswordResetVerifyOTPView(APIView):
         responses={
             200: OpenApiResponse(
                 response=OpenApiTypes.OBJECT,
-                description="OTP verified successfully",
-                examples=[
-                    OpenApiExample(
-                        'Success Response',
-                        value={
-                            'status': 'success',
-                            'message': 'OTP verified successfully. You can now reset your password.',
-                            'data': {
-                                'email': 'user@example.com',
-                                'otp_verified': True,
-                                'next_step': 'Set your new password'
-                            }
-                        }
-                    )
-                ]
+                description="OTP verified successfully"
             ),
             400: OpenApiResponse(description="Invalid or expired OTP"),
         },
         tags=['Password Reset'],
         summary="Verify password reset OTP",
-        description="Verifies the OTP for password reset"
+        description="Verifies the OTP for password reset with attempt tracking"
     )
     def post(self, request):
         try:
             serializer = PasswordResetVerifyOTPSerializer(data=request.data)
             if serializer.is_valid(raise_exception=True):
                 user = serializer.validated_data['user']
-                user.otp_verified = True
-                user.save()
+                otp_code = serializer.validated_data['otp']
                 
-                return Response({
-                    'status': 'success',
-                    'message': 'OTP verified successfully. You can now reset your password.',
-                    'data': {'email': user.email, 'otp_verified': True, 'next_step': 'Set your new password'}
-                }, status=status.HTTP_200_OK)
+                # Verify OTP with attempt tracking
+                success, message, attempts_remaining = user.verify_otp(otp_code)
+                
+                if success:
+                    # Don't clear OTP yet - need it for password reset confirmation
+                    return Response({
+                        'status': 'success',
+                        'message': 'OTP verified successfully. You can now reset your password.',
+                        'data': {'email': user.email, 'otp_verified': True, 'next_step': 'Set your new password'}
+                    }, status=status.HTTP_200_OK)
+                else:
+                    status_code = status.HTTP_429_TOO_MANY_REQUESTS if attempts_remaining == 0 else status.HTTP_400_BAD_REQUEST
+                    return Response({
+                        'status': 'error',
+                        'message': message,
+                        'errors': {'otp': [message]},
+                        'attempts_remaining': attempts_remaining
+                    }, status=status_code)
                 
         except Exception as e:
             return Response({
@@ -529,17 +536,7 @@ class PasswordResetConfirmView(APIView):
         responses={
             200: OpenApiResponse(
                 response=OpenApiTypes.OBJECT,
-                description="Password reset successfully",
-                examples=[
-                    OpenApiExample(
-                        'Success Response',
-                        value={
-                            'status': 'success',
-                            'message': 'Password has been reset successfully. You can now login with your new password.',
-                            'data': {'email': 'user@example.com'}
-                        }
-                    )
-                ]
+                description="Password reset successfully"
             ),
             400: OpenApiResponse(description="Validation error or OTP not verified"),
         },
