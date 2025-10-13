@@ -131,8 +131,11 @@ class UserListSerializer(serializers.ModelSerializer):
         read_only_fields = ["id", "email", "is_email_verified", "created_at"]
 
     def get_days_since_joined(self, obj):
+        from django.utils import timezone
         delta = timezone.now() - obj.created_at
         return delta.days
+
+
 
 
 class VerifyEmailOTPSerializer(serializers.Serializer):
@@ -151,23 +154,23 @@ class VerifyEmailOTPSerializer(serializers.Serializer):
     def validate_email(self, value):
         return value.lower()
     
-    def validate_otp(self, value):
-        if not value.isdigit():
-            raise serializers.ValidationError("OTP must contain only digits.")
-        return value
-    
     def validate(self, data):
         try:
             user = User.objects.get(email=data['email'])
         except User.DoesNotExist:
-            raise serializers.ValidationError({"email": "Invalid request."})
+            raise serializers.ValidationError({"email": "User not found."})
         
         if user.is_email_verified:
             raise serializers.ValidationError({"email": "Email is already verified."})
         
-        # Check if OTP exists and not expired - validation happens in view with attempt tracking
         if not user.otp or not user.otp_exp:
             raise serializers.ValidationError({"otp": "No OTP found. Please request a new one."})
+        
+        if user.otp != data['otp']:
+            raise serializers.ValidationError({"otp": "Invalid OTP."})
+        
+        if user.otp_exp < timezone.now():
+            raise serializers.ValidationError({"otp": "OTP has expired. Please request a new one."})
         
         data['user'] = user
         return data
@@ -189,19 +192,19 @@ class PasswordResetVerifyOTPSerializer(serializers.Serializer):
     def validate_email(self, value):
         return value.lower()
     
-    def validate_otp(self, value):
-        if not value.isdigit():
-            raise serializers.ValidationError("OTP must contain only digits.")
-        return value
-    
     def validate(self, data):
         try:
             user = User.objects.get(email=data['email'])
         except User.DoesNotExist:
-            raise serializers.ValidationError({"email": "Invalid request."})
+            raise serializers.ValidationError({"email": "User not found."})
         
         if not user.otp or not user.otp_exp:
             raise serializers.ValidationError({"otp": "No OTP found. Please request password reset first."})
+        
+        if user.otp != data['otp']:
+            raise serializers.ValidationError({"otp": "Invalid OTP."})
+        if user.otp_exp < timezone.now():
+            raise serializers.ValidationError({"otp": "OTP has expired. Please request a new one."})
         
         data['user'] = user
         return data
@@ -247,7 +250,7 @@ class PasswordResetConfirmSerializer(serializers.Serializer):
         try:
             user = User.objects.get(email=data['email'])
         except User.DoesNotExist:
-            raise serializers.ValidationError({"email": "Invalid request."})
+            raise serializers.ValidationError({"email": "User not found."})
         
         if not user.otp_verified:
             raise serializers.ValidationError({"otp": "OTP verification required. Please verify OTP first."})
