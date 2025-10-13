@@ -62,17 +62,6 @@ DATABASES = {
     }
 }
 
-# For PostgreSQL (uncomment when ready to switch)
-# DATABASES = {
-#     'default': {
-#         'ENGINE': 'django.db.backends.postgresql',
-#         'NAME': config('DB_NAME', default='travel_db'),
-#         'USER': config('DB_USER', default='postgres'),
-#         'PASSWORD': config('DB_PASSWORD', default=''),
-#         'HOST': config('DB_HOST', default='localhost'),
-#         'PORT': config('DB_PORT', default='5432'),
-#     }
-# }
 
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': (
@@ -165,11 +154,7 @@ SIMPLE_JWT = {
     'TOKEN_TYPE_CLAIM': 'token_type',
 }
 
-CORS_ALLOWED_ORIGINS = [
-    "http://localhost:3000",
-    "http://127.0.0.1:3000",
-    "http://localhost:5173",
-]
+CORS_ALLOWED_ORIGINS = ['*']
 
 CORS_ALLOW_CREDENTIALS = True
 if not DEBUG:
@@ -186,7 +171,7 @@ EMAIL_HOST = 'smtp.gmail.com'
 EMAIL_PORT = 587
 EMAIL_USE_TLS = True
 EMAIL_HOST_USER = 'agrawal.arnav20@gmail.com'
-EMAIL_HOST_PASSWORD = 'your-app-password'
+EMAIL_HOST_PASSWORD = '1234'
 DEFAULT_FROM_EMAIL = 'TripSync <agrawal.arnav20@gmail.com>'
 ADMIN_SITE_HEADER = "TripSync Administration"
 ADMIN_SITE_TITLE = "TripSync Admin"
