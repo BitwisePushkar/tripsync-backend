@@ -305,34 +305,35 @@ class SendEmailOTPView(APIView):
         description="Sends a 6-digit OTP to the user's email for verification"
     )
     def post(self, request):
+        import logging
+        logger = logging.getLogger(__name__)
+        
         try:
-            email = request.data.get('email', '').lower()
-            
+            email = request.data.get('email', '').lower().strip()
             if not email:
                 return Response({
                     'status': 'error',
                     'message': 'Email is required',
                     'errors': {'email': ['This field is required']}
                 }, status=status.HTTP_400_BAD_REQUEST)
-            
             try:
                 user = User.objects.get(email=email)
             except User.DoesNotExist:
+                logger.warning(f"OTP request for non-existent email: {email}")
                 return Response({
                     'status': 'error',
                     'message': 'Invalid request',
                     'errors': {'email': ['Unable to process request']}
                 }, status=status.HTTP_400_BAD_REQUEST)
-            
             if user.is_email_verified:
                 return Response({
                     'status': 'error',
                     'message': 'Email already verified',
                     'errors': {'email': ['This email is already verified']}
                 }, status=status.HTTP_400_BAD_REQUEST)
-            
             if user.is_otp_locked():
                 time_remaining = (user.otp_locked_until - timezone.now()).seconds // 60
+                logger.warning(f"OTP request for locked account: {email}")
                 return Response({
                     'status': 'error',
                     'message': f'Too many failed attempts. Try again in {time_remaining} minutes.',
@@ -340,36 +341,45 @@ class SendEmailOTPView(APIView):
                 }, status=status.HTTP_429_TOO_MANY_REQUESTS)
             
             otp = user.generate_otp()
-            
-            from account.utils import send_otp_email
-            email_sent = send_otp_email(email, otp, purpose="verification")
-            
-            if not email_sent:
-                print(f"ERROR: Failed to send OTP email to {email}")
+            logger.info(f"OTP generated for {email}")
+            try:
+                from account.utils import send_otp_email
+                from django.conf import settings
+                email_sent = send_otp_email(email, otp, purpose="verification")
+                
+                if not email_sent:
+                    logger.error(f"Failed to send OTP email to {email}")
+                    return Response({
+                        'status': 'success',
+                        'message': 'If your email is registered, you will receive an OTP shortly.',
+                        'data': {'email': email, 'otp_expires_in': '10 minutes'}
+                    }, status=status.HTTP_200_OK)
+                
+                logger.info(f"OTP email sent successfully to {email}")
+                
                 return Response({
-                    'status': 'error',
-                    'message': 'Failed to send OTP email. Please try again.',
-                    'errors': {'email': ['Email service temporarily unavailable']}
-                }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-            
-            print(f"SUCCESS: OTP sent to {email} - OTP: {otp}")
-            
-            return Response({
-                'status': 'success',
-                'message': 'OTP has been sent to your email address.',
-                'data': {'email': email, 'otp_expires_in': '10 minutes'}
-            }, status=status.HTTP_200_OK)
+                    'status': 'success',
+                    'message': 'OTP has been sent to your email address.',
+                    'data': {'email': email, 'otp_expires_in': '10 minutes'}
+                }, status=status.HTTP_200_OK)
+                
+            except Exception as email_error:
+                logger.error(f"Email sending exception for {email}: {str(email_error)}")
+                return Response({
+                    'status': 'success',
+                    'message': 'If your email is registered, you will receive an OTP shortly.',
+                    'data': {'email': email, 'otp_expires_in': '10 minutes'}
+                }, status=status.HTTP_200_OK)
             
         except Exception as e:
-            print(f"SendEmailOTP error: {str(e)}")
+            logger.error(f"SendEmailOTP unexpected error: {str(e)}")
             import traceback
-            traceback.print_exc()
+            logger.error(traceback.format_exc())
             return Response({
                 'status': 'error',
-                'message': 'Failed to send OTP',
-                'errors': str(e)
-            }, status=status.HTTP_400_BAD_REQUEST)
-
+                'message': 'An error occurred while processing your request',
+                'errors': {'non_field_errors': ['Please try again later']}
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 class VerifyEmailOTPView(APIView):
     @extend_schema(
