@@ -105,7 +105,7 @@ SPECTACULAR_SETTINGS = {
     ],
     'SERVERS': [
         {'url': 'http://127.0.0.1:8000', 'description': 'Development server'},
-        {'url': 'https://api.tripsync.com', 'description': 'Production server'},
+        {'url': 'https://tripsync-backend-ruak.onrender.com', 'description': 'Production server'},
     ],
     'COMPONENT_SPLIT_REQUEST': True,
     'SWAGGER_UI_SETTINGS': {
