@@ -25,3 +25,4 @@ rpds-py==0.27.1
 sqlparse==0.5.3
 tzdata==2025.2
 uritemplate==4.2.0
+dj-database-url==1.0.0
