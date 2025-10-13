@@ -11,27 +11,20 @@ class UserModelAdmin(BaseUserAdmin):
         ("Personal Info", {"fields": ["name", "phone_number"]}),
         ("Permissions", {"fields": ["is_admin", "is_active", "is_email_verified"]}),
         ("Terms", {"fields": ["terms_accepted"]}),
+
+
+        ("OTP Information", {"fields": ["otp", "otp_exp", "otp_verified"]}),
         ("Important Dates", {"fields": ["created_at", "updated_at", "last_login"]}),
     ]
     
     add_fieldsets = [
-        (
-            None,
-            {
-                "classes": ["wide"],
-                "fields": [
-                    "email",
-                    "name",
-                    "phone_number",
-                    "terms_accepted",
-                    "password1",
-                    "password2"
-                ],
-            },
+        (None,{"classes": ["wide"],"fields": ["email","name","phone_number","terms_accepted","password1","password2"],},
         ),
     ]
     
-    readonly_fields = ["created_at", "updated_at", "last_login"]
+    readonly_fields = ["created_at", "updated_at", "last_login", "otp", "otp_exp", "otp_verified"]
+
+
     search_fields = ["email", "name", "phone_number"]
     ordering = ["-created_at"]
     filter_horizontal = []
@@ -43,6 +36,6 @@ class UserModelAdmin(BaseUserAdmin):
 
 
 admin.site.register(User, UserModelAdmin)
-admin.site.site_header = "Travel Planning Admin"
-admin.site.site_title = "Travel Planning Admin Portal"
-admin.site.index_title = "Welcome to Travel Planning Admin Portal"
+admin.site.site_header = "TripSync Admin"
+admin.site.site_title = "TripSync Admin Portal"
+admin.site.index_title = "Welcome To Admin Portal"

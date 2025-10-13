@@ -1,6 +1,9 @@
 from django.db import models
 from django.contrib.auth.models import BaseUserManager, AbstractBaseUser
 from django.core.validators import RegexValidator
+from django.utils import timezone
+from datetime import timedelta
+import random
 import re
 
 phone_regex = RegexValidator(
@@ -10,12 +13,8 @@ phone_regex = RegexValidator(
 
 class UserManager(BaseUserManager):
     def create_user(self, email, name, phone_number, password=None, password2=None, terms_accepted=False):
-        """
-        Creates and saves a User with the given email, name, phone_number and password.
-        """
         if not email:
             raise ValueError("Users must have an email address")
-        
         if not phone_number:
             raise ValueError("Users must have a phone number")
 
@@ -31,9 +30,6 @@ class UserManager(BaseUserManager):
         return user
 
     def create_superuser(self, email, name, phone_number, password=None):
-        """
-        Creates and saves a superuser with the given email, name, phone_number and password.
-        """
         user = self.create_user(
             email=email,
             password=password,
@@ -42,6 +38,11 @@ class UserManager(BaseUserManager):
             terms_accepted=True,
         )
         user.is_admin = True
+
+
+        user.is_email_verified = True
+
+
         user.save(using=self._db)
         return user
 
@@ -55,7 +56,7 @@ class User(AbstractBaseUser):
     name = models.CharField(max_length=200)
     terms_accepted = models.BooleanField(
         default=False,
-        help_text="User must accept terms and conditions"
+        help_text="Accept the terms and conditions first"
     )
     phone_number = models.CharField(
         max_length=15,
@@ -67,6 +68,13 @@ class User(AbstractBaseUser):
     is_email_verified = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+    
+
+
+    otp = models.CharField(max_length=6, blank=True, null=True)
+    otp_exp = models.DateTimeField(blank=True, null=True)
+    otp_verified = models.BooleanField(default=False)
+    
 
     objects = UserManager()
 
@@ -77,18 +85,39 @@ class User(AbstractBaseUser):
         return self.email
 
     def has_perm(self, perm, obj=None):
-        "Does the user have a specific permission?"
         return self.is_admin
 
     def has_module_perms(self, app_label):
-        "Does the user have permissions to view the app `app_label`?"
         return True
 
     @property
     def is_staff(self):
-        "Is the user a member of staff?"
         return self.is_admin
     
+
+
+    def generate_otp(self):
+        self.otp = str(random.randint(100000, 999999))
+        self.otp_exp = timezone.now() + timedelta(minutes=10)
+        self.otp_verified = False
+        self.save()
+        return self.otp
+    
+    def verify_otp(self, otp_code):
+        if self.otp == otp_code and self.otp_exp and self.otp_exp > timezone.now():
+            self.otp_verified = True
+            self.is_email_verified = True
+            self.save()
+            return True
+        return False
+    
+    def clear_otp(self):
+        self.otp = None
+        self.otp_exp = None
+        self.otp_verified = False
+        self.save()
+    
+
     class Meta:
         verbose_name = "User"
         verbose_name_plural = "Users"

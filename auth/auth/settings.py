@@ -81,33 +81,40 @@ REST_FRAMEWORK = {
     'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',
     'DEFAULT_RENDERER_CLASSES': [
         'rest_framework.renderers.JSONRenderer',
+        'rest_framework.renderers.BrowsableAPIRenderer',
     ],
-    'DEFAULT_PARSER_CLASSES': [
-        'rest_framework.parsers.JSONParser',
-    ],
-    'EXCEPTION_HANDLER': 'rest_framework.views.exception_handler',
-    
-    'DEFAULT_PAGINATION_CLASS': 'account.pagination.StandardResultsSetPagination',
-    'PAGE_SIZE': 10,
 }
 
+
 SPECTACULAR_SETTINGS = {
-    'TITLE': 'Travel Planning API',
-    'DESCRIPTION': 'API documentation for Travel Planning Application - Authentication Module',
+    'TITLE': 'TripSync API',
+    'DESCRIPTION': 'TripSync - Your Travel Planning Companion API Documentation',
     'VERSION': '1.0.0',
     'SERVE_INCLUDE_SCHEMA': False,
     'CONTACT': {
-        'name': 'API Support',
-        'email': 'support@travelapp.com'
+        'name': 'TripSync Support',
+        'email': 'support@tripsync.com',
     },
     'LICENSE': {
         'name': 'MIT License',
     },
     'TAGS': [
-        {'name': 'Authentication', 'description': 'User registration and login endpoints'},
+        {'name': 'Authentication', 'description': 'User registration, login and token management'},
+        {'name': 'Email Verification', 'description': 'Email verification with OTP'},
+        {'name': 'Password Reset', 'description': 'Password reset functionality with OTP'},
+        {'name': 'User Management', 'description': 'User profile and management endpoints'},
+    ],
+    'SERVERS': [
+        {'url': 'http://127.0.0.1:8000', 'description': 'Development server'},
+        {'url': 'https://api.tripsync.com', 'description': 'Production server'},
     ],
     'COMPONENT_SPLIT_REQUEST': True,
-    'SCHEMA_PATH_PREFIX': '/api/',
+    'SWAGGER_UI_SETTINGS': {
+        'deepLinking': True,
+        'persistAuthorization': True,
+        'displayOperationId': False,
+        'filter': True,
+    }
 }
 
 AUTH_PASSWORD_VALIDATORS = [
@@ -144,27 +151,18 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 AUTH_USER_MODEL = 'account.User'
 
 SIMPLE_JWT = {
-    "ACCESS_TOKEN_LIFETIME": timedelta(minutes=30),
-    "REFRESH_TOKEN_LIFETIME": timedelta(days=5),
-    "ROTATE_REFRESH_TOKENS": True,
-    "BLACKLIST_AFTER_ROTATION": True,
-    "UPDATE_LAST_LOGIN": True,
-    
-    "ALGORITHM": "HS256",
-    "SIGNING_KEY": SECRET_KEY,
-    "VERIFYING_KEY": None,
-    "AUDIENCE": None,
-    "ISSUER": None,
-    
-    "AUTH_HEADER_TYPES": ("Bearer",),
-    "AUTH_HEADER_NAME": "HTTP_AUTHORIZATION",
-    "USER_ID_FIELD": "id",
-    "USER_ID_CLAIM": "user_id",
-    
-    "AUTH_TOKEN_CLASSES": ("rest_framework_simplejwt.tokens.AccessToken",),
-    "TOKEN_TYPE_CLAIM": "token_type",
-    
-    "JTI_CLAIM": "jti",
+    'ACCESS_TOKEN_LIFETIME': timedelta(hours=1),
+    'REFRESH_TOKEN_LIFETIME': timedelta(days=7),
+    'ROTATE_REFRESH_TOKENS': True,
+    'BLACKLIST_AFTER_ROTATION': True,
+    'UPDATE_LAST_LOGIN': True,
+    'ALGORITHM': 'HS256',
+    'SIGNING_KEY': SECRET_KEY,
+    'AUTH_HEADER_TYPES': ('Bearer',),
+    'USER_ID_FIELD': 'id',
+    'USER_ID_CLAIM': 'user_id',
+    'AUTH_TOKEN_CLASSES': ('rest_framework_simplejwt.tokens.AccessToken',),
+    'TOKEN_TYPE_CLAIM': 'token_type',
 }
 
 CORS_ALLOWED_ORIGINS = [
@@ -181,3 +179,15 @@ if not DEBUG:
     SECURE_BROWSER_XSS_FILTER = True
     SECURE_CONTENT_TYPE_NOSNIFF = True
     X_FRAME_OPTIONS = 'DENY'
+
+EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
+
+EMAIL_HOST = 'smtp.gmail.com'
+EMAIL_PORT = 587
+EMAIL_USE_TLS = True
+EMAIL_HOST_USER = 'agrawal.arnav20@gmail.com'
+EMAIL_HOST_PASSWORD = 'your-app-password'
+DEFAULT_FROM_EMAIL = 'TripSync <agrawal.arnav20@gmail.com>'
+ADMIN_SITE_HEADER = "TripSync Administration"
+ADMIN_SITE_TITLE = "TripSync Admin"
+ADMIN_INDEX_TITLE = "Welcome to TripSync Admin Portal"
