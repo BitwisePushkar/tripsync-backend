@@ -16,6 +16,7 @@ from drf_spectacular.utils import extend_schema, OpenApiResponse, OpenApiExample
 from drf_spectacular.types import OpenApiTypes
 from account.pagination import StandardResultsSetPagination
 from django.db import models
+from django.utils import timezone
 
 
 def get_tokens_for_user(user):
@@ -71,7 +72,10 @@ class UserRegistrationView(APIView):
                 tokens = get_tokens_for_user(user)
                 otp = user.generate_otp()
                 from account.utils import send_otp_email
-                send_otp_email(user.email, otp, purpose="verification")
+                email_sent = send_otp_email(user.email, otp, purpose="verification")
+                
+                if not email_sent:
+                    print(f"WARNING: Failed to send OTP email to {user.email}")
                 
                 return Response({
                     'status': 'success',
@@ -89,6 +93,7 @@ class UserRegistrationView(APIView):
                 }, status=status.HTTP_201_CREATED)
                 
         except Exception as e:
+            print(f"Registration error: {str(e)}")
             return Response({
                 'status': 'error',
                 'message': 'Registration failed',
@@ -330,7 +335,6 @@ class SendEmailOTPView(APIView):
                     'errors': {'email': ['This email is already verified']}
                 }, status=status.HTTP_400_BAD_REQUEST)
             
-            # Check if user is locked
             if user.is_otp_locked():
                 time_remaining = (user.otp_locked_until - timezone.now()).seconds // 60
                 return Response({
@@ -345,11 +349,14 @@ class SendEmailOTPView(APIView):
             email_sent = send_otp_email(email, otp, purpose="verification")
             
             if not email_sent:
+                print(f"ERROR: Failed to send OTP email to {email}")
                 return Response({
                     'status': 'error',
                     'message': 'Failed to send OTP email. Please try again.',
                     'errors': {'email': ['Email service temporarily unavailable']}
                 }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            
+            print(f"SUCCESS: OTP sent to {email} - OTP: {otp}")
             
             return Response({
                 'status': 'success',
@@ -358,6 +365,9 @@ class SendEmailOTPView(APIView):
             }, status=status.HTTP_200_OK)
             
         except Exception as e:
+            print(f"SendEmailOTP error: {str(e)}")
+            import traceback
+            traceback.print_exc()
             return Response({
                 'status': 'error',
                 'message': 'Failed to send OTP',
@@ -381,31 +391,56 @@ class VerifyEmailOTPView(APIView):
     )
     def post(self, request):
         try:
-            serializer = VerifyEmailOTPSerializer(data=request.data)
-            if serializer.is_valid(raise_exception=True):
-                user = serializer.validated_data['user']
-                otp_code = serializer.validated_data['otp']
-                success, message, attempts_remaining = user.verify_otp(otp_code)
+            email = request.data.get('email', '').lower()
+            otp_code = request.data.get('otp', '')
+            
+            if not email or not otp_code:
+                return Response({
+                    'status': 'error',
+                    'message': 'Email and OTP are required',
+                    'errors': {'non_field_errors': ['Both email and OTP are required']}
+                }, status=status.HTTP_400_BAD_REQUEST)
+            
+            try:
+                user = User.objects.get(email=email)
+            except User.DoesNotExist:
+                return Response({
+                    'status': 'error',
+                    'message': 'User not found',
+                    'errors': {'email': ['User not found']}
+                }, status=status.HTTP_400_BAD_REQUEST)
+            
+            if user.is_email_verified:
+                return Response({
+                    'status': 'error',
+                    'message': 'Email is already verified',
+                    'errors': {'email': ['Email is already verified']}
+                }, status=status.HTTP_400_BAD_REQUEST)
+            
+            success, message, attempts_remaining = user.verify_otp(otp_code)
+            
+            if success:
+                user.is_email_verified = True
+                user.clear_otp()
                 
-                if success:
-                    user.is_email_verified = True
-                    user.clear_otp()
-                    
-                    return Response({
-                        'status': 'success',
-                        'message': 'Email verified successfully!',
-                        'data': {'email': user.email, 'is_email_verified': user.is_email_verified}
-                    }, status=status.HTTP_200_OK)
-                else:
-                    status_code = status.HTTP_429_TOO_MANY_REQUESTS if attempts_remaining == 0 else status.HTTP_400_BAD_REQUEST
-                    return Response({
-                        'status': 'error',
-                        'message': message,
-                        'errors': {'otp': [message]},
-                        'attempts_remaining': attempts_remaining
-                    }, status=status_code)
+                return Response({
+                    'status': 'success',
+                    'message': 'Email verified successfully!',
+                    'data': {'email': user.email, 'is_email_verified': user.is_email_verified}
+                }, status=status.HTTP_200_OK)
+            else:
+                status_code = status.HTTP_429_TOO_MANY_REQUESTS if attempts_remaining == 0 else status.HTTP_400_BAD_REQUEST
+                return Response({
+                    'status': 'error',
+                    'message': message,
+                    'errors': {'otp': [message]},
+                    'attempts_remaining': attempts_remaining
+                }, status=status_code)
                 
         except Exception as e:
+            print(f"VerifyEmailOTP error: {str(e)}")
+            import traceback
+            traceback.print_exc()
             return Response({
                 'status': 'error',
                 'message': 'Email verification failed',
@@ -448,7 +483,6 @@ class PasswordResetRequestView(APIView):
                 }, status=status.HTTP_400_BAD_REQUEST)
             
             if user.is_otp_locked():
-                from django.utils import timezone
                 time_remaining = (user.otp_locked_until - timezone.now()).seconds // 60
                 return Response({
                     'status': 'error',
@@ -462,11 +496,14 @@ class PasswordResetRequestView(APIView):
             email_sent = send_otp_email(email, otp, purpose="password_reset")
             
             if not email_sent:
+                print(f"ERROR: Failed to send password reset OTP to {email}")
                 return Response({
                     'status': 'error',
                     'message': 'Failed to send OTP email. Please try again.',
                     'errors': {'email': ['Email service temporarily unavailable']}
                 }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            
+            print(f"SUCCESS: Password reset OTP sent to {email} - OTP: {otp}")
             
             return Response({
                 'status': 'success',
@@ -475,6 +512,9 @@ class PasswordResetRequestView(APIView):
             }, status=status.HTTP_200_OK)
             
         except Exception as e:
+            print(f"PasswordResetRequest error: {str(e)}")
+            import traceback
+            traceback.print_exc()
             return Response({
                 'status': 'error',
                 'message': 'Failed to send password reset OTP',
@@ -498,31 +538,46 @@ class PasswordResetVerifyOTPView(APIView):
     )
     def post(self, request):
         try:
-            serializer = PasswordResetVerifyOTPSerializer(data=request.data)
-            if serializer.is_valid(raise_exception=True):
-                user = serializer.validated_data['user']
-                otp_code = serializer.validated_data['otp']
-                
-                # Verify OTP with attempt tracking
-                success, message, attempts_remaining = user.verify_otp(otp_code)
-                
-                if success:
-                    # Don't clear OTP yet - need it for password reset confirmation
-                    return Response({
-                        'status': 'success',
-                        'message': 'OTP verified successfully. You can now reset your password.',
-                        'data': {'email': user.email, 'otp_verified': True, 'next_step': 'Set your new password'}
-                    }, status=status.HTTP_200_OK)
-                else:
-                    status_code = status.HTTP_429_TOO_MANY_REQUESTS if attempts_remaining == 0 else status.HTTP_400_BAD_REQUEST
-                    return Response({
-                        'status': 'error',
-                        'message': message,
-                        'errors': {'otp': [message]},
-                        'attempts_remaining': attempts_remaining
-                    }, status=status_code)
+            email = request.data.get('email', '').lower()
+            otp_code = request.data.get('otp', '')
+            
+            if not email or not otp_code:
+                return Response({
+                    'status': 'error',
+                    'message': 'Email and OTP are required',
+                    'errors': {'non_field_errors': ['Both email and OTP are required']}
+                }, status=status.HTTP_400_BAD_REQUEST)
+            
+            try:
+                user = User.objects.get(email=email)
+            except User.DoesNotExist:
+                return Response({
+                    'status': 'error',
+                    'message': 'User not found',
+                    'errors': {'email': ['User not found']}
+                }, status=status.HTTP_400_BAD_REQUEST)
+            
+            success, message, attempts_remaining = user.verify_otp(otp_code)
+            
+            if success:
+                return Response({
+                    'status': 'success',
+                    'message': 'OTP verified successfully. You can now reset your password.',
+                    'data': {'email': user.email, 'otp_verified': True, 'next_step': 'Set your new password'}
+                }, status=status.HTTP_200_OK)
+            else:
+                status_code = status.HTTP_429_TOO_MANY_REQUESTS if attempts_remaining == 0 else status.HTTP_400_BAD_REQUEST
+                return Response({
+                    'status': 'error',
+                    'message': message,
+                    'errors': {'otp': [message]},
+                    'attempts_remaining': attempts_remaining
+                }, status=status_code)
                 
         except Exception as e:
+            print(f"PasswordResetVerifyOTP error: {str(e)}")
+            import traceback
+            traceback.print_exc()
             return Response({
                 'status': 'error',
                 'message': 'OTP verification failed',
@@ -562,6 +617,9 @@ class PasswordResetConfirmView(APIView):
                 }, status=status.HTTP_200_OK)
                 
         except Exception as e:
+            print(f"PasswordResetConfirm error: {str(e)}")
+            import traceback
+            traceback.print_exc()
             return Response({
                 'status': 'error',
                 'message': 'Password reset failed',
