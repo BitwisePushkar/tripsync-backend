@@ -3,11 +3,7 @@ from rest_framework import status
 from rest_framework.views import APIView
 from rest_framework.generics import ListAPIView
 from rest_framework.permissions import IsAuthenticated, IsAdminUser
-from account.serializers import (
-    UserRegistrationSerializer, UserLoginSerializer, UserProfileSerializer,
-    VerifyEmailOTPSerializer, PasswordResetVerifyOTPSerializer, 
-    PasswordResetConfirmSerializer
-)
+from account.serializers import (UserRegistrationSerializer, UserLoginSerializer, UserProfileSerializer,VerifyEmailOTPSerializer, PasswordResetVerifyOTPSerializer, PasswordResetConfirmSerializer)
 from account.models import User
 from django.contrib.auth import authenticate
 from rest_framework_simplejwt.tokens import RefreshToken
