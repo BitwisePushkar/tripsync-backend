@@ -1,11 +1,14 @@
 from django.urls import path
-from account.views import UserRegistrationView, UserLoginView, UserListView, UserProfileView
-from rest_framework_simplejwt.views import TokenRefreshView
+from . import views
 
 urlpatterns = [
-    path('register/', UserRegistrationView.as_view(), name='register'),
-    path('login/', UserLoginView.as_view(), name='login'),
-    path('token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
-    path('users/', UserListView.as_view(), name='user-list'),  
-    path('profile/', UserProfileView.as_view(), name='user-profile'),
+    path('register/', views.UserRegistrationView.as_view(), name='register'),
+    path('login/', views.UserLoginView.as_view(), name='login'),
+    path('profile/', views.UserProfileView.as_view(), name='user-profile'),
+    path('users/', views.UserListView.as_view(), name='user-list'),
+    path('email/send-otp/', views.SendEmailOTPView.as_view(), name='send-email-otp'),
+    path('email/verify-otp/', views.VerifyEmailOTPView.as_view(), name='verify-email-otp'),
+    path('password/reset/request/', views.PasswordResetRequestView.as_view(), name='password-reset-request'),
+    path('password/reset/verify/', views.PasswordResetVerifyOTPView.as_view(), name='password-reset-verify'),
+    path('password/reset/confirm/', views.PasswordResetConfirmView.as_view(), name='password-reset-confirm'),
 ]
