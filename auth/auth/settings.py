@@ -205,14 +205,16 @@ else:
     CSRF_COOKIE_SECURE = False
     SESSION_COOKIE_SECURE = False
 
-EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend' 
-EMAIL_HOST = config('EMAIL_HOST', default='smtp.sendgrid.net')
-EMAIL_PORT = config('EMAIL_PORT', default=587, cast=int)
-EMAIL_USE_TLS = config('EMAIL_USE_TLS', default=True, cast=bool)
-EMAIL_HOST_PASSWORD = config('SENDGRID_API_KEY')
-EMAIL_HOST_USER = 'api key'
-DEFAULT_FROM_EMAIL = config('DEFAULT_FROM_EMAIL', default=f'TripSync <{EMAIL_HOST_USER}>')
-EMAIL_TIMEOUT = 30 
+
+SENDGRID_API_KEY = config('SENDGRID_API_KEY', default='')
+DEFAULT_FROM_EMAIL = config('DEFAULT_FROM_EMAIL', default='TripSync <noreply@example.com>')
+EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+EMAIL_HOST = 'smtp.sendgrid.net'
+EMAIL_PORT = 587
+EMAIL_USE_TLS = True
+EMAIL_HOST_USER = 'apikey'
+EMAIL_HOST_PASSWORD = config('SENDGRID_API_KEY', default='')
+EMAIL_TIMEOUT = 10
 
 ADMIN_SITE_HEADER = "TripSync Administration"
 ADMIN_SITE_TITLE = "TripSync Admin"
