@@ -24,7 +24,7 @@ Your OTP for password reset is: {otp}
 This OTP is valid for 10 minutes. Please do not share this OTP with anyone.
 If you did not request this, please secure your account immediately.
 Best regards,
-ripSync
+TripSync
 
 """
     
