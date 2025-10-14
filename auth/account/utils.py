@@ -1,4 +1,3 @@
-from django.core.mail import send_mail
 from django.conf import settings
 import logging
 
@@ -6,74 +5,61 @@ logger = logging.getLogger(__name__)
 
 def send_otp_email(email, otp, purpose="verification"):
     """
-    Send OTP email to user with improved error handling
+    Send OTP email using SendGrid HTTP API (works on Render Free tier)
     """
-    if purpose == "verification":
-        subject = "Email Verification OTP - TripSync"
-        message = f"""
-Hello,
-
-Welcome to TripSync - Your Travel Planning Companion!
-Your OTP for email verification is: {otp}
-This OTP is valid for 10 minutes. Please do not share this OTP with anyone.
-If you did not request this, please ignore this email.
-
-Best regards,
-TripSync Team
-"""
-    else:  
-        subject = "Password Reset OTP - TripSync"
-        message = f"""
-Hello,
-
-You have requested to reset your password for your TripSync account.
-Your OTP for password reset is: {otp}
-This OTP is valid for 10 minutes. Please do not share this OTP with anyone.
-If you did not request this, please secure your account immediately.
-
-Best regards,
-TripSync Team
-"""
-   
     try:
-        logger.info(f"Attempting to send OTP email to {email}")
-        logger.debug(f"Email settings - HOST: {settings.EMAIL_HOST}, PORT: {settings.EMAIL_PORT}, USER: {settings.EMAIL_HOST_USER}")
+        from sendgrid import SendGridAPIClient
+        from sendgrid.helpers.mail import Mail
         
-        result = send_mail(
-            subject=subject,
-            message=message,
+        if purpose == "verification":
+            subject = "Email Verification OTP - TripSync"
+            html_content = f"""
+            <html>
+            <body>
+                <h2>Welcome to TripSync!</h2>
+                <p>Your email verification OTP is:</p>
+                <h1 style="color: #4CAF50; font-size: 32px; letter-spacing: 5px;">{otp}</h1>
+                <p>This OTP is valid for 10 minutes.</p>
+                <p><small>If you didn't request this, please ignore this email.</small></p>
+                <br>
+                <p>Best regards,<br>TripSync Team</p>
+            </body>
+            </html>
+            """
+        else:
+            subject = "Password Reset OTP - TripSync"
+            html_content = f"""
+            <html>
+            <body>
+                <h2>Password Reset Request</h2>
+                <p>Your password reset OTP is:</p>
+                <h1 style="color: #FF5722; font-size: 32px; letter-spacing: 5px;">{otp}</h1>
+                <p>This OTP is valid for 10 minutes.</p>
+                <p><small>If you didn't request this, please secure your account immediately.</small></p>
+                <br>
+                <p>Best regards,<br>TripSync Team</p>
+            </body>
+            </html>
+            """
+        
+        message = Mail(
             from_email=settings.DEFAULT_FROM_EMAIL,
-            recipient_list=[email],
-            fail_silently=False,
+            to_emails=email,
+            subject=subject,
+            html_content=html_content
         )
         
-        if result == 1:
-            logger.info(f"✓ OTP email sent successfully to {email}")
+        sg = SendGridAPIClient(settings.SENDGRID_API_KEY)
+        response = sg.send(message)
+        
+        if response.status_code in [200, 201, 202]:
+            logger.info(f"✓ OTP email sent successfully to {email} via SendGrid API")
             return True
         else:
-            logger.error(f"✗ Failed to send OTP email to {email} - send_mail returned {result}")
+            logger.error(f"✗ SendGrid API returned status {response.status_code}")
             return False
             
     except Exception as e:
-        logger.error(f"✗ Exception while sending email to {email}: {str(e)}")
+        logger.error(f"✗ SendGrid API error for {email}: {str(e)}")
         logger.exception("Full traceback:")
         return False
-
-
-def test_email_configuration():
-    """
-    Test email configuration - useful for debugging
-    """
-    try:
-        from django.core.mail import send_mail
-        
-        send_mail(
-            subject='TripSync Email Test',
-            message='If you receive this, your email configuration is working correctly!',
-            from_email=settings.DEFAULT_FROM_EMAIL,
-            recipient_list=[settings.EMAIL_HOST_USER],  
-            fail_silently=False,
-        )
-        return True, "Test email sent successfully"
-    except Exception as e:
-        return False, f"Email test failed: {str(e)}"
