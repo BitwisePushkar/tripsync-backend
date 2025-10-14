@@ -16,40 +16,16 @@ phone_regex = RegexValidator(
 )
 
 class UserRegistrationSerializer(serializers.ModelSerializer):
-    password = serializers.CharField(
-        write_only=True,
-        required=True,
-        validators=[validate_password],
-        style={'input_type': 'password'},
-        help_text="Password must contain at least 8 characters, including uppercase, lowercase, numbers, and special characters"
-    )
-    password2 = serializers.CharField(
-        write_only=True,
-        required=True,
-        style={'input_type': 'password'},
-        help_text="Confirm your password"
-    )
-    email = serializers.EmailField(
-        required=True,
-        validators=[email_regex],
-        help_text="Enter a valid email address"
-    )
-    phone_number = serializers.CharField(
-        required=True,
-        validators=[phone_regex],
-        help_text="Format: '+919999999999' or '9999999999'"
-    )
-    terms_accepted = serializers.BooleanField(
-        required=True,
-        help_text="You must accept terms and conditions"
-    )
+    password = serializers.CharField(write_only=True, required=True, validators=[validate_password], style={'input_type': 'password'}, help_text="Password must contain at least 8 characters, including uppercase, lowercase, numbers, and special characters")
+    password2 = serializers.CharField(write_only=True, required=True, style={'input_type': 'password'}, help_text="Confirm your password")
+    email = serializers.EmailField(required=True, validators=[email_regex], help_text="Enter a valid email address")
+    phone_number = serializers.CharField(required=True, validators=[phone_regex], help_text="Format: '+919999999999' or '9999999999'")
+    terms_accepted = serializers.BooleanField(required=True, help_text="You must accept terms and conditions")
 
     class Meta:
         model = User
         fields = ["email", "name", "terms_accepted", "phone_number", "password", "password2"]
-        extra_kwargs = {
-            'name': {'required': True, 'help_text': 'Enter your full name'}
-        }
+        extra_kwargs = {'name': {'required': True, 'help_text': 'Enter your full name'}}
 
     def validate_email(self, value):
         value = value.lower()
@@ -83,9 +59,7 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
 
     def validate(self, data):
         if data.get('password') != data.get('password2'):
-            raise serializers.ValidationError({
-                "password2": "Password and confirm password don't match"
-            })
+            raise serializers.ValidationError({"password2": "Password and confirm password don't match"})
         return data
 
     def create(self, validated_data):
@@ -94,19 +68,29 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
         return user
 
 
+class VerifyRegistrationOTPSerializer(serializers.Serializer):
+    email = serializers.EmailField(required=True, validators=[email_regex], help_text="Your email address")
+    otp = serializers.CharField(max_length=6, min_length=6, required=True, help_text="6-digit OTP code")
+
+    def validate_email(self, value):
+        return value.lower()
+    
+    def validate(self, data):
+        try:
+            user = User.objects.get(email=data['email'])
+        except User.DoesNotExist:
+            raise serializers.ValidationError({"email": "User not found."})
+        
+        if user.is_verified:
+            raise serializers.ValidationError({"email": "Account is already verified."})
+        
+        data['user'] = user
+        return data
+
+
 class UserLoginSerializer(serializers.Serializer):
-    email = serializers.EmailField(
-        max_length=255,
-        required=True,
-        validators=[email_regex],
-        help_text="Enter your registered email"
-    )
-    password = serializers.CharField(
-        write_only=True,
-        required=True,
-        style={'input_type': 'password'},
-        help_text="Enter your password"
-    )
+    email = serializers.EmailField(max_length=255, required=True, validators=[email_regex], help_text="Enter your registered email")
+    password = serializers.CharField(write_only=True, required=True, style={'input_type': 'password'}, help_text="Enter your password")
 
     def validate_email(self, value):
         return value.lower()
@@ -115,8 +99,8 @@ class UserLoginSerializer(serializers.Serializer):
 class UserProfileSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
-        fields = ["id", "email", "name", "phone_number", "is_email_verified", "created_at"]
-        read_only_fields = ["id", "email", "is_email_verified", "created_at"]
+        fields = ["id", "email", "name", "phone_number", "is_verified", "created_at"]
+        read_only_fields = ["id", "email", "is_verified", "created_at"]
 
 
 class UserListSerializer(serializers.ModelSerializer):
@@ -124,11 +108,8 @@ class UserListSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = User
-        fields = [
-            "id", "email", "name", "phone_number", "is_email_verified",
-            "is_active", "created_at", "days_since_joined"
-        ]
-        read_only_fields = ["id", "email", "is_email_verified", "created_at"]
+        fields = ["id", "email", "name", "phone_number", "is_verified", "is_active", "created_at", "days_since_joined"]
+        read_only_fields = ["id", "email", "is_verified", "created_at"]
 
     def get_days_since_joined(self, obj):
         from django.utils import timezone
@@ -136,99 +117,25 @@ class UserListSerializer(serializers.ModelSerializer):
         return delta.days
 
 
-
-
-class VerifyEmailOTPSerializer(serializers.Serializer):
-    email = serializers.EmailField(
-        required=True,
-        validators=[email_regex],
-        help_text="Your email address"
-    )
-    otp = serializers.CharField(
-        max_length=6,
-        min_length=6,
-        required=True,
-        help_text="6-digit OTP code"
-    )
+class PasswordResetRequestSerializer(serializers.Serializer):
+    email = serializers.EmailField(required=True, validators=[email_regex], help_text="Your registered email address")
     
     def validate_email(self, value):
         return value.lower()
-    
-    def validate(self, data):
-        try:
-            user = User.objects.get(email=data['email'])
-        except User.DoesNotExist:
-            raise serializers.ValidationError({"email": "User not found."})
-        
-        if user.is_email_verified:
-            raise serializers.ValidationError({"email": "Email is already verified."})
-        
-        if not user.otp or not user.otp_exp:
-            raise serializers.ValidationError({"otp": "No OTP found. Please request a new one."})
-        
-        if user.otp != data['otp']:
-            raise serializers.ValidationError({"otp": "Invalid OTP."})
-        
-        if user.otp_exp < timezone.now():
-            raise serializers.ValidationError({"otp": "OTP has expired. Please request a new one."})
-        
-        data['user'] = user
-        return data
 
 
 class PasswordResetVerifyOTPSerializer(serializers.Serializer):
-    email = serializers.EmailField(
-        required=True,
-        validators=[email_regex],
-        help_text="Your email address"
-    )
-    otp = serializers.CharField(
-        max_length=6,
-        min_length=6,
-        required=True,
-        help_text="6-digit OTP code"
-    )
+    email = serializers.EmailField(required=True, validators=[email_regex], help_text="Your email address")
+    otp = serializers.CharField(max_length=6, min_length=6, required=True, help_text="6-digit OTP code")
     
     def validate_email(self, value):
         return value.lower()
-    
-    def validate(self, data):
-        try:
-            user = User.objects.get(email=data['email'])
-        except User.DoesNotExist:
-            raise serializers.ValidationError({"email": "User not found."})
-        
-        if not user.otp or not user.otp_exp:
-            raise serializers.ValidationError({"otp": "No OTP found. Please request password reset first."})
-        
-        if user.otp != data['otp']:
-            raise serializers.ValidationError({"otp": "Invalid OTP."})
-        if user.otp_exp < timezone.now():
-            raise serializers.ValidationError({"otp": "OTP has expired. Please request a new one."})
-        
-        data['user'] = user
-        return data
 
 
 class PasswordResetConfirmSerializer(serializers.Serializer):
-    email = serializers.EmailField(
-        required=True,
-        validators=[email_regex],
-        help_text="Your email address"
-    )
-    new_password = serializers.CharField(
-        write_only=True,
-        required=True,
-        validators=[validate_password],
-        style={'input_type': 'password'},
-        help_text="Enter your new password"
-    )
-    confirm_password = serializers.CharField(
-        write_only=True,
-        required=True,
-        style={'input_type': 'password'},
-        help_text="Confirm your new password"
-    )
+    email = serializers.EmailField(required=True, validators=[email_regex], help_text="Your email address")
+    new_password = serializers.CharField(write_only=True, required=True, validators=[validate_password], style={'input_type': 'password'}, help_text="Enter your new password")
+    confirm_password = serializers.CharField(write_only=True, required=True, style={'input_type': 'password'}, help_text="Confirm your new password")
     
     def validate_email(self, value):
         return value.lower()
@@ -247,16 +154,6 @@ class PasswordResetConfirmSerializer(serializers.Serializer):
         return value
     
     def validate(self, data):
-        try:
-            user = User.objects.get(email=data['email'])
-        except User.DoesNotExist:
-            raise serializers.ValidationError({"email": "User not found."})
-        
-        if not user.otp_verified:
-            raise serializers.ValidationError({"otp": "OTP verification required. Please verify OTP first."})
-        
         if data['new_password'] != data['confirm_password']:
             raise serializers.ValidationError({"confirm_password": "Passwords do not match."})
-        
-        data['user'] = user
         return data
