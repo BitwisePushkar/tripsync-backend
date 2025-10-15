@@ -368,14 +368,6 @@ class UserListView(ListAPIView):
     permission_classes = [IsAuthenticated, IsAdminUser]
     pagination_class = StandardResultsSetPagination
     
-    @extend_schema(
-        responses={
-            200: OpenApiResponse(response=UserProfileSerializer(many=True), description="List of users with pagination"),
-            401: OpenApiResponse(description="Unauthorized"),
-            403: OpenApiResponse(description="Forbidden - Admin access only")},
-        tags=['User Management'],
-        summary="List all users (Admin only)",
-        description="Retrieve paginated list of all verified users.")
     def get(self, request, *args, **kwargs):
         return super().get(request, *args, **kwargs)
     
@@ -397,13 +389,6 @@ class UserListView(ListAPIView):
 class UserProfileView(APIView):
     permission_classes = [IsAuthenticated]
     
-    @extend_schema(
-        responses={
-            200: OpenApiResponse(response=UserProfileSerializer, description="User profile retrieved successfully"),
-            401: OpenApiResponse(description="Unauthorized")},
-        tags=['User Management'],
-        summary="Get current user profile",
-        description="Retrieve the profile of the currently authenticated user")
     def get(self, request):
         serializer = UserProfileSerializer(request.user)
         return Response({'status': 'success', 'data': serializer.data}, status=status.HTTP_200_OK)
