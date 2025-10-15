@@ -3,36 +3,21 @@ from account.models import User
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
 
 class UserModelAdmin(BaseUserAdmin):
-    list_display = ["id", "email", "name", "phone_number", "is_email_verified", "is_admin", "created_at"]
+    list_display = ["id", "email", "is_email_verified", "is_admin", "created_at"]
     list_filter = ["is_admin", "is_active", "is_email_verified", "created_at"]
     
     fieldsets = [
         ('Authentication', {"fields": ["email", "password"]}),
-        ("Personal Info", {"fields": ["name", "phone_number"]}),
         ("Permissions", {"fields": ["is_admin", "is_active", "is_email_verified"]}),
-        ("Terms", {"fields": ["terms_accepted"]}),
-        ("Important Dates", {"fields": ["created_at", "updated_at", "last_login"]}),
-    ]
+        ("OTP Information", {"fields": ["otp", "otp_exp", "otp_verified", "otp_type"]}),
+        ("Important Dates", {"fields": ["created_at", "updated_at", "last_login"]})]
     
     add_fieldsets = [
-        (
-            None,
-            {
-                "classes": ["wide"],
-                "fields": [
-                    "email",
-                    "name",
-                    "phone_number",
-                    "terms_accepted",
-                    "password1",
-                    "password2"
-                ],
-            },
-        ),
-    ]
+        (None, {"classes": ["wide"], "fields": ["email", "password1", "password2"]})]
     
-    readonly_fields = ["created_at", "updated_at", "last_login"]
-    search_fields = ["email", "name", "phone_number"]
+    readonly_fields = ["created_at", "updated_at", "last_login", "otp", "otp_exp", "otp_verified", "otp_type"]
+
+    search_fields = ["email"]
     ordering = ["-created_at"]
     filter_horizontal = []
     
@@ -43,6 +28,6 @@ class UserModelAdmin(BaseUserAdmin):
 
 
 admin.site.register(User, UserModelAdmin)
-admin.site.site_header = "Travel Planning Admin"
-admin.site.site_title = "Travel Planning Admin Portal"
-admin.site.index_title = "Welcome to Travel Planning Admin Portal"
+admin.site.site_header = "TripSync Admin"
+admin.site.site_title = "TripSync Admin Portal"
+admin.site.index_title = "Welcome To Admin Portal"
