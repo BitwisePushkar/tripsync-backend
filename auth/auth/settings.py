@@ -10,11 +10,7 @@ SECRET_KEY = os.environ.get("SECRET_KEY", "unsafe-dev-secret-key")
 
 DEBUG = config('DEBUG', default=False, cast=bool)
 
-
-ALLOWED_HOSTS = os.environ.get(
-    "ALLOWED_HOSTS", 
-    "localhost,127.0.0.1,https://tripsync-backend-ruak.onrender.com"
-).split(',')
+ALLOWED_HOSTS = os.environ.get("ALLOWED_HOSTS", "localhost,127.0.0.1,https://tripsync-backend-ruak.onrender.com").split(',')
 
 INSTALLED_APPS = [
     'django.contrib.admin',
@@ -28,8 +24,7 @@ INSTALLED_APPS = [
     'rest_framework_simplejwt',
     'rest_framework_simplejwt.token_blacklist',
     'corsheaders', 
-    'drf_spectacular',
-]
+    'drf_spectacular']
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
@@ -39,98 +34,64 @@ MIDDLEWARE = [
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
-    'django.middleware.clickjacking.XFrameOptionsMiddleware',
-]
+    'django.middleware.clickjacking.XFrameOptionsMiddleware']
 
 ROOT_URLCONF = 'auth.urls'
 
 TEMPLATES = [
-    {
-        'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [],
-        'APP_DIRS': True,
-        'OPTIONS': {
-            'context_processors': [
-                'django.template.context_processors.request',
-                'django.contrib.auth.context_processors.auth',
-                'django.contrib.messages.context_processors.messages',
-            ],
-        },
-    },
-]
+    {'BACKEND': 'django.template.backends.django.DjangoTemplates',
+     'DIRS': [],
+     'APP_DIRS': True,
+     'OPTIONS': {
+         'context_processors': [
+             'django.template.context_processors.request',
+             'django.contrib.auth.context_processors.auth',
+             'django.contrib.messages.context_processors.messages']}}]
 
 WSGI_APPLICATION = 'auth.wsgi.application'
 
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
-    }
-}
-
 database_url = os.environ.get("DATABASE_URL")
 if database_url:
-    DATABASES['default'] = dj_database_url.parse(database_url)
+    DATABASES = {'default': dj_database_url.parse(database_url)}
+else:
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.sqlite3',
+            'NAME': BASE_DIR / 'db.sqlite3'}}
 
 REST_FRAMEWORK = {
-    'DEFAULT_AUTHENTICATION_CLASSES': (
-        'rest_framework_simplejwt.authentication.JWTAuthentication',
-    ),
+    'DEFAULT_AUTHENTICATION_CLASSES': ('rest_framework_simplejwt.authentication.JWTAuthentication',),
     'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',
     'DEFAULT_RENDERER_CLASSES': [
         'rest_framework.renderers.JSONRenderer',
-        'rest_framework.renderers.BrowsableAPIRenderer',
-    ],
-}
+        'rest_framework.renderers.BrowsableAPIRenderer']}
 
 SPECTACULAR_SETTINGS = {
     'TITLE': 'TripSync API',
     'DESCRIPTION': 'TripSync - API Documentation',
     'VERSION': '1.0.0',
     'SERVE_INCLUDE_SCHEMA': False,
-    'CONTACT': {
-        'name': 'TripSync Support',
-        'email': 'support@tripsync.com',
-    },
-    'LICENSE': {
-        'name': 'MIT License',
-    },
+    'CONTACT': {'name': 'TripSync Support', 'email': 'support@tripsync.com'},
+    'LICENSE': {'name': 'MIT License'},
     'TAGS': [
         {'name': 'Authentication', 'description': 'User registration, login and token management'},
-        {'name': 'Email Verification', 'description': 'Email verification with OTP'},
         {'name': 'Password Reset', 'description': 'Password reset functionality with OTP'},
-        {'name': 'User Management', 'description': 'User profile and management endpoints'},
-    ],
+        {'name': 'User Management', 'description': 'User profile and management endpoints'}],
     'SERVERS': [
         {'url': 'http://127.0.0.1:8000', 'description': 'Development server'},
-        {'url': 'https://tripsync-backend-ruak.onrender.com', 'description': 'Production server'},
-    ],
+        {'url': 'https://tripsync-backend-ruak.onrender.com', 'description': 'Production server'}],
     'COMPONENT_SPLIT_REQUEST': True,
     'SWAGGER_UI_SETTINGS': {
         'deepLinking': True,
         'persistAuthorization': True,
         'displayOperationId': False,
-        'filter': True,
-    }
-}
+        'filter': True}}
 
 AUTH_PASSWORD_VALIDATORS = [
-    {
-        'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator',
-    },
-    {
-        'NAME': 'django.contrib.auth.password_validation.MinimumLengthValidator',
-        'OPTIONS': {
-            'min_length': 8,
-        }
-    },
-    {
-        'NAME': 'django.contrib.auth.password_validation.CommonPasswordValidator',
-    },
-    {
-        'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator',
-    },
-]
+    {'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator'},
+    {'NAME': 'django.contrib.auth.password_validation.MinimumLengthValidator', 'OPTIONS': {'min_length': 8}},
+    {'NAME': 'django.contrib.auth.password_validation.CommonPasswordValidator'},
+    {'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator'}]
 
 LANGUAGE_CODE = 'en-us'
 TIME_ZONE = 'UTC'
@@ -159,26 +120,15 @@ SIMPLE_JWT = {
     'USER_ID_FIELD': 'id',
     'USER_ID_CLAIM': 'user_id',
     'AUTH_TOKEN_CLASSES': ('rest_framework_simplejwt.tokens.AccessToken',),
-    'TOKEN_TYPE_CLAIM': 'token_type',
-}
+    'TOKEN_TYPE_CLAIM': 'token_type'}
 
-
-CORS_ALLOWED_ORIGINS = config(
-    'CORS_ALLOWED_ORIGINS',
-    default='http://localhost:3000,http://localhost:5173,https://tripsync-backend-ruak.onrender.com'
-).split(',')
+CORS_ALLOWED_ORIGINS = config('CORS_ALLOWED_ORIGINS', default='http://localhost:3000,http://localhost:5173,https://tripsync-backend-ruak.onrender.com').split(',')
 
 CORS_ALLOW_ALL_ORIGINS = DEBUG  
 CORS_ALLOW_CREDENTIALS = True
 
-CORS_ALLOW_METHODS = [
-    'DELETE',
-    'GET',
-    'OPTIONS',
-    'PATCH',
-    'POST',
-    'PUT',
-]
+CORS_ALLOW_METHODS = ['DELETE', 'GET', 'OPTIONS', 'PATCH', 'POST', 'PUT']
+
 CORS_ALLOW_HEADERS = [
     'accept',
     'accept-encoding',
@@ -188,11 +138,10 @@ CORS_ALLOW_HEADERS = [
     'origin',
     'user-agent',
     'x-csrftoken',
-    'x-requested-with',
-]
+    'x-requested-with']
 
 if not DEBUG:
-    SECURE_SSL_REDIRECT = True
+    SECURE_SSL_REDIRECT = False
     SESSION_COOKIE_SECURE = True
     CSRF_COOKIE_SECURE = True
     SECURE_BROWSER_XSS_FILTER = True
@@ -204,7 +153,6 @@ if not DEBUG:
 else:
     CSRF_COOKIE_SECURE = False
     SESSION_COOKIE_SECURE = False
-
 
 SENDGRID_API_KEY = config('SENDGRID_API_KEY', default='')
 DEFAULT_FROM_EMAIL = config('DEFAULT_FROM_EMAIL', default='TripSync <noreply@example.com>')
@@ -227,32 +175,9 @@ OTP_LOCKOUT_HOURS = 1
 LOGGING = {
     'version': 1,
     'disable_existing_loggers': False,
-    'formatters': {
-        'verbose': {
-            'format': '{levelname} {asctime} {module} {message}',
-            'style': '{',
-        },
-    },
-    'handlers': {
-        'console': {
-            'class': 'logging.StreamHandler',
-            'formatter': 'verbose',
-        },
-    },
-    'root': {
-        'handlers': ['console'],
-        'level': 'INFO',
-    },
+    'formatters': {'verbose': {'format': '{levelname} {asctime} {module} {message}', 'style': '{'}},
+    'handlers': {'console': {'class': 'logging.StreamHandler', 'formatter': 'verbose'}},
+    'root': {'handlers': ['console'], 'level': 'INFO'},
     'loggers': {
-        'django': {
-            'handlers': ['console'],
-            'level': 'INFO',
-            'propagate': False,
-        },
-        'account': {
-            'handlers': ['console'],
-            'level': 'DEBUG',
-            'propagate': False,
-        },
-    },
-}
+        'django': {'handlers': ['console'], 'level': 'INFO', 'propagate': False},
+        'account': {'handlers': ['console'], 'level': 'DEBUG', 'propagate': False}}}
