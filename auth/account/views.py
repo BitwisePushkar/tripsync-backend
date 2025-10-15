@@ -232,13 +232,6 @@ class ResendRegistrationOTPView(APIView):
                 status=status.HTTP_400_BAD_REQUEST)
 
 
-from rest_framework.views import APIView
-from rest_framework.response import Response
-from rest_framework import status
-from django.contrib.auth import authenticate
-from drf_spectacular.utils import extend_schema, OpenApiResponse, OpenApiExample
-from drf_spectacular.types import OpenApiTypes
-
 class UserLoginView(APIView):
 
     @extend_schema(
