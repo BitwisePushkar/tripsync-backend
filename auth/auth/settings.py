@@ -22,6 +22,13 @@ TEMPLATES = [{'BACKEND': 'django.template.backends.django.DjangoTemplates', 'DIR
 
 WSGI_APPLICATION = 'auth.wsgi.application'
 
+DATABASES = {
+    'default': {
+        'ENGINE': 'django.db.backends.sqlite3',
+        'NAME': BASE_DIR / 'db.sqlite3',
+    }
+}
+
 database_url = os.environ.get("DATABASE_URL")
 if database_url:
     if database_url.startswith("postgres://"):
