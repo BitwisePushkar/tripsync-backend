@@ -18,6 +18,7 @@ from django.utils import timezone
 from account.utils import send_otp_email
 
 
+
 def get_tokens_for_user(user):
     if not user.is_active:
         raise AuthenticationFailed("User account is deactivated.")
