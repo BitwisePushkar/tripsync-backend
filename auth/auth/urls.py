@@ -3,6 +3,7 @@ from django.urls import path, include
 from drf_spectacular.views import SpectacularAPIView, SpectacularRedocView, SpectacularSwaggerView
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
+from django.http import JsonResponse
 
 @api_view(['GET'])
 def root_redirect(request):
@@ -11,9 +12,12 @@ def root_redirect(request):
         'documentation': request.build_absolute_uri('/api/docs/'),
         'admin': request.build_absolute_uri('/admin/'),
     })
+def health_check(request):
+    return JsonResponse({'status': 'ok'})
 
 urlpatterns = [
     path('', root_redirect),
+     path('health/', health_check, name='health-check'),
     path('admin/', admin.site.urls),
     path('api/account/', include('account.urls')),
     path('api/schema/', SpectacularAPIView.as_view(), name='schema'),
