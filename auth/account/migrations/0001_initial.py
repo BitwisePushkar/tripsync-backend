@@ -5,7 +5,6 @@ class Migration(migrations.Migration):
     dependencies = []
     
     operations = [
-        migrations.RunSQL("DROP TABLE IF EXISTS account_user CASCADE;"),
         migrations.CreateModel(
             name='User',
             fields=[
