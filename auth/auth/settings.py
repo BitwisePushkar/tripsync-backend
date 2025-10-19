@@ -22,6 +22,17 @@ TEMPLATES = [{'BACKEND': 'django.template.backends.django.DjangoTemplates', 'DIR
 
 WSGI_APPLICATION = 'auth.wsgi.application'
 
+ASGI_APPLICATION = 'auth.asgi.application'
+
+CHANNEL_LAYERS = {
+    'default': {
+        'BACKEND': 'channels_redis.core.RedisChannelLayer',
+        'CONFIG': {
+            'hosts': [('127.0.0.1', 6379)],
+        },
+    },
+}
+
 database_url = os.environ.get("DATABASE_URL","postgresql://arnav_db_user:FupuhQQOsNLTkJKNEp2EA6Q8Kia7hvCu@dpg-d3mk6mvdiees73c95o2g-a.singapore-postgres.render.com/arnav_db")
 if database_url.startswith("postgres://"):
     database_url = database_url.replace("postgres://", "postgresql://", 1)
