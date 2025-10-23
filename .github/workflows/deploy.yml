@@ -68,6 +68,5 @@ jobs:
             sudo systemctl restart redis-server
 
             # Restart Daphne and Nginx
-            sudo systemctl restart gunicorn
             sudo systemctl restart daphne
             sudo systemctl restart nginx
