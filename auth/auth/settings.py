@@ -89,7 +89,7 @@ else:
 CSRF_TRUSTED_ORIGINS = [
     'http://127.0.0.1:8000',
     'http://localhost:8000',
-    'http://51.20.254.52/'
+    'http://51.20.254.52'
 ]
 
 SENDGRID_API_KEY = config('SENDGRID_API_KEY', default='')
