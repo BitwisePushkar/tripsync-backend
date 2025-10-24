@@ -33,16 +33,10 @@ CHANNEL_LAYERS = {
     },
 }
 
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.postgresql_psycopg2',
-        'NAME': 'tripsync',
-        'USER': 'pushkar',
-        'PASSWORD': 'Hello123456',
-        'HOST': 'localhost',
-        'PORT': '5432',
-    }
-}
+database_url = os.environ.get("DATABASE_URL","postgresql://arnav_db_user:FupuhQQOsNLTkJKNEp2EA6Q8Kia7hvCu@dpg-d3mk6mvdiees73c95o2g-a.singapore-postgres.render.com/arnav_db")
+if database_url.startswith("postgres://"):
+    database_url = database_url.replace("postgres://", "postgresql://", 1)
+DATABASES = {'default': dj_database_url.parse(database_url, conn_max_age=600, ssl_require=True)}
 
 REST_FRAMEWORK = {'DEFAULT_AUTHENTICATION_CLASSES': ('rest_framework_simplejwt.authentication.JWTAuthentication',), 'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema', 'DEFAULT_RENDERER_CLASSES': ['rest_framework.renderers.JSONRenderer', 'rest_framework.renderers.BrowsableAPIRenderer'],'DEFAULT_PERMISSION_CLASSES': ['rest_framework.permissions.IsAuthenticated',],'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination','PAGE_SIZE': 50,}
 
