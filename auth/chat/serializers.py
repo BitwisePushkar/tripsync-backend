@@ -1,6 +1,9 @@
 from rest_framework import serializers
 from account.models import User
 from .models import Conversation, Message
+from django.db import models  
+from django.db.models import Count, Q
+
 
 class UserListSerializer(serializers.ModelSerializer):
     class Meta:
@@ -107,10 +110,15 @@ class CreateConversationSerializer(serializers.Serializer):
         if request_user.id not in participant_ids:
             participant_ids.append(request_user.id)
         if len(participant_ids) == 2:
-            existing_conv = Conversation.objects.annotate(participant_count=models.Count('participants')).filter(participant_count=2,participants__id=participant_ids[0]).filter(participants__id=participant_ids[1]).first()
-            
-            if existing_conv:
-                return existing_conv
+            existing_conv = Conversation.objects.filter(
+            participants__id=participant_ids[0]).filter(
+            participants__id=participant_ids[1]).annotate(
+            participant_count=Count('participants')).filter(
+            participant_count=2).first()
+        
+        if existing_conv:
+            return existing_conv
+        
         conversation = Conversation.objects.create(name=name,is_group=(len(participant_ids) > 2))
         conversation.participants.set(participant_ids)
         return conversation
