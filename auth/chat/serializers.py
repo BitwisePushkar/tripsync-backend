@@ -109,6 +109,7 @@ class CreateConversationSerializer(serializers.Serializer):
         request_user = self.context['request'].user
         if request_user.id not in participant_ids:
             participant_ids.append(request_user.id)
+        existing_conv = None    
         if len(participant_ids) == 2:
             existing_conv = Conversation.objects.filter(
             participants__id=participant_ids[0]).filter(
