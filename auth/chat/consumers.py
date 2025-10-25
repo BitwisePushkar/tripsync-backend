@@ -49,22 +49,6 @@ class ChatConsumer(AsyncWebsocketConsumer):
             }
         )
 
-    async def disconnect(self, close_code):
-        if hasattr(self, 'room_group_name') and hasattr(self, 'user'):
-            user_data = await self.get_user_data(self.user)
-            await self.channel_layer.group_send(
-                self.room_group_name,
-                {
-                    'type': 'user_status',
-                    'user': user_data,
-                    'status': 'offline',
-                }
-            )
-            await self.channel_layer.group_discard(
-                self.room_group_name,
-                self.channel_name
-            )
-
     async def receive(self, text_data):
         try:
             data = json.loads(text_data)
@@ -87,6 +71,22 @@ class ChatConsumer(AsyncWebsocketConsumer):
         except Exception as e:
             print(f"Error in receive: {e}")
             await self.send_error("Internal error")
+
+    async def disconnect(self, close_code):
+        if hasattr(self, 'room_group_name') and hasattr(self, 'user'):
+            user_data = await self.get_user_data(self.user)
+            await self.channel_layer.group_send(
+                self.room_group_name,
+                {
+                    'type': 'user_status',
+                    'user': user_data,
+                    'status': 'offline',
+                }
+            )
+            await self.channel_layer.group_discard(
+                self.room_group_name,
+                self.channel_name
+            )
 
     async def handle_chat_message(self, data):
         message_content = data.get('message', '').strip()
