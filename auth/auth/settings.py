@@ -8,11 +8,12 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 
 SECRET_KEY = os.environ.get("SECRET_KEY", "unsafe-dev-secret-key")
 
-DEBUG = config('DEBUG', default=False, cast=bool)
+# DEBUG = config('DEBUG', default=False, cast=bool)
+DEBUG = True
 
-ALLOWED_HOSTS = os.environ.get("ALLOWED_HOSTS", "localhost,127.0.0.1,51.20.254.52").split(',')
-
-INSTALLED_APPS = ['django.contrib.admin', 'django.contrib.auth', 'django.contrib.contenttypes', 'django.contrib.sessions', 'django.contrib.messages', 'django.contrib.staticfiles', 'account.apps.AccountConfig', 'rest_framework', 'rest_framework_simplejwt', 'rest_framework_simplejwt.token_blacklist', 'corsheaders', 'drf_spectacular']
+# ALLOWED_HOSTS = os.environ.get("ALLOWED_HOSTS", "localhost,127.0.0.1,51.20.254.52").split(',')
+ALLOWED_HOSTS = ["*"]
+INSTALLED_APPS = ['channels','daphne','django.contrib.admin', 'django.contrib.auth', 'django.contrib.contenttypes', 'django.contrib.sessions', 'django.contrib.messages', 'django.contrib.staticfiles', 'account.apps.AccountConfig', 'rest_framework', 'rest_framework_simplejwt', 'rest_framework_simplejwt.token_blacklist', 'corsheaders', 'drf_spectacular','chat.apps.ChatConfig']
 
 MIDDLEWARE = ['django.middleware.security.SecurityMiddleware', 'whitenoise.middleware.WhiteNoiseMiddleware', 'django.contrib.sessions.middleware.SessionMiddleware', 'corsheaders.middleware.CorsMiddleware', 'django.middleware.common.CommonMiddleware', 'django.middleware.csrf.CsrfViewMiddleware', 'django.contrib.auth.middleware.AuthenticationMiddleware', 'django.contrib.messages.middleware.MessageMiddleware', 'django.middleware.clickjacking.XFrameOptionsMiddleware']
 
@@ -22,14 +23,31 @@ TEMPLATES = [{'BACKEND': 'django.template.backends.django.DjangoTemplates', 'DIR
 
 WSGI_APPLICATION = 'auth.wsgi.application'
 
-database_url = os.environ.get("DATABASE_URL","postgresql://arnav_db_user:FupuhQQOsNLTkJKNEp2EA6Q8Kia7hvCu@dpg-d3mk6mvdiees73c95o2g-a.singapore-postgres.render.com/arnav_db")
-if database_url.startswith("postgres://"):
-    database_url = database_url.replace("postgres://", "postgresql://", 1)
-DATABASES = {'default': dj_database_url.parse(database_url, conn_max_age=600, ssl_require=True)}
+ASGI_APPLICATION = 'auth.asgi.application'
+
+REDIS_HOST = config('REDIS_HOST', default='127.0.0.1')
+REDIS_PORT = config('REDIS_PORT', default=6379, cast=int)
+
+CHANNEL_LAYERS = {
+    'default': {
+        'BACKEND': 'channels_redis.core.RedisChannelLayer',
+        'CONFIG': {
+            'hosts': [(REDIS_HOST, REDIS_PORT)],
+        },
+    },
+}
+
+database_url = os.environ.get("DATABASE_URL")
+if database_url:
+    if database_url.startswith("postgres://"):
+        database_url = database_url.replace("postgres://", "postgresql://", 1)
+    DATABASES = {'default': dj_database_url.parse(database_url, conn_max_age=600, ssl_require=True)}
+else:
+    DATABASES = {'default': {'ENGINE': 'django.db.backends.sqlite3', 'NAME': BASE_DIR / 'db.sqlite3'}}
 
 REST_FRAMEWORK = {'DEFAULT_AUTHENTICATION_CLASSES': ('rest_framework_simplejwt.authentication.JWTAuthentication',), 'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema', 'DEFAULT_RENDERER_CLASSES': ['rest_framework.renderers.JSONRenderer', 'rest_framework.renderers.BrowsableAPIRenderer']}
 
-SPECTACULAR_SETTINGS = {'TITLE': 'TripSync API', 'DESCRIPTION': 'TripSync - API Documentation', 'VERSION': '1.0.0', 'SERVE_INCLUDE_SCHEMA': False, 'CONTACT': {'name': 'TripSync Support', 'email': 'support@tripsync.com'}, 'LICENSE': {'name': 'MIT License'}, 'TAGS': [{'name': 'Authentication', 'description': 'User registration, login and token management'}, {'name': 'Password Reset', 'description': 'Password reset functionality with OTP'}, {'name': 'User Management', 'description': 'User profile and management endpoints'}], 'SERVERS': [{'url': 'http://127.0.0.1:8000', 'description': 'Development server'}, {'url': 'https://tripsync-backend-ruak.onrender.com', 'description': 'Production server'}], 'COMPONENT_SPLIT_REQUEST': True, 'SWAGGER_UI_SETTINGS': {'deepLinking': True, 'persistAuthorization': True, 'displayOperationId': False, 'filter': True}}
+SPECTACULAR_SETTINGS = {'TITLE': 'TripSync API', 'DESCRIPTION': 'TripSync - API Documentation', 'VERSION': '1.0.0', 'SERVE_INCLUDE_SCHEMA': False, 'CONTACT': {'name': 'TripSync Support', 'email': 'support@tripsync.com'}, 'LICENSE': {'name': 'MIT License'}, 'TAGS': [{'name': 'Authentication', 'description': 'User registration, login and token management'}, {'name': 'Password Reset', 'description': 'Password reset functionality with OTP'}], 'SERVERS': [{'url': 'http://127.0.0.1:8000', 'description': 'Development server'}, {'url': 'https://tripsync-backend-ruak.onrender.com', 'description': 'Production server'}], 'COMPONENT_SPLIT_REQUEST': True, 'SWAGGER_UI_SETTINGS': {'deepLinking': True, 'persistAuthorization': True, 'displayOperationId': False, 'filter': True}}
 
 AUTH_PASSWORD_VALIDATORS = [{'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator'}, {'NAME': 'django.contrib.auth.password_validation.MinimumLengthValidator', 'OPTIONS': {'min_length': 8}}, {'NAME': 'django.contrib.auth.password_validation.CommonPasswordValidator'}, {'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator'}]
 
@@ -58,7 +76,7 @@ CORS_ALLOW_CREDENTIALS = True
 
 CORS_ALLOW_METHODS = ['DELETE', 'GET', 'OPTIONS', 'PATCH', 'POST', 'PUT']
 
-CORS_ALLOW_HEADERS = ['accept', 'accept-encoding', 'authorization', 'content-type', 'dnt', 'origin', 'user-agent', 'x-csrftoken', 'x-requested-with']
+CORS_ALLOW_HEADERS = ['accept', 'accept-encoding', 'authorization', 'content-type', 'dnt', 'origin', 'user-agent', 'x-csrftoken', 'x-requested-with','sec-websocket-key','sec-websocket-version','sec-websocket-extensions' ]
 
 if not DEBUG:
     SECURE_SSL_REDIRECT = False
@@ -74,6 +92,12 @@ if not DEBUG:
 else:
     CSRF_COOKIE_SECURE = False
     SESSION_COOKIE_SECURE = False
+
+CSRF_TRUSTED_ORIGINS = [
+    'http://127.0.0.1:8000',
+    'http://localhost:8000',
+    'http://51.20.254.52'
+]
 
 SENDGRID_API_KEY = config('SENDGRID_API_KEY', default='')
 DEFAULT_FROM_EMAIL = config('DEFAULT_FROM_EMAIL', default='TripSync <noreply@example.com>')

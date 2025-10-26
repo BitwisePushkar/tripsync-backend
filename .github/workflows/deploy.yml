@@ -8,7 +8,8 @@ on:
       - authentication
       - pushkar
       - Arnav
-      - feature/*    # future feature branches
+      - chat
+      - feature/*
 
 jobs:
   ci-cd:
@@ -39,7 +40,8 @@ jobs:
           github.ref == 'refs/heads/development' || 
           github.ref == 'refs/heads/authentication' || 
           github.ref == 'refs/heads/pushkar' || 
-          github.ref == 'refs/heads/Arnav'
+          github.ref == 'refs/heads/Arnav' || 
+          github.ref == 'refs/heads/chat'
         uses: appleboy/ssh-action@v1.0.0
         with:
           host: ${{ secrets.EC2_HOST }}
@@ -49,7 +51,7 @@ jobs:
             # Navigate to Django project folder
             cd /home/ubuntu/tripsync-backend/auth
 
-            # Pull latest code from the branch
+            # Pull latest code
             git pull origin $GITHUB_REF_NAME
 
             # Activate virtual environment
@@ -58,10 +60,14 @@ jobs:
             # Install requirements
             pip install -r ../requirements.txt
 
-            # Run migrations and collect static files
+            # Apply migrations and collect static files
             python manage.py migrate
             python manage.py collectstatic --noinput
 
-            # Restart Gunicorn and Nginx
+            # Restart Redis (if managed manually)
+            sudo systemctl restart redis-server
+
+            # Restart Daphne and Nginx
+            sudo systemctl restart daphne
             sudo systemctl restart gunicorn
             sudo systemctl restart nginx
