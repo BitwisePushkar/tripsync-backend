@@ -14,37 +14,15 @@ def validate_image_size(image):
         raise ValidationError(f"Max file size is {limit_mb}MB")
 
 class Profile(models.Model):
-    user = models.OneToOneField(
-        settings.AUTH_USER_MODEL, 
-        on_delete=models.CASCADE, 
-        related_name='profile'
-    )
+    user = models.OneToOneField(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='profile')
     name = models.CharField(max_length=100)
     age = models.PositiveIntegerField()
-    gender = models.CharField(
-        max_length=10,
-        choices=[
-            ('male', 'Male'), 
-            ('female', 'Female'), 
-            ('other', 'Other'),
-            ('none', 'Prefer not to say')
-        ],
-        blank=True
-    )
+    gender = models.CharField(max_length=10,choices=[('male', 'Male'), ('female', 'Female'), ('other', 'Other'),('none', 'Prefer not to say')],blank=True)
     location = models.CharField(max_length=200)
     phone_number = models.CharField(max_length=17, unique=True)
     is_phone_verified = models.BooleanField(default=False)
     bio = models.TextField(max_length=500, blank=True)
-    profile_pic = models.ImageField(
-        upload_to='profile_pics/', 
-        blank=True, 
-        null=True,
-        validators=[
-            FileExtensionValidator(allowed_extensions=['jpg', 'jpeg', 'png', 'webp']),
-            validate_image_size
-        ],
-        help_text="Upload profile picture (max 5MB, formats: jpg, jpeg, png, webp)"
-    )
+    profile_pic = models.ImageField(upload_to='profile_pics/', blank=True, null=True,validators=[FileExtensionValidator(allowed_extensions=['jpg', 'jpeg', 'png', 'webp']),validate_image_size])
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -76,12 +54,10 @@ class Profile(models.Model):
         if not self.otp or not self.otp_exp:
             return False, "No OTP found. Please request a new one.", 0
         if self.otp_exp < timezone.now():
-            self.clear_otp()  # Clear expired OTP
+            self.clear_otp()  
             return False, "OTP has expired. Please request a new one.", 0
-        
         hashed_input = self._hash_otp(otp_code)
         max_attempts = getattr(settings, 'MAX_OTP_ATTEMPTS', 3)
-        
         if self.otp == hashed_input:
             self.is_phone_verified = True
             self.clear_otp() 
