@@ -20,6 +20,7 @@ INSTALLED_APPS = ['django.contrib.admin',
                 'django.contrib.staticfiles', 
                 'account.apps.AccountConfig',
                 'community',
+                'HomePage',
                 'rest_framework', 
                 'rest_framework_simplejwt', 
                 'rest_framework_simplejwt.token_blacklist', 
@@ -133,3 +134,5 @@ else:
     MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
     MEDIA_URL = '/media/'
     DEFAULT_FILE_STORAGE = 'django.core.files.storage.FileSystemStorage'
+
+    WEATHER_API_KEY = config('WEATHER_API_KEY')
