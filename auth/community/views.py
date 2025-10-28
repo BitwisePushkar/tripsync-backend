@@ -91,7 +91,8 @@ class PostViewSet(viewsets.ModelViewSet):
         serializer.is_valid(raise_exception=True)
         self.perform_create(serializer)
         headers = self.get_success_headers(serializer.data)
-        
+        rating = self.request.query_params.get('loc_rating', None)
+
         return Response({
             'status': 'success',
             'message': 'Post created successfully',
