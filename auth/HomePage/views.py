@@ -6,6 +6,7 @@ import requests
 from .serializers import WeatherSerializer
 
 class Weather(APIView):
+    
     def get(self, request):
         location = request.query_params.get('location', 'Delhi')
         try:
@@ -15,23 +16,32 @@ class Weather(APIView):
                 'q': location,
                 'days': 1}
             response = requests.get(url, params=params)
-            if response.status_code == 200:
-                data = response.json()
-                weather_data = {
-                    'location': data['location']['name'],
-                    'temperature': data['current']['temp_c'],
-                    'wind': data['current']['wind_kph'],
-                    'chance_of_rain': data['forecast']['forecastday'][0]['day']['daily_chance_of_rain']}
-                serializer = WeatherSerializer(data=weather_data)
-                if serializer.is_valid():
-                    return Response({
-                        'status': 'success',
-                        'data': serializer.data
-                    }, status=status.HTTP_200_OK)
-                
+            if response.status_code != 200:
+                return Response({
+                    'status': 'error',
+                    'message': 'Unable to fetch weather data',
+                    'details': response.json()
+                }, status=status.HTTP_400_BAD_REQUEST)
+            data = response.json()
+            
+            weather_data = {
+                'location': data.get('location', {}).get('name', location),
+                'temperature': data.get('current', {}).get('temp_c', 0),
+                'wind': data.get('current', {}).get('wind_kph', 0),
+                'chance_of_rain': data.get('forecast', {}).get('forecastday', [{}])[0].get('day', {}).get('daily_chance_of_rain', 0)
+            }
+            
+            serializer = WeatherSerializer(data=weather_data)
+            if serializer.is_valid():
+                return Response({
+                    'status': 'success',
+                    'data': serializer.data
+                }, status=status.HTTP_200_OK)
+            
             return Response({
                 'status': 'error',
-                'message': 'Unable to fetch weather data'
+                'message': 'Invalid data format',
+                'errors': serializer.errors
             }, status=status.HTTP_400_BAD_REQUEST)
             
         except Exception as e:

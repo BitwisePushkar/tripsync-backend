@@ -135,4 +135,4 @@ else:
     MEDIA_URL = '/media/'
     DEFAULT_FILE_STORAGE = 'django.core.files.storage.FileSystemStorage'
 
-    WEATHER_API_KEY = config('WEATHER_API_KEY')
+WEATHER_API_KEY = config('WEATHER_API_KEY')
