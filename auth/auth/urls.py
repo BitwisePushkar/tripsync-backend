@@ -20,6 +20,7 @@ urlpatterns = [
     path('', root_redirect),
      path('health/', health_check, name='health-check'),
     path('admin/', admin.site.urls),
+    path('api/chatbot/', include('chatbot.urls')),
     path('api/account/', include('account.urls')),
     path('api/community/',include('community.urls')),
     path('api/schema/', SpectacularAPIView.as_view(), name='schema'),
