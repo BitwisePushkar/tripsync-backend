@@ -133,3 +133,5 @@ else:
     MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
     MEDIA_URL = '/media/'
     DEFAULT_FILE_STORAGE = 'django.core.files.storage.FileSystemStorage'
+
+GOOGLE_API_KEY=config('GOOGLE_API_KEY')
