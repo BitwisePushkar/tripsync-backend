@@ -12,7 +12,5 @@ class Itinerary(models.Model):
     def __str__(self):
         return f"{self.destination} - {self.days} days"
 
-class ItenaryTypes(models.Model):
-    id=models.IntegerField()
-    permission= models.ForeignKey(User)
+
     
