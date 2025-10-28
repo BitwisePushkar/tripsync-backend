@@ -7,22 +7,23 @@ from datetime import timedelta
 import random
 import hashlib
 
-def validate_image_size(image):
-    file_size = image.size
-    limit_mb = 5
-    if file_size > limit_mb * 1024 * 1024:
-        raise ValidationError(f"Max file size is {limit_mb}MB")
-
 class Profile(models.Model):
     user = models.OneToOneField(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='profile')
-    name = models.CharField(max_length=100)
-    age = models.PositiveIntegerField()
-    gender = models.CharField(max_length=10,choices=[('male', 'Male'), ('female', 'Female'), ('other', 'Other'),('none', 'Prefer not to say')],blank=True)
-    location = models.CharField(max_length=200)
+    fname = models.CharField(max_length=100, default='')
+    lname = models.CharField(max_length=100, default='')
     phone_number = models.CharField(max_length=17, unique=True)
     is_phone_verified = models.BooleanField(default=False)
-    bio = models.TextField(max_length=500, blank=True)
-    profile_pic = models.ImageField(upload_to='profile_pics/', blank=True, null=True,validators=[FileExtensionValidator(allowed_extensions=['jpg', 'jpeg', 'png', 'webp']),validate_image_size])
+    date = models.DateField(null=False, blank=False,default='2000-01-01')
+    gender = models.CharField(max_length=10,choices=[('male', 'Male'), ('female', 'Female'), ('other', 'Other'),],blank=False,default='other')
+    bio = models.TextField(max_length=500, blank=False, default='')
+    profile_pic = models.ImageField(upload_to='profile_pics/', blank=True, null=True)
+    bgroup = models.CharField(max_length=3,choices=[('A+', 'A+'),('A-', 'A-'),('B+', 'B+'),('B-', 'B-'),('AB+', 'AB+'),('AB-', 'AB-'),('O+', 'O+'),('O-', 'O-'),],blank=False,default='O+')
+    allergies = models.TextField(max_length=200, blank=True, default='')
+    medical = models.TextField(max_length=500, blank=True, default='')
+    ename = models.CharField(max_length=100, blank=False, default='')
+    enumber=models.CharField(max_length=17, blank=False, default='')
+    erelation=models.CharField(max_length=20,choices=[('Spouse', 'Spouse'),('Parent', 'Parent'),('Friend', 'Friend'),('Sibling', 'Sibling'),],blank=False,default='Parent')
+    prefrence=models.CharField(max_length=50,choices=[ ('Adventure', 'Adventure'),('Relaxation', 'Relaxation'),('Nature', 'Nature'),('Explore', 'Explore'),('Spiritual', 'Spiritual'),('Historic', 'Historic'),],blank=False,default='Relaxation')
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -83,9 +84,11 @@ class Profile(models.Model):
         self.save()
     
     def __str__(self):
-        return f"{self.name}'s Profile"
+        return f"{self.fname} {self.lname}'s Profile"
 
     class Meta:
+        verbose_name = "User Profile"
+        verbose_name_plural = "User Profiles"
         ordering = ['-created_at']
         indexes = [
             models.Index(fields=['phone_number']),

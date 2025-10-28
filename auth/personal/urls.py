@@ -1,11 +1,11 @@
 from django.urls import path
-from .views import (PersonalDetailsCreateView,VerifyOTPView,ResendOTPView,ProfileDetailView)
+from .views import (ProfileDetailView,  VerifyOTPView,ResendOTPView,EmergencySOSView)
 
 app_name = 'personal'
 
 urlpatterns = [
-    path('create/', PersonalDetailsCreateView.as_view(), name='profile-create'),
+    path('profile/', ProfileDetailView.as_view(), name='profile-detail'),
     path('verify-otp/', VerifyOTPView.as_view(), name='verify-otp'),
     path('resend-otp/', ResendOTPView.as_view(), name='resend-otp'),
-    path('', ProfileDetailView.as_view(), name='profile-detail'),
+    path('emergency/sos/', EmergencySOSView.as_view(), name='emergency-sos'),
 ]
