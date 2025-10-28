@@ -28,8 +28,7 @@ class IsEmailVerified(IsAuthenticated):
                 type=OpenApiTypes.INT,
                 location=OpenApiParameter.QUERY,
                 description='Filter posts by user ID',
-                required=False)]
-    ),
+                required=False)]),
     create=extend_schema(
         tags=['Posts'],
         summary='Create a new post',
@@ -52,9 +51,9 @@ class IsEmailVerified(IsAuthenticated):
         description='Delete a post.',))
 
 class PostViewSet(viewsets.ModelViewSet):
-    queryset = Post.objects.all()
+    queryset = Post.objects.select_related('user').all()
     serializer_class = PostSerializer
-    parser_classes = [parsers.MultiPartParser, parsers.FormParser, parsers.JSONParser]
+    parser_classes = [parsers.JSONParser, parsers.MultiPartParser, parsers.FormParser]
     
     def get_permissions(self):
         if self.action in ['list', 'retrieve']:
@@ -72,6 +71,11 @@ class PostViewSet(viewsets.ModelViewSet):
             queryset = queryset.filter(user__id=user_id)
         return queryset
     
+    def get_serializer_context(self):
+        context = super().get_serializer_context()
+        context['request'] = self.request
+        return context
+
     def perform_create(self, serializer):
         serializer.save(user=self.request.user)
     
@@ -117,8 +121,7 @@ class PostViewSet(viewsets.ModelViewSet):
         return Response({
             'status': 'success',
             'message': 'Post updated',
-            'data': serializer.data
-        })
+            'data': serializer.data})
     
     def destroy(self, request, *args, **kwargs):
         instance = self.get_object()
