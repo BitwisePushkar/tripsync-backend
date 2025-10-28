@@ -1,14 +1,16 @@
 from rest_framework import serializers
 from .models import Post
-user_email = serializers.EmailField(source='user.email', read_only=True)
-img_url = serializers.SerializerMethodField()
-vid_url = serializers.SerializerMethodField()
+
 
 class PostSerializer(serializers.ModelSerializer):
+    user_email = serializers.EmailField(source='user.email', read_only=True)
+    img_url = serializers.SerializerMethodField()
+    vid_url = serializers.SerializerMethodField()
+
     class Meta:
         model = Post
-        fields = ['id', 'user_email', 'title', 'desc', 'loc', 'loc_rating', 'img', 'vid', 'img_url', 'vid_url', 'created_at']
-        read_only_fields = ['id', 'user_email', 'created_at']
+        fields = ['id', 'title', 'desc', 'loc', 'loc_rating', 'img', 'vid', 'created_at','img_url','vid_url','user_email']
+        read_only_fields = ['id','created_at']
 
     def get_img_url(self, obj):
         if obj.img:
