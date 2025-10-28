@@ -100,10 +100,8 @@ class UserRegistrationView(APIView):
 
 
 class VerifyRegistrationOTPView(APIView):
-    @extend_schema(
-    request=VerifyOTPSerializer,
-    responses={
-        200: OpenApiResponse(
+    @extend_schema(request=VerifyOTPSerializer,    
+    responses={200: OpenApiResponse(
             response=OpenApiTypes.OBJECT,
             description="Email verified and JWT tokens issued",
             examples=[
@@ -112,14 +110,10 @@ class VerifyRegistrationOTPView(APIView):
                     value={
                         "status": "success",
                         "message": "Email verified successfully!",
-                        "data": {
-                            "user": {
-                                "id": 1,
-                                "email": "user@example.com",
-                                "is_email_verified": True
-                            },
-                            "tokens": {
-                                "refresh": "eyJ0eXAiOiJKV1QiLCJhbGc...",
+                        "data": {"user": {"id": 1,
+                                          "email": "user@example.com",
+                                        "is_email_verified": True},
+                            "tokens": {"refresh": "eyJ0eXAiOiJKV1QiLCJhbGc...",
                                 "access": "eyJ0eXAiOiJKV1QiLCJhbGc..."}}})]),
         400: OpenApiResponse(description="Invalid or expired OTP"),
         429: OpenApiResponse(description="Too many failed attempts"),},
