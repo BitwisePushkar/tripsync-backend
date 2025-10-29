@@ -1,7 +1,9 @@
 from django.db import models
 from django.core.validators import MinValueValidator, MaxValueValidator
+from django.contrib import settings
 
 class ItenaryFields(models.Model):
+    user = models.OneToOneField(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='ItenaryFields')
     tripname = models.CharField(max_length=100)
     current_loc = models.CharField(max_legnth=200)
     destination = models.CharField(max_length=50)
