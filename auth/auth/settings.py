@@ -12,22 +12,7 @@ DEBUG = config('DEBUG', default=False, cast=bool)
 
 ALLOWED_HOSTS = os.environ.get("ALLOWED_HOSTS", "localhost,127.0.0.1,51.20.254.52").split(',')
 
-INSTALLED_APPS = ['django.contrib.admin',
-                'django.contrib.auth',
-                'django.contrib.contenttypes',
-                'django.contrib.sessions',
-                'django.contrib.messages',
-                'django.contrib.staticfiles', 
-                'account.apps.AccountConfig',
-                'community',
-                'chatbot',
-                'rest_framework', 
-                'rest_framework_simplejwt', 
-                'rest_framework_simplejwt.token_blacklist', 
-                'corsheaders', 
-                'drf_spectacular',
-                'cloudinary',
-                'cloudinary_storage',]
+INSTALLED_APPS = ['channels','daphne','django.contrib.admin','django.contrib.auth','django.contrib.contenttypes','django.contrib.sessions','django.contrib.messages','django.contrib.staticfiles', 'account.apps.AccountConfig','django_extensions','community.apps.CommunityConfig','chatbot.apps.ChatbotConfig','rest_framework', 'rest_framework_simplejwt', 'rest_framework_simplejwt.token_blacklist', 'corsheaders', 'drf_spectacular','chat.apps.ChatConfig','personal.apps.PersonalConfig',]
 
 MIDDLEWARE = ['django.middleware.security.SecurityMiddleware', 'whitenoise.middleware.WhiteNoiseMiddleware', 'django.contrib.sessions.middleware.SessionMiddleware', 'corsheaders.middleware.CorsMiddleware', 'django.middleware.common.CommonMiddleware', 'django.middleware.csrf.CsrfViewMiddleware', 'django.contrib.auth.middleware.AuthenticationMiddleware', 'django.contrib.messages.middleware.MessageMiddleware', 'django.middleware.clickjacking.XFrameOptionsMiddleware']
 
@@ -58,12 +43,6 @@ if database_url:
     DATABASES = {'default': dj_database_url.parse(database_url, conn_max_age=600, ssl_require=True)}
 else:
     DATABASES = {'default': {'ENGINE': 'django.db.backends.sqlite3', 'NAME': BASE_DIR / 'db.sqlite3'}}
-
-CLOUDINARY_STORAGE = {
-    'CLOUD_NAME': config('CLOUD_NAME'),
-    'API_KEY': config('API_KEY'),
-    'API_SECRET': config('API_SECRET')
-}
 
 REST_FRAMEWORK = {'DEFAULT_AUTHENTICATION_CLASSES': ('rest_framework_simplejwt.authentication.JWTAuthentication',), 'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema', 'DEFAULT_RENDERER_CLASSES': ['rest_framework.renderers.JSONRenderer', 'rest_framework.renderers.BrowsableAPIRenderer']}
 
@@ -124,32 +103,34 @@ OTP_LOCKOUT_MINUTES = 15
 
 LOGGING = {'version': 1, 'disable_existing_loggers': False, 'formatters': {'verbose': {'format': '{levelname} {asctime} {module} {message}', 'style': '{'}}, 'handlers': {'console': {'class': 'logging.StreamHandler', 'formatter': 'verbose'}}, 'root': {'handlers': ['console'], 'level': 'INFO'}, 'loggers': {'django': {'handlers': ['console'], 'level': 'INFO', 'propagate': False}, 'account': {'handlers': ['console'], 'level': 'DEBUG', 'propagate': False}}}
 
-TWILIO_ACCOUNT_SID = config('TWILIO_ACCOUNT_SID', '')
-TWILIO_AUTH_TOKEN = config('TWILIO_AUTH_TOKEN', '')
-TWILIO_PHONE_NUMBER = config('TWILIO_PHONE_NUMBER', '')
+TWOFACTOR_API_KEY =  config('TWOFACTOR_API_KEY', '')
+
+STATIC_URL = '/static/'
+STATIC_ROOT = BASE_DIR / 'staticfiles'
+MEDIA_URL = '/media/'
+MEDIA_ROOT = BASE_DIR / 'media'
 
 USE_S3 = config('USE_S3', default=False, cast=bool)
+#USE_S3=True
 if USE_S3:
     AWS_ACCESS_KEY_ID = config('AWS_ACCESS_KEY_ID')
     AWS_SECRET_ACCESS_KEY = config('AWS_SECRET_ACCESS_KEY')
     AWS_BUCKET = config('AWS_STORAGE_BUCKET_NAME')
     S3_REGION = config('AWS_S3_REGION_NAME')
     S3_DOMAIN = f'tripsync-media.s3.amazonaws.com'
-    
     AWS_S3_OBJECT_PARAMETERS = {'CacheControl': 'max-age=86400',}
     AWS_DEFAULT_ACL = 'public-read'
     AWS_S3_FILE_OVERWRITE = False
     AWS_QUERYSTRING_AUTH = False
-    STATICFILES_STORAGE = 'storages.backends.s3boto3.S3Boto3Storage'
-    DEFAULT_FILE_STORAGE = 'storages.backends.s3boto3.S3Boto3Storage'
     STATIC_URL = f'https://{S3_DOMAIN}/static/'
     MEDIA_URL = f'https://{S3_DOMAIN}/media/'
+    STATICFILES_STORAGE = 'storages.backends.s3boto3.S3Boto3Storage'
+    DEFAULT_FILE_STORAGE = 'storages.backends.s3boto3.S3Boto3Storage'
 else:
-    STATIC_URL = '/static/'
-    STATIC_ROOT = BASE_DIR / 'staticfiles'
-    STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
-    MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
-    MEDIA_URL = '/media/'
+    if DEBUG:
+        STATICFILES_STORAGE = 'django.contrib.staticfiles.storage.StaticFilesStorage'
+    else:
+        STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage' 
     DEFAULT_FILE_STORAGE = 'django.core.files.storage.FileSystemStorage'
 
 GOOGLE_API_KEY=config('GOOGLE_API_KEY')
