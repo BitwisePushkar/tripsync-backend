@@ -90,8 +90,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
             )
 
     async def handle_chat_message(self, data):
-        message_content = data.get('message', '').strip()
-        
+        message_content = data.get('message', '').strip()      
         if not message_content:
             await self.send_error("Message cannot be empty")
             return

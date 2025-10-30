@@ -8,6 +8,7 @@ User = get_user_model()
 class ProfileSerializer(serializers.ModelSerializer):
     profile_pic_url = serializers.SerializerMethodField()
     email = serializers.EmailField(source='user.email', read_only=True)
+    id = serializers.IntegerField(source='user.id', read_only=True)
     class Meta:
         model = Profile
         fields = ['id', 'email', 'fname', 'lname', 'phone_number', 'is_phone_verified','date', 'gender', 'bio', 'profile_pic', 'profile_pic_url','bgroup', 'allergies', 'medical', 'ename', 'enumber', 'erelation','prefrence', 'created_at', 'updated_at']
@@ -134,3 +135,37 @@ class ResendOTPSerializer(serializers.Serializer):
 class EmergencySOSSerializer(serializers.Serializer):
     message = serializers.CharField(max_length=500, required=False,help_text="Optional custom emergency message")
     location = serializers.CharField(max_length=500,required=False,help_text="Optional location details")
+
+class UserListSerializer(serializers.ModelSerializer):
+    id = serializers.IntegerField(source='user.id', read_only=True)  
+    class Meta:
+        model = Profile
+        fields = ['id', 'fname', 'lname']
+        read_only_fields = ['id', 'fname', 'lname']
+
+class UserProfileSearchSerializer(serializers.Serializer):
+    fname = serializers.CharField(max_length=100, required=True)
+    lname = serializers.CharField(max_length=100, required=True)  
+    def validate(self, data):
+        fname = data.get('fname', '').strip()
+        lname = data.get('lname', '').strip()        
+        if not fname or not lname:
+            raise serializers.ValidationError("Both first name and last name are required")       
+        return data
+
+class UserProfileDetailSerializer(serializers.ModelSerializer):
+    id = serializers.IntegerField(source='user.id', read_only=True)
+    email = serializers.EmailField(source='user.email', read_only=True)
+    profile_pic_url = serializers.SerializerMethodField()
+    
+    class Meta:
+        model = Profile
+        fields = ['id', 'email', 'fname', 'lname', 'phone_number', 'date', 'gender', 'bio', 'profile_pic_url','bgroup', 'allergies', 'medical', 'ename', 'enumber', 'erelation', 'prefrence']
+        read_only_fields = fields
+    def get_profile_pic_url(self, obj):
+        if obj.profile_pic:
+            request = self.context.get('request')
+            if request:
+                return request.build_absolute_uri(obj.profile_pic.url)
+            return obj.profile_pic.url
+        return None
