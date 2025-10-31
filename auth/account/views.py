@@ -107,7 +107,7 @@ class VerifyRegistrationOTPView(APIView):
                         "status": "success",
                         "message": "Email verified successfully!",
                         "data": {"user": {"id": 1,
-                                          "email": "agrawal.arnav20@gmail.com",
+                                          "email": "user@example.com",
                                         "is_email_verified": True},
                             "tokens": {"refresh": "eyJ0eXAiOiJKV1QiLCJhbGc...",
                                 "access": "eyJ0eXAiOiJKV1QiLCJhbGc..."}}})]),
