@@ -31,6 +31,7 @@ INSTALLED_APPS = ['channels',
                   'drf_spectacular',
                   'chat.apps.ChatConfig',
                   'personal.apps.PersonalConfig',
+                  'HomePage.apps.HomepageConfig',
                 ]
 
 MIDDLEWARE = ['django.middleware.security.SecurityMiddleware', 'whitenoise.middleware.WhiteNoiseMiddleware', 'django.contrib.sessions.middleware.SessionMiddleware', 'corsheaders.middleware.CorsMiddleware', 'django.middleware.common.CommonMiddleware', 'django.middleware.csrf.CsrfViewMiddleware', 'django.contrib.auth.middleware.AuthenticationMiddleware', 'django.contrib.messages.middleware.MessageMiddleware', 'django.middleware.clickjacking.XFrameOptionsMiddleware']
@@ -152,3 +153,4 @@ else:
     MEDIA_ROOT = BASE_DIR / 'media'
 
 GOOGLE_API_KEY=config('GOOGLE_API_KEY')
+WEATHER_API_KEY = config('WEATHER_API_KEY')
