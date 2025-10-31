@@ -7,7 +7,6 @@ from drf_spectacular.types import OpenApiTypes
 from .models import Post
 from .serializers import PostSerializer
 
-
 class IsEmailVerified(IsAuthenticated):
     def has_permission(self, request, view):
         if not super().has_permission(request, view):
@@ -15,7 +14,6 @@ class IsEmailVerified(IsAuthenticated):
         if not request.user.is_email_verified:
             return False
         return True
-
 
 @extend_schema_view(
     list=extend_schema(
@@ -28,28 +26,36 @@ class IsEmailVerified(IsAuthenticated):
                 type=OpenApiTypes.INT,
                 location=OpenApiParameter.QUERY,
                 description='Filter posts by user ID',
-                required=False)]),
+                required=False
+            )
+        ]
+    ),
     create=extend_schema(
         tags=['Posts'],
         summary='Create a new post',
-        description='Create a new post with optional image and video uploads.',),
+        description='Create a new post with optional image and video uploads.',
+    ),
     retrieve=extend_schema(
         tags=['Posts'], 
         summary='Get a specific post',
-        description='Retrieve details of a specific post by ID. Public endpoint.'),
+        description='Retrieve details of a specific post by ID. Public endpoint.'
+    ),
     update=extend_schema(
         tags=['Posts'],
         summary='Update a post',
-        description='Update an existing post.',),
+        description='Update an existing post. Only the post owner can update. Requires email verification.',
+    ),
     partial_update=extend_schema(
         tags=['Posts'],
         summary='Partially update a post',
-        description='Partially update an existing post.',),
+        description='Partially update an existing post. Only the post owner can update. Requires email verification.',
+    ),
     destroy=extend_schema(
         tags=['Posts'],
         summary='Delete a post',
-        description='Delete a post.',))
-
+        description='Delete a post. Only the post owner can delete. Requires email verification.',
+    )
+)
 class PostViewSet(viewsets.ModelViewSet):
     queryset = Post.objects.select_related('user').all()
     serializer_class = PostSerializer
@@ -65,10 +71,13 @@ class PostViewSet(viewsets.ModelViewSet):
         return [permission() for permission in permission_classes]
     
     def get_queryset(self):
-        queryset = Post.objects.all()
+        queryset = Post.objects.select_related('user').all()
         user_id = self.request.query_params.get('user', None)
         if user_id:
-            queryset = queryset.filter(user__id=user_id)
+            try:
+                queryset = queryset.filter(user__id=int(user_id))
+            except (ValueError, TypeError):
+                pass
         return queryset
     
     def get_serializer_context(self):
@@ -81,70 +90,39 @@ class PostViewSet(viewsets.ModelViewSet):
     
     def create(self, request, *args, **kwargs):
         if not request.user.is_email_verified:
-            return Response({
-                'status': 'error',
-                'message': 'Email verification required',
-                'errors': {'account': ['Please verify your email before creating posts']}
-            }, status=status.HTTP_403_FORBIDDEN)
+            return Response({'status': 'error','message': 'Email verification required','errors': {'account': ['Please verify your email before creating posts']}}, status=status.HTTP_403_FORBIDDEN)
         
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         self.perform_create(serializer)
         headers = self.get_success_headers(serializer.data)
-        rating = self.request.query_params.get('loc_rating', None)
 
-        return Response({
-            'status': 'success',
-            'message': 'Post created successfully',
-            'data': serializer.data
-        }, status=status.HTTP_201_CREATED, headers=headers)
+        return Response({'status': 'success','message': 'Post created successfully','data': serializer.data}, status=status.HTTP_201_CREATED, headers=headers)
     
     def update(self, request, *args, **kwargs):
         partial = kwargs.pop('partial', False)
         instance = self.get_object()
         if instance.user != request.user:
-            return Response({
-                'status': 'error',
-                'message': 'Permission denied',
-                'errors': {'permission': ['You can only edit your own post']}
-            }, status=status.HTTP_403_FORBIDDEN)
-        
+            return Response({'status': 'error','message': 'Permission denied','errors': {'permission': ['You can only edit your own posts']}}, status=status.HTTP_403_FORBIDDEN)
+
         if not request.user.is_email_verified:
-            return Response({
-                'status': 'error',
-                'message': 'Email verification required',
-                'errors': {'account': ['Your email must be verified to update posts']}
-            }, status=status.HTTP_403_FORBIDDEN)
+            return Response({'status': 'error','message': 'Email verification required','errors': {'account': ['Your email must be verified to update posts']}}, status=status.HTTP_403_FORBIDDEN)
+        
         serializer = self.get_serializer(instance, data=request.data, partial=partial)
         serializer.is_valid(raise_exception=True)
         self.perform_update(serializer)
         
-        return Response({
-            'status': 'success',
-            'message': 'Post updated',
-            'data': serializer.data})
+        return Response({'status': 'success','message': 'Post updated successfully','data': serializer.data})
     
     def destroy(self, request, *args, **kwargs):
         instance = self.get_object()
         if instance.user != request.user:
-            return Response({
-                'status': 'error',
-                'message': 'Permission denied',
-                'errors': {'permission': ['You Can only delete posts made by you']}
-            }, status=status.HTTP_403_FORBIDDEN)
-
+            return Response({'status': 'error','message': 'Permission denied','errors': {'permission': ['You can only delete your own posts']}}, status=status.HTTP_403_FORBIDDEN)
         if not request.user.is_email_verified:
-            return Response({
-                'status': 'error',
-                'message': 'Email verification required',
-                'errors': {'account': ['Your email must be verified to delete posts']}
-            }, status=status.HTTP_403_FORBIDDEN)
+            return Response({'status': 'error','message': 'Email verification required','errors': {'account': ['Your email must be verified to delete posts']}}, status=status.HTTP_403_FORBIDDEN)
         
         self.perform_destroy(instance)
-        return Response({
-            'status': 'success',
-            'message': 'Post deleted successfully'
-        }, status=status.HTTP_200_OK)
+        return Response({'status': 'success','message': 'Post deleted successfully'}, status=status.HTTP_200_OK)
     
     @extend_schema(
         tags=['Posts'],
@@ -153,7 +131,7 @@ class PostViewSet(viewsets.ModelViewSet):
     )
     @action(detail=False, methods=['get'], permission_classes=[IsEmailVerified])
     def my_posts(self, request):
-        posts = Post.objects.filter(user=request.user)
+        posts = Post.objects.filter(user=request.user).select_related('user')
         serializer = self.get_serializer(posts, many=True)
         return Response({
             'status': 'success',
@@ -164,11 +142,11 @@ class PostViewSet(viewsets.ModelViewSet):
     @extend_schema(
         tags=['Posts'],
         summary='Check verification status',
-        description='Check if the current user can create/edit posts (must be email verified).',)
+        description='Check if the current user can create/edit posts (must be email verified).',
+    )
     @action(detail=False, methods=['get'], permission_classes=[IsAuthenticated])
     def verify_status(self, request):
-        user = request.user
-        
+        user = request.user       
         return Response({
             'status': 'success',
             'data': {
