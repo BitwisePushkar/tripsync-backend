@@ -4,13 +4,9 @@ import logging
 logger = logging.getLogger(__name__)
 
 def send_otp_email(email, otp, purpose="verification"):
-    """
-    Send OTP email using SendGrid HTTP API (works on Render Free tier)
-    """
     try:
         from sendgrid import SendGridAPIClient
         from sendgrid.helpers.mail import Mail
-        
         if purpose == "verification":
             subject = "Email Verification OTP - TripSync"
             html_content = f"""
