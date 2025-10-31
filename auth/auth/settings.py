@@ -8,9 +8,8 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 
 SECRET_KEY = os.environ.get("SECRET_KEY", "unsafe-dev-secret-key")
 
-DEBUG = config('DEBUG', default=False, cast=bool)
-
-ALLOWED_HOSTS = os.environ.get("ALLOWED_HOSTS", "localhost,127.0.0.1,51.20.254.52").split(',')
+# DEBUG = config('DEBUG', default=False, cast=bool)
+DEBUG = True
 
 INSTALLED_APPS = ['channels','daphne','django.contrib.admin','django.contrib.auth','django.contrib.contenttypes','django.contrib.sessions','django.contrib.messages','django.contrib.staticfiles', 'account.apps.AccountConfig','django_extensions','community.apps.CommunityConfig','chatbot.apps.ChatbotConfig','rest_framework', 'rest_framework_simplejwt', 'rest_framework_simplejwt.token_blacklist', 'corsheaders', 'drf_spectacular','chat.apps.ChatConfig','personal.apps.PersonalConfig',]
 
@@ -81,6 +80,12 @@ if not DEBUG:
 else:
     CSRF_COOKIE_SECURE = False
     SESSION_COOKIE_SECURE = False
+
+CSRF_TRUSTED_ORIGINS = [
+    'http://127.0.0.1:8000',
+    'http://localhost:8000',
+    'http://51.20.254.52'
+]
 
 SENDGRID_API_KEY = config('SENDGRID_API_KEY', default='')
 DEFAULT_FROM_EMAIL = config('DEFAULT_FROM_EMAIL', default='TripSync <noreply@example.com>')
