@@ -11,24 +11,7 @@ SECRET_KEY = os.environ.get("SECRET_KEY", "unsafe-dev-secret-key")
 # DEBUG = config('DEBUG', default=False, cast=bool)
 DEBUG = True
 
-INSTALLED_APPS = ['django.contrib.admin',
-                'django.contrib.auth',
-                'django.contrib.contenttypes',
-                'django.contrib.sessions',
-                'django.contrib.messages',
-                'django.contrib.staticfiles', 
-                'account.apps.AccountConfig',
-                'community',
-                'HomePage',
-                'chatbot',
-                'rest_framework', 
-                'rest_framework_simplejwt', 
-                'rest_framework_simplejwt.token_blacklist', 
-                'corsheaders', 
-                'drf_spectacular',
-                'cloudinary',
-                'cloudinary_storage',]
-
+INSTALLED_APPS = ['channels','daphne','django.contrib.admin','django.contrib.auth','django.contrib.contenttypes','django.contrib.sessions','django.contrib.messages','django.contrib.staticfiles', 'account.apps.AccountConfig','django_extensions','community.apps.CommunityConfig','chatbot.apps.ChatbotConfig','rest_framework', 'rest_framework_simplejwt', 'rest_framework_simplejwt.token_blacklist', 'corsheaders', 'drf_spectacular','chat.apps.ChatConfig','personal.apps.PersonalConfig',]
 
 MIDDLEWARE = ['django.middleware.security.SecurityMiddleware', 'whitenoise.middleware.WhiteNoiseMiddleware', 'django.contrib.sessions.middleware.SessionMiddleware', 'corsheaders.middleware.CorsMiddleware', 'django.middleware.common.CommonMiddleware', 'django.middleware.csrf.CsrfViewMiddleware', 'django.contrib.auth.middleware.AuthenticationMiddleware', 'django.contrib.messages.middleware.MessageMiddleware', 'django.middleware.clickjacking.XFrameOptionsMiddleware']
 
