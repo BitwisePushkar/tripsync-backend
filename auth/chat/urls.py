@@ -1,10 +1,5 @@
 from django.urls import path
-from .views import (
-    ConversationListCreateView,
-    ConversationDetailView,
-    MessageListCreateView,
-    MessageRetrieveUpdateDestroyView
-)
+from .views import (ConversationListCreateView,ConversationDetailView,MessageListCreateView,MessageRetrieveUpdateDestroyView)
 
 app_name = 'chat'
 

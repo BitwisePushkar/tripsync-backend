@@ -4,7 +4,6 @@ from .models import Conversation, Message
 from django.db import models  
 from django.db.models import Count, Q
 
-
 class UserListSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
@@ -38,16 +37,7 @@ class ConversationSerializer(serializers.ModelSerializer):
     
     class Meta:
         model = Conversation
-        fields = (
-            'id', 
-            'name', 
-            'is_group', 
-            'participants', 
-            'created_at', 
-            'updated_at',
-            'last_message',
-            'unread_count'
-        )
+        fields = ('id', 'name', 'is_group', 'participants', 'created_at', 'updated_at','last_message','unread_count')
         read_only_fields = ('id', 'created_at', 'updated_at', 'is_group')
 
     def get_last_message(self, obj):
@@ -67,7 +57,6 @@ class ConversationSerializer(serializers.ModelSerializer):
             return obj.messages.filter(is_read=False).exclude(sender=request.user).count()
         return 0
 
-
 class ConversationDetailSerializer(serializers.ModelSerializer):
     participants = UserListSerializer(many=True, read_only=True)
     messages = serializers.SerializerMethodField()
@@ -81,20 +70,9 @@ class ConversationDetailSerializer(serializers.ModelSerializer):
         messages = obj.messages.order_by('-timestamp')[:50]
         return MessageSerializer(messages, many=True).data
 
-
 class CreateConversationSerializer(serializers.Serializer):
-    participant_ids = serializers.ListField(
-        child=serializers.IntegerField(),
-        min_length=1,
-        max_length=50,
-        help_text="List of user IDs to add to conversation"
-    )
-    name = serializers.CharField(
-        max_length=255, 
-        required=False, 
-        allow_blank=True,
-        help_text="Optional name for group conversations"
-    )
+    participant_ids = serializers.ListField(child=serializers.IntegerField(),min_length=1,max_length=50,help_text="List of user IDs to add to conversation")
+    name = serializers.CharField(max_length=255, required=False, allow_blank=True,help_text="Optional name for group conversations")
     
     def validate_participant_ids(self, value):
         unique_ids = list(set(value))
