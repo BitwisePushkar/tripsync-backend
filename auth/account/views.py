@@ -17,8 +17,6 @@ from django.db import models
 from django.utils import timezone
 from account.utils import send_otp_email
 
-
-
 def get_tokens_for_user(user):
     if not user.is_active:
         raise AuthenticationFailed("User account is deactivated.")
@@ -26,7 +24,6 @@ def get_tokens_for_user(user):
         raise AuthenticationFailed("Email verification required.")
     refresh = RefreshToken.for_user(user)
     return {'refresh': str(refresh), 'access': str(refresh.access_token)}
-
 
 class UserRegistrationView(APIView):
     @extend_schema(
@@ -98,12 +95,9 @@ class UserRegistrationView(APIView):
                 {'status': 'error', 'message': 'Registration failed', 'errors': str(e)},
                 status=status.HTTP_400_BAD_REQUEST)
 
-
 class VerifyRegistrationOTPView(APIView):
-    @extend_schema(
-    request=VerifyOTPSerializer,
-    responses={
-        200: OpenApiResponse(
+    @extend_schema(request=VerifyOTPSerializer,    
+    responses={200: OpenApiResponse(
             response=OpenApiTypes.OBJECT,
             description="Email verified and JWT tokens issued",
             examples=[
@@ -112,14 +106,10 @@ class VerifyRegistrationOTPView(APIView):
                     value={
                         "status": "success",
                         "message": "Email verified successfully!",
-                        "data": {
-                            "user": {
-                                "id": 1,
-                                "email": "user@example.com",
-                                "is_email_verified": True
-                            },
-                            "tokens": {
-                                "refresh": "eyJ0eXAiOiJKV1QiLCJhbGc...",
+                        "data": {"user": {"id": 1,
+                                          "email": "user@example.com",
+                                        "is_email_verified": True},
+                            "tokens": {"refresh": "eyJ0eXAiOiJKV1QiLCJhbGc...",
                                 "access": "eyJ0eXAiOiJKV1QiLCJhbGc..."}}})]),
         400: OpenApiResponse(description="Invalid or expired OTP"),
         429: OpenApiResponse(description="Too many failed attempts"),},
@@ -175,7 +165,6 @@ class VerifyRegistrationOTPView(APIView):
             return Response(
                 {'status': 'error', 'message': 'OTP verification failed', 'errors': str(e)},
                 status=status.HTTP_400_BAD_REQUEST)
-
 
 class ResendRegistrationOTPView(APIView):
     @extend_schema(
@@ -234,7 +223,6 @@ class ResendRegistrationOTPView(APIView):
 
 
 class UserLoginView(APIView):
-
     @extend_schema(
         request=UserLoginSerializer,
         responses={
@@ -328,11 +316,8 @@ class UserLoginView(APIView):
                 status=status.HTTP_400_BAD_REQUEST
             )
 
-
-
 class UserLogoutView(APIView):
-    permission_classes = [IsAuthenticated]
-    
+    permission_classes = [IsAuthenticated]  
     @extend_schema(
         request={'application/json': {'type': 'object', 'properties': {'refresh': {'type': 'string'}}}},
         responses={
@@ -361,39 +346,6 @@ class UserLogoutView(APIView):
             return Response(
                 {'status': 'error', 'message': 'Logout failed', 'errors': str(e)},
                 status=status.HTTP_400_BAD_REQUEST)
-
-
-class UserListView(ListAPIView):
-    queryset = User.objects.filter(is_email_verified=True).order_by('-created_at')
-    serializer_class = UserProfileSerializer
-    permission_classes = [IsAuthenticated, IsAdminUser]
-    pagination_class = StandardResultsSetPagination
-    
-    def get(self, request, *args, **kwargs):
-        return super().get(request, *args, **kwargs)
-    
-    def get_queryset(self):
-        queryset = super().get_queryset()
-        
-        search = self.request.query_params.get('search', None)
-        if search:
-            queryset = queryset.filter(models.Q(email__icontains=search))
-        
-        is_verified = self.request.query_params.get('is_email_verified', None)
-        if is_verified is not None:
-            is_verified_bool = is_verified.lower() in ['true', '1', 'yes']
-            queryset = queryset.filter(is_email_verified=is_verified_bool)
-        
-        return queryset
-
-
-class UserProfileView(APIView):
-    permission_classes = [IsAuthenticated]
-    
-    def get(self, request):
-        serializer = UserProfileSerializer(request.user)
-        return Response({'status': 'success', 'data': serializer.data}, status=status.HTTP_200_OK)
-
 
 class PasswordResetRequestView(APIView):
     @extend_schema(
@@ -446,7 +398,6 @@ class PasswordResetRequestView(APIView):
             return Response(
                 {'status': 'error', 'message': 'Failed to send password reset OTP', 'errors': str(e)},
                 status=status.HTTP_400_BAD_REQUEST)
-
 
 class PasswordResetVerifyView(APIView):
     @extend_schema(

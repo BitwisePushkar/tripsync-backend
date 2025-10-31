@@ -8,13 +8,7 @@ from drf_spectacular.types import OpenApiTypes
 from django.db.models import Count, Q
 from account.models import User
 from .models import Conversation, Message
-from .serializers import (
-    ConversationSerializer, 
-    MessageSerializer, 
-    CreateMessageSerializer,
-    CreateConversationSerializer,
-    ConversationDetailSerializer
-)
+from .serializers import (ConversationSerializer, MessageSerializer, CreateMessageSerializer,CreateConversationSerializer,ConversationDetailSerializer)
 
 class ConversationListCreateView(generics.ListCreateAPIView):
     permission_classes = [IsAuthenticated]
@@ -80,14 +74,12 @@ class ConversationListCreateView(generics.ListCreateAPIView):
         )
         return Response(response_serializer.data, status=status.HTTP_201_CREATED)
 
-
 class ConversationDetailView(generics.RetrieveDestroyAPIView):
     permission_classes = [IsAuthenticated]
     serializer_class = ConversationDetailSerializer
 
     def get_queryset(self):
         return Conversation.objects.filter(participants=self.request.user)
-
     @extend_schema(
         summary="Get conversation details",
         description="Get detailed information about a conversation including participants and recent messages",
@@ -201,7 +193,6 @@ class MessageListCreateView(generics.ListCreateAPIView):
         if not conversation.is_participant(self.request.user):
             raise PermissionDenied('You are not a participant of this conversation')
         return conversation
-
 
 class MessageRetrieveUpdateDestroyView(generics.RetrieveUpdateDestroyAPIView):
     permission_classes = [IsAuthenticated]
