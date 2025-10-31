@@ -396,37 +396,72 @@ class UserProfileByNameView(APIView):
     permission_classes = [IsAuthenticated]
     parser_classes = [JSONParser]   
     @extend_schema(
-        summary="Get User Profile by Name",
-        description="Search for a verified user by their first and last name. Returns complete profile details.",
+        summary="Get User Profiles by Name",
+        description="Search for verified users by their first and last name.",
         request=UserProfileSearchSerializer,
         responses={
             200: OpenApiResponse(
-                description="User profile found",
-                examples=[OpenApiExample(
-                    "Success",
-                    value={
-                        "success": True,
-                        "message": "User profile found",
-                        "data": {
-                            "id": 1,
-                            "email": "john@example.com",
-                            "fname": "John",
-                            "lname": "Doe",
-                            "phone_number": "+1234567890",
-                            "date": "1998-05-15",
-                            "gender": "male",
-                            "bio": "Software Developer",
-                            "profile_pic_url": "https://example.com/media/profile_pics/pic.jpg",
-                            "bgroup": "O+",
-                            "allergies": "Peanuts",
-                            "medical": "Asthma",
-                            "ename": "Jane Doe",
-                            "enumber": "+1987654321",
-                            "erelation": "Spouse",
-                            "prefrence": "Adventure"
+                description="User profile(s) found",
+                examples=[
+                    OpenApiExample(
+                        "Single User Found",
+                        value={
+                            "success": True,
+                            "message": "1 user found with the provided name",
+                            "data": {
+                                "count": 1,
+                                "users": [
+                                    {
+                                        "id": 1,
+                                        "email": "john@example.com",
+                                        "fname": "John",
+                                        "lname": "Doe",
+                                        "phone_number": "+1234567890",
+                                        "date": "1998-05-15",
+                                        "gender": "male",
+                                        "bio": "Software Developer",
+                                        "profile_pic_url": "https://example.com/media/profile_pics/pic.jpg",
+                                        "bgroup": "O+",
+                                        "allergies": "Peanuts",
+                                        "medical": "Asthma",
+                                        "ename": "Jane Doe",
+                                        "enumber": "+1987654321",
+                                        "erelation": "Spouse",
+                                        "prefrence": "Adventure"
+                                    }
+                                ]
+                            }
                         }
-                    }
-                )]
+                    ),
+                    OpenApiExample(
+                        "Multiple Users Found",
+                        value={
+                            "success": True,
+                            "message": "2 users found with the provided name",
+                            "data": {
+                                "count": 2,
+                                "users": [
+                                    {
+                                        "id": 1,
+                                        "email": "john.doe1@example.com",
+                                        "fname": "John",
+                                        "lname": "Doe",
+                                        "phone_number": "+1234567890",
+                                        "bio": "Software Developer"
+                                    },
+                                    {
+                                        "id": 5,
+                                        "email": "john.doe2@example.com",
+                                        "fname": "John",
+                                        "lname": "Doe",
+                                        "phone_number": "+1987654321",
+                                        "bio": "Data Scientist"
+                                    }
+                                ]
+                            }
+                        }
+                    )
+                ]
             ),
             400: OpenApiResponse(
                 description="Validation error",
@@ -472,28 +507,22 @@ class UserProfileByNameView(APIView):
             try:
                 profile = request.user.profile
                 if not profile.is_phone_verified:
-                    return Response({'success': False,'message': 'Please verify your phone number first','error_code': 'PHONE_NOT_VERIFIED'}, status=status.HTTP_403_FORBIDDEN)
+                    return Response({'success': False,'message': 'Please verify your phone number','error_code': 'PHONE_NOT_VERIFIED'}, status=status.HTTP_403_FORBIDDEN)
             except Profile.DoesNotExist:
-                return Response({'success': False,'message': 'Profile not found. Please create your profile first.','error_code': 'PROFILE_NOT_FOUND'}, status=status.HTTP_404_NOT_FOUND)
-            
+                return Response({'success': False,'message': 'Profile not found.','error_code': 'PROFILE_NOT_FOUND'}, status=status.HTTP_404_NOT_FOUND)
             serializer = UserProfileSearchSerializer(data=request.data)
             if not serializer.is_valid():
                 return Response({'success': False,'message': 'Validation failed','errors': serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
-            
             fname = serializer.validated_data['fname'].strip()
             lname = serializer.validated_data['lname'].strip()
-            try:
-                user_profile = Profile.objects.select_related('user').get(fname__iexact=fname,lname__iexact=lname,is_phone_verified=True)
-            except Profile.DoesNotExist:
-                return Response({'success': False,'message': 'No verified user found with the provided name','error_code': 'USER_NOT_FOUND'}, status=status.HTTP_404_NOT_FOUND)
-            except Profile.MultipleObjectsReturned:
-                user_profile = Profile.objects.select_related('user').filter(fname__iexact=fname,lname__iexact=lname,is_phone_verified=True).first()
-
-            profile_serializer = UserProfileDetailSerializer(user_profile, context={'request': request})
-            logger.info(f"User {request.user.id} retrieved profile for {fname} {lname}")
-            
-            return Response({'success': True,'message': 'User profile found','data': profile_serializer.data}, status=status.HTTP_200_OK)
-        
+            user_profiles = Profile.objects.select_related('user').filter(fname__iexact=fname,lname__iexact=lname,is_phone_verified=True).order_by('id')  
+            if not user_profiles.exists():
+                return Response({'success': False,'message': 'No verified user found ','error_code': 'USER_NOT_FOUND'}, status=status.HTTP_404_NOT_FOUND)
+            profile_serializer = UserProfileDetailSerializer(user_profiles,many=True, context={'request': request})          
+            user_count = user_profiles.count()
+            message = f"{user_count} user{'s' if user_count > 1 else ''} found with the provided name"          
+            logger.info(f"User {request.user.id} retrieved {user_count} profile(s) for {fname} {lname}")          
+            return Response({'success': True,'message': message,'data': {'count': user_count,'users': profile_serializer.data}}, status=status.HTTP_200_OK)     
         except Exception as e:
             logger.error(f"Error in UserProfileByNameView: {str(e)}")
-            return Response({'success': False,'message': 'An error occurred. Please try again later.','error_code': 'INTERNAL_ERROR'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            return Response({'success': False,'message': 'An error occurred.','error_code': 'INTERNAL_ERROR'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
