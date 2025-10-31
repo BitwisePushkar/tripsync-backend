@@ -1,6 +1,7 @@
 from rest_framework import serializers
 from .models import Profile
 from django.contrib.auth import get_user_model
+from datetime import date, timedelta
 import re
 
 User = get_user_model()
@@ -13,7 +14,6 @@ class ProfileSerializer(serializers.ModelSerializer):
         model = Profile
         fields = ['id', 'email', 'fname', 'lname', 'phone_number', 'is_phone_verified','date', 'gender', 'bio', 'profile_pic', 'profile_pic_url','bgroup', 'allergies', 'medical', 'ename', 'enumber', 'erelation','prefrence', 'created_at', 'updated_at']
         read_only_fields = ['id', 'email', 'is_phone_verified', 'created_at', 'updated_at']
-
     def get_profile_pic_url(self, obj):
         if obj.profile_pic:
             request = self.context.get('request')
@@ -33,6 +33,20 @@ class ProfileSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError("This phone number is already registered")
         return value
     
+    def validate_date(self, value):
+        if not value:
+            raise serializers.ValidationError("Date of birth is required")       
+        today = date.today()
+        min_date = today - timedelta(days=13*365.25)  
+        max_date = today - timedelta(days=110*365.25)       
+        if value > min_date.date() if hasattr(min_date, 'date') else min_date:
+            raise serializers.ValidationError("You must be at least 13 years old")       
+        if value < max_date.date() if hasattr(max_date, 'date') else max_date:
+            raise serializers.ValidationError("Invalid date of birth. Maximum age is 110 years")       
+        if value > today:
+            raise serializers.ValidationError("Date of birth cannot be in the future")       
+        return value
+    
     def validate_enumber(self, value):
         if value:
             value = re.sub(r'[^\d+]', '', value)
@@ -47,9 +61,7 @@ class ProfileSerializer(serializers.ModelSerializer):
             allowed_extensions = ['jpg', 'jpeg', 'png', 'webp']
             ext = value.name.split('.')[-1].lower()
             if ext not in allowed_extensions:
-                raise serializers.ValidationError(
-                    f"Unsupported file format. Allowed formats: {', '.join(allowed_extensions)}"
-                )
+                raise serializers.ValidationError(f"Unsupported file format. Allowed formats: {', '.join(allowed_extensions)}")
         return value
 
 class ProfileCreateSerializer(serializers.Serializer):
@@ -66,6 +78,19 @@ class ProfileCreateSerializer(serializers.Serializer):
     enumber = serializers.CharField(max_length=17, required=True, allow_blank=False)
     erelation = serializers.ChoiceField(choices=['Spouse', 'Parent', 'Friend', 'Sibling'],required=True,allow_blank=False)
     prefrence = serializers.ChoiceField(choices=['Adventure', 'Relaxation', 'Nature', 'Explore', 'Spiritual', 'Historic'],required=True,allow_blank=False)
+    
+    def validate_date(self, value):
+        if not value:
+            raise serializers.ValidationError("Date of birth is required")       
+        today = date.today()
+        age = today.year - value.year - ((today.month, today.day) < (value.month, value.day))        
+        if age < 13:
+            raise serializers.ValidationError("You must be at least 13 years old to create an account")        
+        if age > 110:
+            raise serializers.ValidationError("Invalid date of birth. Maximum age is 110 years")       
+        if value > today:
+            raise serializers.ValidationError("Date of birth cannot be in the future")       
+        return value
     
     def validate_phone_number(self, value):
         cleaned = re.sub(r'[^\d+]', '', value)
@@ -97,12 +122,24 @@ class OTPVerificationSerializer(serializers.Serializer):
             raise serializers.ValidationError("OTP must contain only digits")
         return value
 
-
 class ProfileUpdateSerializer(serializers.ModelSerializer):
     profile_pic = serializers.ImageField(required=False, allow_null=True)
     class Meta:
         model = Profile
         fields = ['fname', 'lname', 'date', 'gender', 'bio', 'profile_pic','bgroup', 'allergies', 'medical', 'ename', 'enumber', 'erelation', 'prefrence']
+    
+    def validate_date(self, value):
+        if not value:
+            return value       
+        today = date.today()
+        age = today.year - value.year - ((today.month, today.day) < (value.month, value.day))       
+        if age < 13:
+            raise serializers.ValidationError("You must be at least 13 years old")        
+        if age > 110:
+            raise serializers.ValidationError("Invalid date of birth. Maximum age is 110 years")        
+        if value > today:
+            raise serializers.ValidationError("Date of birth cannot be in the future")        
+        return value
     
     def validate_profile_pic(self, value):
         if not value:
