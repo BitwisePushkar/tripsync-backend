@@ -37,7 +37,7 @@ class UserRegistrationView(APIView):
                     value={
                         'status': 'success',
                         'message': 'OTP sent to your email. Please verify to complete registration.',
-                        'data': {'email': 'user@example.com', 'otp_expires_in': '10 minutes'}})]),
+                        'data': {'email': 'agrawal.arnav20@gmail.com', 'otp_expires_in': '10 minutes'}})]),
             400: OpenApiResponse(description="Validation error")},
         tags=['Authentication'],
         summary="Register a new user",
@@ -228,7 +228,7 @@ class UserLoginView(APIView):
         responses={
             200: OpenApiResponse(
                 response=OpenApiTypes.OBJECT,
-                description="User logged in successfully",
+                description="User logged in",
                 examples=[
                     OpenApiExample(
                         name="Success Response",
@@ -238,7 +238,7 @@ class UserLoginView(APIView):
                             "data": {
                                 "user": {
                                     "id": 1,
-                                    "email": "user@example.com"
+                                    "email": "agrawal.arnav20@gmail.com"
                                 },
                                 "tokens": {
                                     "refresh": "eyJ0eXAiOiJKV1QiLCJhbGc...",
