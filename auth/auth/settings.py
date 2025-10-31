@@ -8,11 +8,27 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 
 SECRET_KEY = os.environ.get("SECRET_KEY", "unsafe-dev-secret-key")
 
-DEBUG = config('DEBUG', default=False, cast=bool)
+# DEBUG = config('DEBUG', default=False, cast=bool)
+DEBUG = True
 
-ALLOWED_HOSTS = os.environ.get("ALLOWED_HOSTS", "localhost,127.0.0.1,51.20.254.52").split(',')
+INSTALLED_APPS = ['django.contrib.admin',
+                'django.contrib.auth',
+                'django.contrib.contenttypes',
+                'django.contrib.sessions',
+                'django.contrib.messages',
+                'django.contrib.staticfiles', 
+                'account.apps.AccountConfig',
+                'community',
+                'HomePage',
+                'chatbot',
+                'rest_framework', 
+                'rest_framework_simplejwt', 
+                'rest_framework_simplejwt.token_blacklist', 
+                'corsheaders', 
+                'drf_spectacular',
+                'cloudinary',
+                'cloudinary_storage',]
 
-INSTALLED_APPS = ['channels','daphne','django.contrib.admin','django.contrib.auth','django.contrib.contenttypes','django.contrib.sessions','django.contrib.messages','django.contrib.staticfiles', 'account.apps.AccountConfig','django_extensions','community.apps.CommunityConfig','chatbot.apps.ChatbotConfig','rest_framework', 'rest_framework_simplejwt', 'rest_framework_simplejwt.token_blacklist', 'corsheaders', 'drf_spectacular','chat.apps.ChatConfig','personal.apps.PersonalConfig',]
 
 MIDDLEWARE = ['django.middleware.security.SecurityMiddleware', 'whitenoise.middleware.WhiteNoiseMiddleware', 'django.contrib.sessions.middleware.SessionMiddleware', 'corsheaders.middleware.CorsMiddleware', 'django.middleware.common.CommonMiddleware', 'django.middleware.csrf.CsrfViewMiddleware', 'django.contrib.auth.middleware.AuthenticationMiddleware', 'django.contrib.messages.middleware.MessageMiddleware', 'django.middleware.clickjacking.XFrameOptionsMiddleware']
 
@@ -82,6 +98,12 @@ else:
     CSRF_COOKIE_SECURE = False
     SESSION_COOKIE_SECURE = False
 
+CSRF_TRUSTED_ORIGINS = [
+    'http://127.0.0.1:8000',
+    'http://localhost:8000',
+    'http://51.20.254.52'
+]
+
 SENDGRID_API_KEY = config('SENDGRID_API_KEY', default='')
 DEFAULT_FROM_EMAIL = config('DEFAULT_FROM_EMAIL', default='TripSync <noreply@example.com>')
 EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
@@ -132,4 +154,6 @@ else:
     MEDIA_URL = '/media/'
     MEDIA_ROOT = BASE_DIR / 'media'
 
+WEATHER_API_KEY = config('WEATHER_API_KEY')
 GOOGLE_API_KEY=config('GOOGLE_API_KEY')
+
