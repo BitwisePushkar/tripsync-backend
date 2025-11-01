@@ -5,7 +5,7 @@ import json
 
 class ItineraryGenerator:
     def __init__(self):
-        self.llm=ChatGoogleGenerativeAI(model="gemini-pro",google_api_key=settings.GEMINI_API_KEY,temperature=0.7)
+        self.llm=ChatGoogleGenerativeAI(model="gemini-pro",google_api_key=settings.GOOGLE_API_KEY,temperature=0.7)
         
         self.prompt_template=PromptTemplate(
             input_variables=["tripname","current_loc","destination","start_date","end_date","days","trip_type","trip_preferences","budget"],
