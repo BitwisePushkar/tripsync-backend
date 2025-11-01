@@ -12,9 +12,9 @@ DEBUG = config('DEBUG', default=False, cast=bool)
 
 ALLOWED_HOSTS = os.environ.get("ALLOWED_HOSTS", "localhost,127.0.0.1,51.20.254.52").split(',')
 
-INSTALLED_APPS = [#'channels',
-                  #'daphne',
-                  #'django_extensions',
+INSTALLED_APPS = ['channels',
+                  'daphne',
+                  'django_extensions',
                   'django.contrib.admin',
                   'django.contrib.auth',
                   'django.contrib.contenttypes',
@@ -24,7 +24,7 @@ INSTALLED_APPS = [#'channels',
                   'account.apps.AccountConfig',
                   'community.apps.CommunityConfig',
                   'chatbot.apps.ChatbotConfig',
-                  'ItenaryMaker',
+                  'ItenaryMaker.apps.ItenarymakerConfig',
                   'rest_framework',
                   'rest_framework_simplejwt',
                   'rest_framework_simplejwt.token_blacklist',
