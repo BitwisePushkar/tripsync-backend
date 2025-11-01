@@ -3,13 +3,13 @@ from langchain_core.prompts import PromptTemplate
 from django.conf import settings
 import json
 
-class ItineraryGenerator:
+class ItenaryGenerator:
     def __init__(self):
         self.llm=ChatGoogleGenerativeAI(model="gemini-pro",google_api_key=settings.GOOGLE_API_KEY,temperature=0.7)
         
         self.prompt_template=PromptTemplate(
             input_variables=["tripname","current_loc","destination","start_date","end_date","days","trip_type","trip_preferences","budget"],
-            template="""You are an expert travel planner. Generate a detailed day-by-day itinerary based on the following information:
+            template="""You are an expert travel planner. Generate a detailed day-by-day itenary based on the following information:
 
 Trip Name: {tripname}
 Starting From: {current_loc}
@@ -21,7 +21,7 @@ Trip Type: {trip_type}
 Preferences: {trip_preferences}
 Budget: ${budget}
 
-Create a detailed itinerary with activities for each day. For each day, organize activities into time slots: Morning (8:00 am - 12:00 pm), Afternoon (12:00 pm - 5:00 pm), Evening (5:00 pm - 8:00 pm), and Night (8:00 pm - 12:00 am).
+Create a detailed itenary with activities for each day. For each day, organize activities into time slots: Morning (8:00 am - 12:00 pm), Afternoon (12:00 pm - 5:00 pm), Evening (5:00 pm - 8:00 pm), and Night (8:00 pm - 12:00 am).
 
 Return ONLY a valid JSON object in this exact format:
 {{
@@ -46,7 +46,7 @@ Return ONLY a valid JSON object in this exact format:
 Include realistic activities based on the destination, preferences, and budget. Ensure all costs fit within the total budget."""
         )
     
-    def generate_itinerary(self,trip_data):
+    def generate_Itenary(self,trip_data):
         try:
             prompt=self.prompt_template.format(**trip_data)
             response=self.llm.invoke(prompt)
@@ -58,9 +58,9 @@ Include realistic activities based on the destination, preferences, and budget. 
                 content=content[:-3]
             content=content.strip()
             
-            itinerary=json.loads(content)
-            return itinerary
+            itenary=json.loads(content)
+            return itenary
         except json.JSONDecodeError as e:
             return {"error":"Failed to parse AI response","details":str(e)}
         except Exception as e:
-            return {"error":"Failed to generate itinerary","details":str(e)}
+            return {"error":"Failed to generate itenary","details":str(e)}

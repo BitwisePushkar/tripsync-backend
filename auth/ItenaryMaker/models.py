@@ -14,7 +14,7 @@ class Trip(models.Model):
     trip_type=models.CharField(max_length=20,choices=[('group','Group Trip'),('solo','Solo Trip')])
     trip_preferences=models.CharField(max_length=20,choices=[('adventure','Adventure'),('relaxation','Relaxation'),('spiritual','Spiritual')])
     budget=models.FloatField(validators=[MinValueValidator(2000)])
-    itinerary_data=models.JSONField(blank=True,null=True)
+    Itenary_data=models.JSONField(blank=True,null=True)
     created_at=models.DateTimeField(auto_now_add=True)
     updated_at=models.DateTimeField(auto_now=True)
     
