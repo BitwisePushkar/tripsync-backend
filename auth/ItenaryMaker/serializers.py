@@ -5,8 +5,8 @@ from datetime import datetime
 class TripSerializer(serializers.ModelSerializer):
     class Meta:
         model=Trip
-        fields=['id','tripname','current_loc','destination','trending','start_date','end_date','days','trip_type','trip_preferences','budget','itinerary_data','created_at','updated_at']
-        read_only_fields=['id','created_at','updated_at','trending','itinerary_data']
+        fields=['id','tripname','current_loc','destination','trending','start_date','end_date','days','trip_type','trip_preferences','budget','Itenary_data','created_at','updated_at']
+        read_only_fields=['id','created_at','updated_at','trending','Itenary_data']
     
     def validate(self,data):
         if data.get('start_date') and data.get('end_date'):
@@ -31,21 +31,21 @@ class TripCreateSerializer(serializers.ModelSerializer):
         return data
 
 class TripListSerializer(serializers.ModelSerializer):
-    has_itinerary=serializers.SerializerMethodField()
+    has_Itenary=serializers.SerializerMethodField()
     
     class Meta:
         model=Trip
-        fields=['id','tripname','destination','start_date','end_date','days','trip_type','budget','has_itinerary','created_at']
+        fields=['id','tripname','destination','start_date','end_date','days','trip_type','budget','has_Itenary','created_at']
     
-    def get_has_itinerary(self,obj):
-        return obj.itinerary_data is not None
+    def get_has_Itenary(self,obj):
+        return obj.Itenary_data is not None
 
-class ItineraryUpdateSerializer(serializers.Serializer):
-    itinerary_data=serializers.JSONField()
+class ItenaryUpdateSerializer(serializers.Serializer):
+    Itenary_data=serializers.JSONField()
     
-    def validate_itinerary_data(self,value):
+    def validate_Itenary(self,value):
         if not isinstance(value,dict):
-            raise serializers.ValidationError("Itinerary data must be a dictionary")
+            raise serializers.ValidationError("Itenary data must be a dictionary")
         if 'days' not in value:
-            raise serializers.ValidationError("Itinerary data must contain 'days' key")
+            raise serializers.ValidationError("Itenary data must contain 'days' key")
         return value

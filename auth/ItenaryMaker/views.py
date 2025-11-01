@@ -3,8 +3,8 @@ from rest_framework.response import Response
 from rest_framework import status
 from django.shortcuts import get_object_or_404
 from .models import Trip
-from .serializers import TripCreateSerializer,TripSerializer,TripListSerializer,ItineraryUpdateSerializer
-from .ai_services import ItineraryGenerator
+from .serializers import TripCreateSerializer,TripSerializer,TripListSerializer,ItenaryUpdateSerializer
+from .ai_services import ItenaryGenerator
 from functools import wraps
 import jwt
 from django.conf import settings
@@ -24,12 +24,20 @@ def jwt_verification(f):
                             status=status.HTTP_401_UNAUTHORIZED)
         try:
             payload=jwt.decode(token,settings.SECRET_KEY,algorithms=['HS256'])
+            user_id=payload.get('user_id')
             getemail=payload.get('email')
-            if not getemail:
-                return Response({"error":"Token has no email attached to it"},
-                                status=status.HTTP_401_UNAUTHORIZED)
+            sub=payload.get('sub')
+            
             try:
-                getuser=User.objects.get(email=getemail)
+                if user_id:
+                    getuser=User.objects.get(id=user_id)
+                elif getemail:
+                    getuser=User.objects.get(email=getemail)
+                elif sub:
+                    getuser=User.objects.get(email=sub)
+                else:
+                    return Response({"error":"Token has no user identifier"},
+                                    status=status.HTTP_401_UNAUTHORIZED)
                 request.user=getuser
             except User.DoesNotExist:
                 return Response({"error":"User does not exist with this email"},
@@ -49,7 +57,7 @@ def jwt_verification(f):
     responses={201:TripSerializer,
                400:'Bad Request',
                401:'Unauthorized'},
-    operation_description="Create a new trip and generate AI itinerary"
+    operation_description="Create a new trip and generate AI Itenary"
 )
 @swagger_auto_schema(
     method='get',
@@ -82,11 +90,11 @@ def trip_list_create(request):
                 'budget':trip.budget
             }
             
-            generator=ItineraryGenerator()
-            itinerary_data=generator.generate_itinerary(trip_data)
-            if 'error' in itinerary_data:
-                return Response({"message":"Trip created but itinerary generation failed","trip_id":trip.id,"error":itinerary_data},status=status.HTTP_201_CREATED)
-            trip.itinerary_data=itinerary_data
+            generator=ItenaryGenerator()
+            Itenary_data=generator.generate_Itenary(trip_data)
+            if 'error' in Itenary_data:
+                return Response({"message":"Trip created but Itenary generation failed","trip_id":trip.id,"error":Itenary_data},status=status.HTTP_201_CREATED)
+            trip.Itenary_data=Itenary_data
             trip.save()
             response_serializer=TripSerializer(trip)
             return Response(response_serializer.data,
@@ -99,21 +107,21 @@ def trip_list_create(request):
     responses={200:TripSerializer,
                401:'Unauthorized',
                404:'Not Found'},
-            operation_description="Get trip details with itinerary")
+            operation_description="Get trip details with Itenary")
 @swagger_auto_schema(
     method='put',
-    request_body=ItineraryUpdateSerializer,
+    request_body=ItenaryUpdateSerializer,
     responses={200:TripSerializer,400:'Bad Request',
                401:'Unauthorized',
                404:'Not Found'},
-    operation_description="Update itinerary data"
+    operation_description="Update Itenary data"
 )
 @swagger_auto_schema(
     method='delete',
     responses={204:'No Content',
                401:'Unauthorized',
                404:'Not Found'},
-    operation_description="Delete entire trip with itinerary")
+    operation_description="Delete entire trip with Itenary")
 
 @api_view(['GET','PUT','DELETE'])
 @jwt_verification
@@ -126,9 +134,9 @@ def trip_detail(request,pk):
                         status=status.HTTP_200_OK)
     
     if request.method=='PUT':
-        serializer=ItineraryUpdateSerializer(data=request.data)
+        serializer=ItenaryUpdateSerializer(data=request.data)
         if serializer.is_valid():
-            trip.itinerary_data=serializer.validated_data['itinerary_data']
+            trip.Itenary_data=serializer.validated_data['Itenary_data']
             trip.save()
             
             response_serializer=TripSerializer(trip)
@@ -138,7 +146,7 @@ def trip_detail(request,pk):
     
     if request.method=='DELETE':
         trip.delete()
-        return Response({"message":"Trip and itinerary deleted successfully"},
+        return Response({"message":"Trip and Itenary deleted successfully"},
                         status=status.HTTP_204_NO_CONTENT)
 
 
