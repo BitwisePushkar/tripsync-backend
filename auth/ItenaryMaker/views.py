@@ -42,7 +42,7 @@ from expense.models import Budget
         401: OpenApiTypes.OBJECT
     },
     description="Get all trips for the authenticated user with itinerary status"
-)
+)   
 
 @api_view(['POST', 'GET'])
 @permission_classes([IsAuthenticated]) 
@@ -74,11 +74,11 @@ def trip_list_create(request):
                 'budget': trip.budget  
             }
             generator = ItenaryGenerator()
-            itinerary_data = generator.generate_itinerary(trip_data)           
-            if 'error' in itinerary_data:
+            itenary_data = generator.generate_Itenary(trip_data)           
+            if 'error' in itenary_data:
                 return Response(
-                    {"message": "Trip created but itinerary generation failed","trip_id": trip.id,"error": itinerary_data},status=status.HTTP_201_CREATED)            
-            trip.itinerary_data = itinerary_data
+                    {"message": "Trip created but itinerary generation failed","trip_id": trip.id,"error": itenary_data},status=status.HTTP_201_CREATED)            
+            trip.itenary_data = itenary_data
             trip.save()           
             response_serializer = TripSerializer(trip)
             return Response(response_serializer.data, status=status.HTTP_201_CREATED)       
@@ -107,7 +107,7 @@ def trip_list_create(request):
         OpenApiExample(
             'Itinerary Update Example',
             value={
-                "itinerary_data": {
+                "itenary_data": {
                     "days": [
                         {
                             "day_number": 1,
@@ -150,7 +150,7 @@ def trip_detail(request, pk):
     if request.method == 'PUT':
         serializer = ItineraryUpdateSerializer(data=request.data)
         if serializer.is_valid():
-            trip.itinerary_data = serializer.validated_data['itinerary_data']
+            trip.itenary_data = serializer.validated_data['itenary_data']
             trip.save()            
             response_serializer = TripSerializer(trip)
             return Response(response_serializer.data, status=status.HTTP_200_OK)        
