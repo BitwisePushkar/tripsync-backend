@@ -21,6 +21,8 @@ urlpatterns = [
      path('health/', health_check, name='health-check'),
     path('admin/', admin.site.urls),
     path('api/chatbot/', include('chatbot.urls')),
+    path('api/Itenary/',include('ItenaryMaker.urls')),
+    path('api/tripmate/', include('tripmate.urls')),
     path('api/account/', include('account.urls')),
     path('api/chat/', include('chat.urls')),
     path('api/personal/', include('personal.urls')), 
