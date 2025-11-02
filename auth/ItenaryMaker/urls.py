@@ -1,7 +1,8 @@
 from django.urls import path
-from . import views
+from .views import CreateItenaryView, ItenaryListView, ItenaryDetailView
 
-urlpatterns=[
-    path('trips/',views.trip_list_create,name='trip-list-create'),
-    path('trips/<int:pk>/',views.trip_detail,name='trip-detail'),
+urlpatterns = [
+    path('create/', CreateItenaryView.as_view(), name='create-itinerary'),
+    path('list/', ItenaryListView.as_view(), name='list-itineraries'),
+    path('<int:pk>/', ItenaryDetailView.as_view(), name='itinerary-detail'),
 ]
