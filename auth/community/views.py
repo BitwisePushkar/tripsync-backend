@@ -1,159 +1,192 @@
-from rest_framework import viewsets, status, parsers
-from rest_framework.decorators import action
+from rest_framework.views import APIView
+from rest_framework import status, parsers
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated, AllowAny
-from drf_spectacular.utils import extend_schema, extend_schema_view, OpenApiParameter
+from django.shortcuts import get_object_or_404
+from drf_spectacular.utils import extend_schema, OpenApiParameter
 from drf_spectacular.types import OpenApiTypes
-from .models import Post
-from .serializers import PostSerializer
+from .models import Post, Comment, PostLike
+from .serializers import PostSerializer, PostDetailSerializer, CommentSerializer
 
-class IsEmailVerified(IsAuthenticated):
-    def has_permission(self, request, view):
-        if not super().has_permission(request, view):
-            return False
-        if not request.user.is_email_verified:
-            return False
-        return True
-
-@extend_schema_view(
-    list=extend_schema(
+class PostListView(APIView):
+    permission_classes = [AllowAny]    
+    @extend_schema(
         tags=['Posts'],
-        summary='List all posts',
-        description='Retrieve a list of all posts.',
+        summary='List posts',
         parameters=[
-            OpenApiParameter(
-                name='user',
-                type=OpenApiTypes.INT,
-                location=OpenApiParameter.QUERY,
-                description='Filter posts by user ID',
-                required=False
-            )
-        ]
-    ),
-    create=extend_schema(
+            OpenApiParameter('user', OpenApiTypes.INT, OpenApiParameter.QUERY,description='Filter by user ID', required=False),
+            OpenApiParameter('search', OpenApiTypes.STR, OpenApiParameter.QUERY,description='Search by title', required=False)
+        ],
+        responses=PostSerializer(many=True)
+    )
+    def get(self, req):
+        posts = Post.objects.select_related('user__profile').all()        
+        uid = req.query_params.get('user')
+        if uid:
+            try:
+                posts = posts.filter(user__id=int(uid))
+            except (ValueError, TypeError):
+                pass        
+        q = req.query_params.get('search')
+        if q:
+            posts = posts.filter(title__icontains=q.strip())        
+        s = PostSerializer(posts, many=True, context={'request': req})
+        return Response({'status': 'success','count': posts.count(),'data': s.data})
+    
+class PostCreateView(APIView):
+    permission_classes = [IsAuthenticated]
+    parser_classes = [parsers.MultiPartParser, parsers.FormParser, parsers.JSONParser]    
+    @extend_schema(
         tags=['Posts'],
         summary='Create a new post',
-        description='Create a new post with optional image and video uploads.',
-    ),
-    retrieve=extend_schema(
-        tags=['Posts'], 
+        request=PostSerializer,
+        responses={201: PostSerializer}
+    )
+    def post(self, req):
+        s = PostSerializer(data=req.data, context={'request': req})
+        s.is_valid(raise_exception=True)
+        s.save(user=req.user)        
+        return Response({'status': 'success','message': 'Post created successfully','data': s.data}, status=status.HTTP_201_CREATED)
+
+class PostDetailView(APIView):
+    permission_classes = [AllowAny]   
+    @extend_schema(
+        tags=['Posts'],
         summary='Get a specific post',
-        description='Retrieve details of a specific post by ID. Public endpoint.'
-    ),
-    update=extend_schema(
+        responses={200: PostDetailSerializer}
+    )
+    def get(self, req, pk):
+        p = get_object_or_404(Post.objects.select_related('user__profile').prefetch_related('comments__user__profile'),pk=pk)
+        s = PostDetailSerializer(p, context={'request': req})
+        return Response({'status': 'success','data': s.data})
+
+class PostUpdateView(APIView):
+    permission_classes = [IsAuthenticated]
+    parser_classes = [parsers.MultiPartParser, parsers.FormParser, parsers.JSONParser]   
+    @extend_schema(
         tags=['Posts'],
         summary='Update a post',
-        description='Update an existing post. Only the post owner can update. Requires email verification.',
-    ),
-    partial_update=extend_schema(
-        tags=['Posts'],
-        summary='Partially update a post',
-        description='Partially update an existing post. Only the post owner can update. Requires email verification.',
-    ),
-    destroy=extend_schema(
+        request=PostSerializer,
+        responses={200: PostSerializer}
+    )
+    def patch(self, req, pk):
+        p = get_object_or_404(Post, pk=pk)        
+        if p.user != req.user:
+            return Response({'status': 'error','message': 'Permission denied','errors': {'permission': ['You can only edit your own posts']}}, status=status.HTTP_403_FORBIDDEN)        
+        s = PostSerializer(p, data=req.data, partial=True, context={'request': req})
+        s.is_valid(raise_exception=True)
+        s.save()        
+        return Response({'status': 'success','message': 'Post updated successfully','data': s.data})
+
+class PostDeleteView(APIView):
+    permission_classes = [IsAuthenticated]    
+    @extend_schema(
         tags=['Posts'],
         summary='Delete a post',
-        description='Delete a post. Only the post owner can delete. Requires email verification.',
+        responses={200: dict}
     )
-)
-class PostViewSet(viewsets.ModelViewSet):
-    queryset = Post.objects.select_related('user').all()
-    serializer_class = PostSerializer
-    parser_classes = [parsers.JSONParser, parsers.MultiPartParser, parsers.FormParser]
-    
-    def get_permissions(self):
-        if self.action in ['list', 'retrieve']:
-            permission_classes = [AllowAny]
-        elif self.action in ['create', 'update', 'partial_update', 'destroy', 'my_posts']:
-            permission_classes = [IsEmailVerified]
-        else:
-            permission_classes = [IsAuthenticated]
-        return [permission() for permission in permission_classes]
-    
-    def get_queryset(self):
-        queryset = Post.objects.select_related('user').all()
-        user_id = self.request.query_params.get('user', None)
-        if user_id:
-            try:
-                queryset = queryset.filter(user__id=int(user_id))
-            except (ValueError, TypeError):
-                pass
-        return queryset
-    
-    def get_serializer_context(self):
-        context = super().get_serializer_context()
-        context['request'] = self.request
-        return context
+    def delete(self, req, pk):
+        p = get_object_or_404(Post, pk=pk)        
+        if p.user != req.user:
+            return Response({'status': 'error','message': 'Permission denied','errors': {'permission': ['You can only delete your own posts']}}, status=status.HTTP_403_FORBIDDEN)        
+        p.delete()
+        return Response({'status': 'success','message': 'Post deleted successfully'})
 
-    def perform_create(self, serializer):
-        serializer.save(user=self.request.user)
-    
-    def create(self, request, *args, **kwargs):
-        if not request.user.is_email_verified:
-            return Response({'status': 'error','message': 'Email verification required','errors': {'account': ['Please verify your email before creating posts']}}, status=status.HTTP_403_FORBIDDEN)
-        
-        serializer = self.get_serializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-        self.perform_create(serializer)
-        headers = self.get_success_headers(serializer.data)
+class PostSearchView(APIView):
+    permission_classes = [AllowAny]    
+    @extend_schema(
+        tags=['Posts'],
+        summary='Search posts by title',
+        parameters=[OpenApiParameter('q', OpenApiTypes.STR, OpenApiParameter.QUERY, description='Search query', required=True)],responses={200: PostSerializer(many=True)}
+    )
+    def get(self, req):
+        q = req.query_params.get('q', '').strip()        
+        if not q:
+            return Response({'status': 'error','message': 'Search query is required','errors': {'query': ['Please provide a search query']}}, status=status.HTTP_400_BAD_REQUEST)        
+        posts = Post.objects.filter(title__icontains=q).select_related('user__profile')
+        s = PostSerializer(posts, many=True, context={'request': req})        
+        return Response({'status': 'success','query': q,'count': posts.count(),'data': s.data})
 
-        return Response({'status': 'success','message': 'Post created successfully','data': serializer.data}, status=status.HTTP_201_CREATED, headers=headers)
-    
-    def update(self, request, *args, **kwargs):
-        partial = kwargs.pop('partial', False)
-        instance = self.get_object()
-        if instance.user != request.user:
-            return Response({'status': 'error','message': 'Permission denied','errors': {'permission': ['You can only edit your own posts']}}, status=status.HTTP_403_FORBIDDEN)
-
-        if not request.user.is_email_verified:
-            return Response({'status': 'error','message': 'Email verification required','errors': {'account': ['Your email must be verified to update posts']}}, status=status.HTTP_403_FORBIDDEN)
-        
-        serializer = self.get_serializer(instance, data=request.data, partial=partial)
-        serializer.is_valid(raise_exception=True)
-        self.perform_update(serializer)
-        
-        return Response({'status': 'success','message': 'Post updated successfully','data': serializer.data})
-    
-    def destroy(self, request, *args, **kwargs):
-        instance = self.get_object()
-        if instance.user != request.user:
-            return Response({'status': 'error','message': 'Permission denied','errors': {'permission': ['You can only delete your own posts']}}, status=status.HTTP_403_FORBIDDEN)
-        if not request.user.is_email_verified:
-            return Response({'status': 'error','message': 'Email verification required','errors': {'account': ['Your email must be verified to delete posts']}}, status=status.HTTP_403_FORBIDDEN)
-        
-        self.perform_destroy(instance)
-        return Response({'status': 'success','message': 'Post deleted successfully'}, status=status.HTTP_200_OK)
-    
+class MyPostsView(APIView):
+    permission_classes = [IsAuthenticated]    
     @extend_schema(
         tags=['Posts'],
         summary='Get current user posts',
-        description='Retrieve all posts created by the authenticated user.',
+        responses={200: PostSerializer(many=True)}
     )
-    @action(detail=False, methods=['get'], permission_classes=[IsEmailVerified])
-    def my_posts(self, request):
-        posts = Post.objects.filter(user=request.user).select_related('user')
-        serializer = self.get_serializer(posts, many=True)
-        return Response({
-            'status': 'success',
-            'count': posts.count(),
-            'data': serializer.data
-        })
-    
+    def get(self, req):
+        posts = Post.objects.filter(user=req.user).select_related('user__profile')
+        s = PostSerializer(posts, many=True, context={'request': req})        
+        return Response({'status': 'success','count': posts.count(),'data': s.data})
+
+class CommentCreateView(APIView):
+    permission_classes = [IsAuthenticated]    
     @extend_schema(
-        tags=['Posts'],
-        summary='Check verification status',
-        description='Check if the current user can create/edit posts (must be email verified).',
+        tags=['Comments'],
+        summary='Add a comment to a post',
+        request=CommentSerializer,
+        responses={201: CommentSerializer}
     )
-    @action(detail=False, methods=['get'], permission_classes=[IsAuthenticated])
-    def verify_status(self, request):
-        user = request.user       
-        return Response({
-            'status': 'success',
-            'data': {
-                'is_authenticated': True,
-                'is_email_verified': user.is_email_verified,
-                'can_create_posts': user.is_email_verified,
-                'user_id': user.id,
-                'email': user.email
-            }
-        })
+    def post(self, req, pk):
+        p = get_object_or_404(Post, pk=pk)        
+        s = CommentSerializer(data=req.data, context={'request': req})
+        s.is_valid(raise_exception=True)
+        s.save(user=req.user, post=p)        
+        return Response({'status': 'success','message': 'Comment added successfully','data': s.data}, status=status.HTTP_201_CREATED)
+
+class CommentUpdateView(APIView):
+    permission_classes = [IsAuthenticated]   
+    @extend_schema(
+        tags=['Comments'],
+        summary='Update a comment',
+        request=CommentSerializer,
+        responses={200: CommentSerializer}
+    )
+    def patch(self, req, pk):
+        c = get_object_or_404(Comment, pk=pk)        
+        if c.user != req.user:
+            return Response({'status': 'error','message': 'Permission denied','errors': {'permission': ['You can only edit your own comments']}}, status=status.HTTP_403_FORBIDDEN)        
+        s = CommentSerializer(c, data=req.data, partial=True, context={'request': req})
+        s.is_valid(raise_exception=True)
+        s.save()        
+        return Response({'status': 'success','message': 'Comment updated successfully','data': s.data})
+
+class CommentDeleteView(APIView):
+    permission_classes = [IsAuthenticated]   
+    @extend_schema(
+        tags=['Comments'],
+        summary='Delete a comment',
+        responses={200: dict}
+    )
+    def delete(self, req, pk):
+        c = get_object_or_404(Comment, pk=pk)        
+        if c.user != req.user:
+            return Response({'status': 'error','message': 'Permission denied','errors': {'permission': ['You can only delete your own comments']}}, status=status.HTTP_403_FORBIDDEN)       
+        c.delete()
+        return Response({'status': 'success','message': 'Comment deleted successfully'})
+
+class PostLikeView(APIView):
+    permission_classes = [IsAuthenticated]   
+    @extend_schema(
+        tags=['Likes'],
+        summary='Like or dislike a post',
+        request={'application/json': {'type': 'object', 'properties': {'like': {'type': 'boolean'}}}},
+        responses={200: dict}
+    )
+    def post(self, req, pk):
+        p = get_object_or_404(Post, pk=pk)
+        like = req.data.get('like')        
+        if like is None:
+            return Response({'status': 'error','message': 'Invalid request','errors': {'like': ['This field is required. Use true for like, false for dislike']}}, status=status.HTTP_400_BAD_REQUEST)       
+        existing = PostLike.objects.filter(post=p, user=req.user).first()        
+        if existing:
+            if existing.like == like:
+                existing.delete()
+                return Response({'status': 'success','message': f'{"Like" if like else "Dislike"} removed','data': {'action': 'removed','like': like,'likes': p.likes.filter(like=True).count(),'dislikes': p.likes.filter(like=False).count()}})
+            else:
+                existing.like = like
+                existing.save()
+                return Response({'status': 'success','message': f'Changed to {"like" if like else "dislike"}','data': {'action': 'updated','like': like,'likes': p.likes.filter(like=True).count(),'dislikes': p.likes.filter(like=False).count()}})
+        else:
+            PostLike.objects.create(post=p, user=req.user, like=like)
+            return Response({'status': 'success','message': f'Post {"liked" if like else "disliked"}','data': {'action': 'created','like': like,'likes': p.likes.filter(like=True).count(),'dislikes': p.likes.filter(like=False).count()}}, status=status.HTTP_201_CREATED)
