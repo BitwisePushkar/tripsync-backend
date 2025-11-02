@@ -124,7 +124,7 @@ class ItenaryBasicSerializer(serializers.ModelSerializer):
     duration_days = serializers.SerializerMethodField()
     class Meta:
         model = Trip
-        fields = ['id', 'tripname', 'destination', 'start_date', 'end_date', 'duration_days', 'Budget', 'owner_info']
+        fields = ['id', 'tripname', 'destination', 'start_date', 'end_date', 'duration_days', 'budget', 'owner_info']
         read_only_fields = ['id']
     def get_duration_days(self, obj):
         if obj.start_date and obj.end_date:
