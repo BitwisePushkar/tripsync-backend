@@ -1,66 +1,69 @@
 from langchain_google_genai import ChatGoogleGenerativeAI
-from langchain_core.prompts import PromptTemplate
 from django.conf import settings
-import json
+import logging
 
-class ItenaryGenerator:
-    def __init__(self):
-        self.llm=ChatGoogleGenerativeAI(model="gemini-pro",google_api_key=settings.GEMINI_API_KEY,temperature=0.7)
-        
-        self.prompt_template=PromptTemplate(
-            input_variables=["tripname","current_loc","destination","start_date","end_date","days","trip_type","trip_preferences","budget"],
-            template="""You are an expert travel planner. Generate a detailed day-by-day itenary based on the following information:
+logger = logging.getLogger(__name__)
 
-Trip Name: {tripname}
-Starting From: {current_loc}
-Destination: {destination}
-Start Date: {start_date}
-End Date: {end_date}
-Number of Days: {days}
-Trip Type: {trip_type}
-Preferences: {trip_preferences}
-Budget: ${budget}
-
-Create a detailed itenary with activities for each day. For each day, organize activities into time slots: Morning (8:00 am - 12:00 pm), Afternoon (12:00 pm - 5:00 pm), Evening (5:00 pm - 8:00 pm), and Night (8:00 pm - 12:00 am).
-
-Return ONLY a valid JSON object in this exact format:
-{{
-  "days": [
-    {{
-      "day_number": 1,
-      "title": "Day 1 - Arrival",
-      "activities": [
-        {{
-          "time_slot": "morning",
-          "title": "Activity Title",
-          "description": "Detailed description of the activity",
-          "location": "Specific location",
-          "duration": "2 hours",
-          "estimated_cost": 50
-        }}
-      ]
-    }}
-  ]
-}}
-
-Include realistic activities based on the destination, preferences, and budget. Ensure all costs fit within the total budget."""
-        )
+class ItineraryGenerator:
+    FREE_MODELS = [
+        "gemini-2.0-flash-exp",
+        "gemini-1.5-flash-002",
+        "gemini-1.5-flash-latest",
+        "gemini-1.5-flash",
+        "gemini-1.0-pro-latest",
+        "gemini-1.0-pro",
+    ]
     
-    def generate_Itenary(self,trip_data):
-        try:
-            prompt=self.prompt_template.format(**trip_data)
-            response=self.llm.invoke(prompt)
-            content=response.content.strip()
-            
-            if content.startswith('```json'):
-                content=content[7:]
-            if content.endswith('```'):
-                content=content[:-3]
-            content=content.strip()
-            
-            itenary=json.loads(content)
-            return itenary
-        except json.JSONDecodeError as e:
-            return {"error":"Failed to parse AI response","details":str(e)}
-        except Exception as e:
-            return {"error":"Failed to generate itenary","details":str(e)}
+    def __init__(self):
+        llm = ChatGoogleGenerativeAI(model="gemini-2.0-flash-exp",
+                    google_api_key=settings.GOOGLE_API_KEY,
+                    temperature=0.7,
+                    convert_system_message_to_human=True,
+                    max_output_tokens=2048,
+                )
+        test_response = llm.invoke("test")
+        self.llm = llm
+
+  
+        
+        if not self.llm:
+            raise Exception("No working Gemini model found. Check API key.")
+    
+    def generate_itinerary(self, trip_data):
+      prompt = f"""
+You are an expert travel planner.
+
+Create a detailed travel itinerary for:
+
+Trip Name: {trip_data.get('tripname')}
+Destination: {trip_data.get('destination')}
+From: {trip_data.get('current_loc')}
+Start Date: {trip_data.get('start_date')}
+End Date: {trip_data.get('end_date')}
+Duration: {trip_data.get('days')} days
+Trip Type: {trip_data.get('trip_type')}
+Preferences: {trip_data.get('trip_preferences')}
+Budget: ${trip_data.get('budget')}
+
+Provide:
+1. Day-by-day itinerary with morning, afternoon, evening activities
+2. Restaurant recommendations with estimated costs
+3. Budget breakdown
+4. Travel tips
+5. Must-see attractions
+
+Format clearly with day numbers and timings.
+"""
+      try:
+        response = self.llm.invoke(prompt)
+        return {
+            'success': True,
+            'itinerary': response.content,
+            'model_used': "gemini-2.0-flash-exp"
+        }
+      except Exception as e:
+        logger.error(f"Error generating itinerary: {str(e)}")
+        return {
+            'success': False,
+            'error': str(e)
+        }
