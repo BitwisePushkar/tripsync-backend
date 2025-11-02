@@ -5,12 +5,13 @@ from channels.auth import AuthMiddlewareStack
 
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'auth.settings')
 
-# import tripmate.routing
+import tripmate.routing
 import chat.routing
 
 application = ProtocolTypeRouter({
     'http': get_asgi_application(),
     'websocket':AuthMiddlewareStack(
-        URLRouter(chat.routing.websocket_urlpatterns)
+        URLRouter(tripmate.routing.websocket_urlpatterns +
+            chat.routing.websocket_urlpatterns)
     ),
 })
