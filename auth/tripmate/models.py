@@ -1,7 +1,7 @@
 from django.db import models
 from django.conf import settings
 from django.core.exceptions import ValidationError
-from HomePage.models import ItenaryFields
+from ItenaryMaker.models import Trip
 
 class Tripmate(models.Model):
     user = models.OneToOneField(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='tripmate_profile')
@@ -50,7 +50,7 @@ class FriendRequest(models.Model):
 
 
 class TripShare(models.Model):  
-    itenary = models.ForeignKey(ItenaryFields, on_delete=models.CASCADE, related_name='shared_with')
+    itenary = models.ForeignKey(Trip, on_delete=models.CASCADE, related_name='shared_with')
     shared_with = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='shared_trips')
     shared_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='my_shared_trips')
     status = models.CharField(max_length=10, choices=[('pending', 'Pending'),('accepted', 'Accepted'),('declined', 'Declined'),], default='pending')

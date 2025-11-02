@@ -1,6 +1,6 @@
 from django.urls import path
 from .views import (
-    SearchUsersView, MyTripmatesView, SendFriendRequestView,
+    SearchUser, ViewTripmates, SendFriendRequestView,
     ReceivedFriendRequestsView, SentFriendRequestsView,
     RespondFriendRequestView, CancelFriendRequestView,
     RemoveTripmateView, ShareTripView, MySharedTripsView,
@@ -9,8 +9,8 @@ from .views import (
 )
 
 urlpatterns = [
-    path('search/', SearchUsersView.as_view(), name='search-users'),
-    path('my-tripmates/', MyTripmatesView.as_view(), name='my-tripmates'),
+    path('search/', SearchUser.as_view(), name='search-users'),
+    path('my-tripmates/', ViewTripmates.as_view(), name='my-tripmates'),
     path('friend-request/send/', SendFriendRequestView.as_view(), name='send-friend-request'),
     path('friend-request/received/', ReceivedFriendRequestsView.as_view(), name='received-friend-requests'),
     path('friend-request/sent/', SentFriendRequestsView.as_view(), name='sent-friend-requests'),

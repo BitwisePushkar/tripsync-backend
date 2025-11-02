@@ -2,7 +2,7 @@ from rest_framework import serializers
 from django.contrib.auth import get_user_model
 from .models import Tripmate, FriendRequest, TripShare
 from personal.models import Profile
-from HomePage.models import ItenaryFields
+from ItenaryMaker.models import Trip
 
 User = get_user_model()
 class UserBasicSerializer(serializers.ModelSerializer):
@@ -150,7 +150,7 @@ class ItenaryBasicSerializer(serializers.ModelSerializer):
     duration_days = serializers.SerializerMethodField()
     
     class Meta:
-        model = ItenaryFields
+        model = Trip
         fields = ['id', 'tripname', 'destination', 'start_date', 'end_date', 'duration_days', 'Budget', 'owner_info']
         read_only_fields = ['id']
     
@@ -180,8 +180,8 @@ class ShareTripSerializer(serializers.Serializer):
     def validate_itenary_id(self, value):
         request_user = self.context['request'].user
         try:
-            itenary = ItenaryFields.objects.get(id=value, user=request_user)
-        except ItenaryFields.DoesNotExist:
+            itenary = Trip.objects.get(id=value, user=request_user)
+        except Trip.DoesNotExist:
             raise serializers.ValidationError("Trip not found or you don't own this trip")
         return value
     

@@ -25,6 +25,7 @@ INSTALLED_APPS = ['channels',
                   'community.apps.CommunityConfig',
                   'chatbot.apps.ChatbotConfig',
                   'ItenaryMaker.apps.ItenarymakerConfig',
+                  'tripmate',
                   'rest_framework',
                   'rest_framework_simplejwt',
                   'rest_framework_simplejwt.token_blacklist',
@@ -68,7 +69,39 @@ else:
 
 REST_FRAMEWORK = {'DEFAULT_AUTHENTICATION_CLASSES': ('rest_framework_simplejwt.authentication.JWTAuthentication',), 'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema', 'DEFAULT_RENDERER_CLASSES': ['rest_framework.renderers.JSONRenderer', 'rest_framework.renderers.BrowsableAPIRenderer']}
 
-SPECTACULAR_SETTINGS = {'TITLE': 'TripSync API', 'DESCRIPTION': 'TripSync - API Documentation', 'VERSION': '1.0.0', 'SERVE_INCLUDE_SCHEMA': False, 'CONTACT': {'name': 'TripSync Support', 'email': 'support@tripsync.com'}, 'LICENSE': {'name': 'MIT License'}, 'TAGS': [{'name': 'Authentication', 'description': 'User registration, login and token management'}, {'name': 'Password Reset', 'description': 'Password reset functionality with OTP'}], 'SERVERS': [{'url': 'http://127.0.0.1:8000', 'description': 'Development server'}, {'url': 'https://tripsync-backend-ruak.onrender.com', 'description': 'Production server'}], 'COMPONENT_SPLIT_REQUEST': True, 'SWAGGER_UI_SETTINGS': {'deepLinking': True, 'persistAuthorization': True, 'displayOperationId': False, 'filter': True}}
+SPECTACULAR_SETTINGS = {
+    'TITLE': 'TripSync API',
+    'DESCRIPTION': 'TripSync - API Documentation',
+    'VERSION': '1.0.0',
+    'SERVE_INCLUDE_SCHEMA': False,
+    'CONTACT': {
+        'name': 'TripSync Support',
+        'email': 'support@tripsync.com'
+    },
+    'LICENSE': {
+        'name': 'MIT License'
+    },
+    'TAGS': [
+        {'name': 'Authentication', 'description': 'User registration, login and token management'},
+        {'name': 'Password Reset', 'description': 'Password reset functionality with OTP'},
+        {'name': 'Tripmate - Search', 'description': 'Search users to connect with'},
+        {'name': 'Tripmate - Friends', 'description': 'Friend request and tripmate management'},
+        {'name': 'Tripmate - Trip Sharing', 'description': 'Share trips with tripmates'},
+        {'name': 'Chat - Conversations', 'description': 'Manage conversations'},
+        {'name': 'Chat - Messages', 'description': 'Send and receive messages'},
+    ],
+    'SERVERS': [
+        {'url': 'http://127.0.0.1:8000', 'description': 'Development server'},
+        {'url': 'https://tripsync-backend-ruak.onrender.com', 'description': 'Production server'}
+    ],
+    'COMPONENT_SPLIT_REQUEST': True,
+    'SWAGGER_UI_SETTINGS': {
+        'deepLinking': True,
+        'persistAuthorization': True,
+        'displayOperationId': False,
+        'filter': True
+    }
+}
 
 AUTH_PASSWORD_VALIDATORS = [{'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator'}, {'NAME': 'django.contrib.auth.password_validation.MinimumLengthValidator', 'OPTIONS': {'min_length': 8}}, {'NAME': 'django.contrib.auth.password_validation.CommonPasswordValidator'}, {'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator'}]
 

@@ -5,7 +5,7 @@ from rest_framework import status
 from django.shortcuts import get_object_or_404
 from .models import Trip
 from .serializers import TripCreateSerializer, TripSerializer, TripListSerializer, ItineraryUpdateSerializer
-from .ai_services import ItineraryGenerator
+from .ai_services import ItenaryGenerator
 from drf_spectacular.utils import extend_schema, OpenApiExample
 from drf_spectacular.types import OpenApiTypes
 from expense.models import Budget  
@@ -73,7 +73,7 @@ def trip_list_create(request):
                 'trip_preferences': trip.trip_preferences,
                 'budget': trip.budget  
             }
-            generator = ItineraryGenerator()
+            generator = ItenaryGenerator()
             itinerary_data = generator.generate_itinerary(trip_data)           
             if 'error' in itinerary_data:
                 return Response(

@@ -9,7 +9,7 @@ from drf_spectacular.utils import extend_schema, OpenApiParameter, OpenApiExampl
 from drf_spectacular.types import OpenApiTypes
 from .models import Tripmate, FriendRequest, TripShare
 from .serializers import TripmateSerializer, FriendRequestSerializer, SendFriendRequestSerializer,RespondFriendRequestSerializer, UserSearchSerializer, TripShareSerializer,ShareTripSerializer, RespondTripShareSerializer, ItenaryBasicSerializer
-from HomePage.models import ItenaryFields
+from ItenaryMaker.models import Trip
 from personal.models import Profile
 
 User = get_user_model()
@@ -318,7 +318,7 @@ class ShareTripView(APIView):
                 'errors': serializer.errors
             }, status=status.HTTP_400_BAD_REQUEST)
         
-        itenary = ItenaryFields.objects.get(id=serializer.validated_data['itenary_id'])
+        itenary = Trip.objects.get(id=serializer.validated_data['itenary_id'])
         tripmate_user = User.objects.get(id=serializer.validated_data['tripmate_id'])
         
         trip_share = TripShare.objects.create(
@@ -456,7 +456,7 @@ class SharedTripDetailView(generics.RetrieveAPIView):
     serializer_class = ItenaryBasicSerializer
     
     def get_queryset(self):
-        return ItenaryFields.objects.filter(
+        return Trip.objects.filter(
             Q(user=self.request.user) |
             Q(shared_with__shared_with=self.request.user, shared_with__status='accepted')
         ).distinct()
