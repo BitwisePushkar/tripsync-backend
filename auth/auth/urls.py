@@ -12,9 +12,7 @@ from django.conf.urls.static import static
 @api_view(['GET'])
 def root_redirect(request):
     return Response({
-        'message': 'Welcome to TripSync API',
-        'swagger link': request.build_absolute_uri('/api/docs/'),
-        'admin link': request.build_absolute_uri('/admin/'),})
+        'message': 'Welcome to TripSync API',})
 def health_check(request):
     return JsonResponse({'status': 'ok'})
 
@@ -29,11 +27,12 @@ urlpatterns = [
     path('api/community/',include('community.urls')),
     path('api/Homepage/',include('HomePage.urls')),
     path('api/expense/',include('expense.urls')),
+    path('api/itinerary/',include('Itinerary.urls')),
+    # path('api/tripmate/',include('tripmate.urls')),
     path('api/schema/', SpectacularAPIView.as_view(), name='schema'),
     path('api/docs/', SpectacularSwaggerView.as_view(url_name='schema'), name='swagger-ui'),
     path('api/redoc/', SpectacularRedocView.as_view(url_name='schema'), name='redoc'),
 ]
-
 
 if settings.DEBUG:
     urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
