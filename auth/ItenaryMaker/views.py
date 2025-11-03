@@ -22,7 +22,7 @@ class CreateItenaryView(APIView):
     )
     def post(self, request):
         serializer = ItenaryCreateSerializer(data=request.data)
-        
+    
         if not serializer.is_valid():
             return Response({
                 'success': False,
@@ -51,7 +51,10 @@ class CreateItenaryView(APIView):
             
             if result['success']:
                 trip.Itenary_data = result['itinerary']
-                trip.Itenary_data = json.dumps({"itinerary": result['itinerary']})
+                
+                if 'itinerary_json' in result:
+                    trip.Itenary_json = result['itinerary_json']
+                
                 trip.save()
                 
                 response_serializer = ItenarySerializer(trip)
@@ -77,7 +80,6 @@ class CreateItenaryView(APIView):
                 'trip_id': trip.id,
                 'error': str(e)
             }, status=status.HTTP_201_CREATED)
-
 
 class ItenaryListView(APIView):
     permission_classes = [IsAuthenticated]

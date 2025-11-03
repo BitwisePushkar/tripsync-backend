@@ -15,6 +15,7 @@ class Trip(models.Model):
     trip_preferences = models.CharField(max_length=200)
     budget = models.FloatField()
     Itenary_data = models.TextField(blank=True, null=True)
+    Itenary_json = models.JSONField(blank=True, null=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     
