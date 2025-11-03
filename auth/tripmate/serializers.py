@@ -2,7 +2,7 @@ from rest_framework import serializers
 from django.contrib.auth import get_user_model
 from .models import Tripmate, FriendRequest, TripShare
 from personal.models import Profile
-from ItenaryMaker.models import Trip
+from Itinerary.models import Trip
 
 User = get_user_model()
 class UserBasicSerializer(serializers.ModelSerializer):

@@ -9,7 +9,7 @@ from drf_spectacular.utils import extend_schema, OpenApiParameter, OpenApiExampl
 from drf_spectacular.types import OpenApiTypes
 from .models import Tripmate, FriendRequest, TripShare
 from .serializers import TripmateSerializer, FriendRequestSerializer, SendFriendRequestSerializer,RespondFriendRequestSerializer, UserSearchSerializer, TripShareSerializer,ShareTripSerializer, RespondTripShareSerializer, ItenaryBasicSerializer
-from ItenaryMaker.models import Trip
+from Itinerary.models import Trip
 from personal.models import Profile
 
 User = get_user_model()

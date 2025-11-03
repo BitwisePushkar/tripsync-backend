@@ -1,7 +1,7 @@
 from django.db import models
 from django.conf import settings
 from django.core.exceptions import ValidationError
-from ItenaryMaker.models import Trip
+from Itinerary.models import Trip
 
 class Tripmate(models.Model):
     user = models.OneToOneField(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='tripmate_profile')
