@@ -1,5 +1,17 @@
+from datetime import date
+from django.core.exceptions import ValidationError
 from django.db import models
 from django.conf import settings
+
+def validate_age(value):
+    today = date.today()
+    age = today.year - value.year - ((today.month, today.day) < (value.month, value.day))
+    if value > today:
+        raise ValidationError("Date of birth cannot be in the future.")
+    if age < 13:
+        raise ValidationError("You must be at least 13 years old.")
+    if age > 110:
+        raise ValidationError("Invalid date of birth.")
 
 LANGUAGE_CHOICES = [
     ("en", "English"),
@@ -44,7 +56,11 @@ class Profile(models.Model):
     fname = models.CharField(max_length=100, verbose_name="First name",)
     lname = models.CharField(max_length=100, blank=True, default="", verbose_name="Last name",)
     gender = models.CharField(max_length=10, choices=GENDER_CHOICES, verbose_name="Gender",)
-    date_of_birth = models.DateField(verbose_name="Date of birth", help_text="Must be between 13 and 110 years old.",)
+    date_of_birth = models.DateField(
+        validators=[validate_age],
+        verbose_name="Date of birth", 
+        help_text="Must be between 13 and 110 years old.",
+    )
     bio = models.TextField(max_length=500, blank=True, default="", verbose_name="Bio",)
     profile_pic = models.CharField(max_length=500, blank=True, default="", verbose_name="Profile picture URL",)
     blood_group = models.CharField(max_length=3, choices=BLOOD_GROUP_CHOICES, verbose_name="Blood group",)

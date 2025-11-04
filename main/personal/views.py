@@ -102,23 +102,13 @@ class ProfileDetailView(APIView):
                 "Profile already exists. Use PATCH to update.",
                 status_code=status.HTTP_400_BAD_REQUEST,
             )
-        serializer = serializers.ProfileCreateSerializer(data=request.data)
+        serializer = serializers.ProfileCreateSerializer(data=request.data, context={'request': request})
         try:
             serializer.is_valid(raise_exception=True)
         except DRFValidationError:
             raise
-        data = serializer.validated_data
-        contacts_data = data.pop("emergency_contacts")
-        profile = Profile.objects.create(user=request.user, **data)
-        for contact_data in contacts_data:
-            contact = EmergencyContact.objects.create(profile=profile, **contact_data)
-            tasks.send_emergency_contact_notification_task.delay(
-                contact_email=contact.email,
-                contact_name=contact.name,
-                user_full_name=profile.full_name,
-                user_email=request.user.email,
-                relation=contact.relation,
-            )
+        
+        profile = serializer.save()
         logger.info("Profile created for user %s", request.user.email)
         return _success(
             "Profile created successfully.",
@@ -150,9 +140,12 @@ class ProfileDetailView(APIView):
         except DRFValidationError:
             raise
         data = serializer.validated_data
+        update_fields = ["updated_at"]
         for field, value in data.items():
             setattr(profile, field, value)
-        profile.save()
+            update_fields.append(field)
+        
+        profile.save(update_fields=update_fields)
         logger.info("Profile updated for user %s", request.user.email)
         return _success(
             "Profile updated successfully.",
@@ -187,10 +180,6 @@ class ProfilePictureView(APIView):
         except DRFValidationError:
             raise
         image_file = serializer.validated_data["profile_pic"]
-        if profile.profile_pic:
-            old_key = utils.extract_s3_key_from_url(profile.profile_pic)
-            if old_key:
-                utils.delete_image_from_s3(old_key)
         ext = image_file.name.rsplit(".", 1)[-1].lower()
         s3_key = f"profile_pics/user_{request.user.id}_{uuid.uuid4().hex}.{ext}"
         success, result = utils.upload_image_to_s3(image_file, s3_key)
@@ -199,8 +188,13 @@ class ProfilePictureView(APIView):
                 f"Failed to upload image: {result}",
                 status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             )
+        old_profile_pic_url = profile.profile_pic
         profile.profile_pic = result 
         profile.save(update_fields=["profile_pic", "updated_at"])
+        if old_profile_pic_url:
+            old_key = utils.extract_s3_key_from_url(old_profile_pic_url)
+            if old_key:
+                utils.delete_image_from_s3(old_key)       
         logger.info("Profile picture uploaded for user %s: %s", request.user.email, s3_key)
         return _success("Profile picture uploaded.", {"profile_pic_url": result})
 

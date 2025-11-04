@@ -2,6 +2,8 @@ import re
 from datetime import date
 from rest_framework import serializers
 from personal.models import Profile, EmergencyContact, LANGUAGE_CHOICES
+from django.db import transaction
+from personal.tasks import send_emergency_contact_notification_task
 
 def validate_phone_e164(value: str) -> str:
     cleaned = re.sub(r"[\s\-\(\)]", "", value)
@@ -100,6 +102,22 @@ class ProfileCreateSerializer(serializers.Serializer):
         if len(emails) != len(set(emails)):
             raise serializers.ValidationError("Emergency contacts must have unique email addresses.")
         return contacts
+
+    def create(self, validated_data):
+        user = self.context['request'].user
+        contacts_data = validated_data.pop('emergency_contacts')
+        with transaction.atomic():
+            profile = Profile.objects.create(user=user, **validated_data)
+            for contact_data in contacts_data:
+                contact = EmergencyContact.objects.create(profile=profile, **contact_data)
+                transaction.on_commit(lambda c=contact, u=user, p=profile: send_emergency_contact_notification_task.delay(
+                    contact_email=c.email,
+                    contact_name=c.name,
+                    user_full_name=p.full_name,
+                    user_email=u.email,
+                    relation=c.relation,
+                ))
+        return profile
 
 class ProfileUpdateSerializer(serializers.Serializer):
     fname = serializers.CharField(max_length=100, required=False)
