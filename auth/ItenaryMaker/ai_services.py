@@ -7,23 +7,10 @@ import re
 logger = logging.getLogger(__name__)
 
 class ItineraryGenerator:
-    FREE_MODELS = [
-        "gemini-2.0-flash-exp",
-        "gemini-1.5-flash-002",
-        "gemini-1.5-flash-latest",
-        "gemini-1.5-flash",
-        "gemini-1.0-pro-latest",
-    ]
-    
     def __init__(self):
         genai.configure(api_key=settings.GOOGLE_API_KEY)
-        self.model = None
-        self.model_name = None
-        
-        for model_name in self.FREE_MODELS:
-            try:
-                model = genai.GenerativeModel(
-                    model_name,
+    
+        self.model = genai.GenerativeModel("gemini-2.0-flash-exp",
                     generation_config={
                         "temperature": 0.7,
                         "top_p": 0.95,
@@ -31,17 +18,7 @@ class ItineraryGenerator:
                         "max_output_tokens": 8192,
                     }
                 )
-                response = model.generate_content("test")
-                self.model = model
-                self.model_name = model_name
-                logger.info(f"Using model: {model_name}")
-                break
-            except Exception as e:
-                logger.warning(f"Model {model_name} failed: {str(e)}")
-                continue
-        
-        if not self.model:
-            raise Exception("No working Gemini model found")
+                    
     
     def generate_itinerary(self, trip_data):
         prompt = f"""
@@ -141,7 +118,7 @@ Generate complete itinerary for all {trip_data.get('days')} days. Return ONLY th
                 return {
                     'success': True,
                     'itinerary': response_text,
-                    'model_used': self.model_name,
+                    'model_used': self.model,
                     'format': 'text'
                 }
                 
