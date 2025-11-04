@@ -50,6 +50,7 @@ urlpatterns = [
     path("control/", admin.site.urls),
     path("api/account/", include("account.urls", namespace="account")),
     path("api/personal/", include("personal.urls", namespace="personal")),
+    path("api/community/", include("community.urls", namespace="community")),
 ]
 
 if settings.DEBUG:

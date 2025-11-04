@@ -26,6 +26,7 @@ INSTALLED_APPS = [
 
     "account",
     "personal",
+    "community",
 ]
 
 MIDDLEWARE = [

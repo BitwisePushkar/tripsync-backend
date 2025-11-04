@@ -18,26 +18,39 @@ def _get_s3_client():
         )
     return _s3_client
 
-def upload_image_to_s3(file_obj, upload_path: str) -> tuple[bool, str]:
-    allowed_extensions = ["jpg", "jpeg", "png", "webp"]
-    content_type_map = {
-        "jpg": "image/jpeg",
-        "jpeg": "image/jpeg",
-        "png": "image/png",
-        "webp": "image/webp",
-    }
+def upload_image_to_s3(file_obj, upload_path: str, media_type: str = "img") -> tuple[bool, str]:
+    if media_type == "vid":
+        allowed_extensions = ["mp4", "mov", "avi", "mkv", "webm"]
+        content_type_map = {
+            "mp4": "video/mp4",
+            "mov": "video/quicktime",
+            "avi": "video/x-msvideo",
+            "mkv": "video/x-matroska",
+            "webm": "video/webm",
+        }
+        max_bytes = 100 * 1024 * 1024
+        limit_msg = "100MB"
+    else:
+        allowed_extensions = ["jpg", "jpeg", "png", "webp"]
+        content_type_map = {
+            "jpg": "image/jpeg",
+            "jpeg": "image/jpeg",
+            "png": "image/png",
+            "webp": "image/webp",
+        }
+        max_bytes = 5 * 1024 * 1024
+        limit_msg = "5MB"
 
-    max_bytes = 5 * 1024 * 1024
     file_size = file_obj.size if hasattr(file_obj, "size") else len(file_obj.read())
     if file_size > max_bytes:
-        return False, f"File size exceeds the 5MB limit."
+        return False, f"File size exceeds the {limit_msg} limit."
 
     file_name = getattr(file_obj, "name", "") or ""
     ext = file_name.rsplit(".", 1)[-1].lower() if "." in file_name else ""
 
     if ext not in allowed_extensions:
         return False, f"Unsupported format. Allowed: {', '.join(allowed_extensions)}."
-    content_type = content_type_map.get(ext, "image/jpeg")
+    content_type = content_type_map.get(ext, "image/jpeg" if media_type == "img" else "video/mp4")
 
     if hasattr(file_obj, "seek"):
         file_obj.seek(0)
