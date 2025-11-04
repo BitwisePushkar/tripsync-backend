@@ -1,19 +1,29 @@
-FROM python:3.12-slim
+FROM python:3.13-slim AS base
 
-ENV PYTHONDONTWRITEBYTECODE 1
-ENV PYTHONUNBUFFERED 1
+ENV PYTHONDONTWRITEBYTECODE=1
+ENV PYTHONUNBUFFERED=1
 
-WORKDIR /app
+WORKDIR /app/main
 
-RUN apt-get update && apt-get install -y netcat-openbsd \
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends \
+       netcat-openbsd \
+       libpq-dev \
+       gcc \
     && rm -rf /var/lib/apt/lists/*
 
-COPY requirements.txt .
+RUN pip install --no-cache-dir poetry
 
-RUN pip install --no-cache-dir -r requirements.txt
+COPY pyproject.toml poetry.lock* ./
+
+RUN poetry config virtualenvs.create false \
+    && poetry install --no-interaction --no-ansi --no-root
 
 COPY . .
 
+COPY entrypoint.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
+
 EXPOSE 8000
 
-CMD ["daphne", "-b", "0.0.0.0", "-p", "8000", "main.asgi:application"]
+ENTRYPOINT ["/entrypoint.sh"]

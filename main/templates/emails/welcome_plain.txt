@@ -1,0 +1,12 @@
+Welcome to TripSync, {{ username }}!
+=====================================
+
+Your account is active. You can now plan trips, collaborate with travel
+companions, and organise every detail of your journeys.
+
+Get started: {{ app_url }}
+
+Questions? Reach us at {{ support_email }}
+
+—
+© 2025 TripSync. All rights reserved.
