@@ -8,11 +8,93 @@ import requests
 import logging
 from .serializers import WeatherSerializer
 from .models import WeatherCache
+from drf_spectacular.utils import extend_schema, OpenApiParameter, OpenApiExample, OpenApiResponse
+from drf_spectacular.types import OpenApiTypes
 
 logger = logging.getLogger(__name__)
 
 class Weather(APIView):
-    CACHE_DURATION_MINUTES = 30   
+    CACHE_DURATION_MINUTES = 30 
+    @extend_schema(
+    tags=['Weather'],
+    summary='Get weather information for a location',
+    description='Fetch current weather data including temperature, wind speed, and chance of rain. Data is cached for 30 minutes.',
+    parameters=[
+        OpenApiParameter(
+            name='location',
+            type=OpenApiTypes.STR,
+            location=OpenApiParameter.QUERY,
+            description='City name or location (max 100 characters)',
+            required=False,
+            examples=[
+                OpenApiExample('Delhi', value='Delhi', description='Capital city of India'),
+                OpenApiExample('Mumbai', value='Mumbai', description='Financial capital of India'),
+                OpenApiExample('London', value='London', description='Capital of United Kingdom')
+            ]
+        )
+    ],
+    responses={
+        200: OpenApiResponse(
+            description='Weather data retrieved successfully',
+            response=OpenApiTypes.OBJECT,
+            examples=[
+                OpenApiExample(
+                    'Success Response',
+                    value={
+                        'status': 'success',
+                        'data': {
+                            'location': 'Delhi',
+                            'temperature': 28.5,
+                            'wind': 15.2,
+                            'chance_of_rain': 10
+                        },
+                        'cached': False
+                    }
+                )
+            ]
+        ),
+        400: OpenApiResponse(
+            description='Invalid location provided',
+            response=OpenApiTypes.OBJECT,
+            examples=[
+                OpenApiExample(
+                    'Bad Request',
+                    value={'status': 'error', 'message': 'Invalid location parameter'}
+                )
+            ]
+        ),
+        500: OpenApiResponse(
+            description='Server configuration error',
+            response=OpenApiTypes.OBJECT,
+            examples=[
+                OpenApiExample(
+                    'Server Error',
+                    value={'status': 'error', 'message': 'Weather service is not properly configured'}
+                )
+            ]
+        ),
+        503: OpenApiResponse(
+            description='Weather service temporarily unavailable',
+            response=OpenApiTypes.OBJECT,
+            examples=[
+                OpenApiExample(
+                    'Service Unavailable',
+                    value={'status': 'error', 'message': 'Please try again later.'}
+                )
+            ]
+        ),
+        504: OpenApiResponse(
+            description='Request timeout',
+            response=OpenApiTypes.OBJECT,
+            examples=[
+                OpenApiExample(
+                    'Gateway Timeout',
+                    value={'status': 'error', 'message': 'Please try again.'}
+                )
+            ]
+        )
+    }
+    )
     def get(self, request):
         location = request.query_params.get('location', 'Delhi').strip()       
         if not location or len(location) > 100:
