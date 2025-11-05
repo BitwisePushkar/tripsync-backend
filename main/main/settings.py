@@ -55,7 +55,9 @@ TEMPLATES = [
     },
 ]
 
-ASGI_APPLICATION = "main.asgi.application"
+WSGI_APPLICATION = "main.wsgi.application"
+USE_X_FORWARDED_HOST = True
+USE_X_FORWARDED_PORT = True
 
 AUTHENTICATION_BACKENDS = [
     "account.backends.EmailOrUsernameBackend",
@@ -85,20 +87,21 @@ _REDIS_BASE_URL = f"redis://:{_REDIS_PASSWORD}@{_REDIS_HOST}:{_REDIS_PORT}"
 CACHES = {
     "default": {
         "BACKEND": "django_redis.cache.RedisCache",
-        "LOCATION": f"{_REDIS_BASE_URL}/1",
+        "LOCATION": f"{_REDIS_BASE_URL}/2",
         "OPTIONS": {
             "CLIENT_CLASS": "django_redis.client.DefaultClient",
             "IGNORE_EXCEPTIONS": False,
+            "SERIALIZER": "django_redis.serializers.pickle.PickleSerializer",
             "CONNECTION_POOL_KWARGS": {
                 "max_connections": 50,
             },
         },
-        "KEY_PREFIX": "tripsync",                 
+        "KEY_PREFIX": "tripsync",
     }
 }
 
-REDIS_OTP_URL = f"{_REDIS_BASE_URL}/1"           
-REDIS_RESULT_URL = f"{_REDIS_BASE_URL}/0"
+REDIS_OTP_URL = f"{_REDIS_BASE_URL}/1"      
+REDIS_RESULT_URL = f"{_REDIS_BASE_URL}/0"  
 
 _RABBITMQ_USER = config("RABBITMQ_USER", default="guest")
 _RABBITMQ_PASSWORD = config("RABBITMQ_PASSWORD", default="guest")
@@ -245,10 +248,10 @@ USE_I18N = True
 USE_TZ = True
 
 STATIC_URL = "static/"
-STATIC_ROOT = BASE_DIR / "staticfiles"
+STATIC_ROOT = Path("/app/staticfiles")
 
 MEDIA_URL = "media/"
-MEDIA_ROOT = BASE_DIR / "media"
+MEDIA_ROOT = Path("/app/media")
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 

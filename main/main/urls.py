@@ -5,7 +5,32 @@ from django.conf.urls.static import static
 from django.http import JsonResponse
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
+from drf_spectacular.utils import extend_schema, OpenApiResponse, OpenApiExample
+from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView, SpectacularRedocView
+from drf_spectacular.types import OpenApiTypes
 
+@extend_schema(
+    responses={
+        200: OpenApiResponse(
+            response=OpenApiTypes.OBJECT,
+            description="API is live",
+            examples=[
+                OpenApiExample(
+                    "Success",
+                    value={
+                        "status": "ok",
+                        "message": "Welcome to TripSync API",
+                        "version": "1.0.0",
+                        "docs": "/api/docs/",
+                    },
+                )
+            ],
+        )
+    },
+    tags=["Health"],
+    summary="API root",
+    description="Confirms the API is live and returns the current version.",
+)
 @api_view(["GET"])
 def root_view(request):
     return Response({
@@ -15,6 +40,7 @@ def root_view(request):
         "docs": "/api/docs/" if settings.DEBUG else "Docs not available in production",
     })
 
+@extend_schema(exclude=True)
 def health_check(request):
     return JsonResponse({"status": "ok"})
 
@@ -26,7 +52,6 @@ urlpatterns = [
 ]
 
 if settings.DEBUG:
-    from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView, SpectacularRedocView
     urlpatterns += [
         path("api/schema/", SpectacularAPIView.as_view(), name="schema"),
         path("api/docs/", SpectacularSwaggerView.as_view(url_name="schema"), name="swagger-ui"),
