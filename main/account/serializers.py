@@ -1,8 +1,5 @@
 import re
 from rest_framework import serializers
-from django.contrib.auth import get_user_model
-
-User = get_user_model()
 
 def validate_strong_password(value: str) -> str:
     errors = []
@@ -20,7 +17,7 @@ def validate_strong_password(value: str) -> str:
         raise serializers.ValidationError(errors)
     return value
 
-def validate_username(value: str) -> str:
+def validate_username_format(value: str) -> str:
     value = value.strip().lower()
     if len(value) < 5:
         raise serializers.ValidationError("Username must be at least 5 characters.")
@@ -36,19 +33,13 @@ class UserRegistrationSerializer(serializers.Serializer):
     email = serializers.EmailField(required=True)
     username = serializers.CharField(required=True)
     password = serializers.CharField(write_only=True, required=True, style={"input_type": "password"},)
-    password2 = serializers.CharField(write_only=True, required=True, style={"input_type": "password"},)
-
+    password2 = serializers.CharField(write_only=True, required=True, style={"input_type": "password"},
+                                       help_text="Must match password.",)
     def validate_email(self, value: str) -> str:
-        value = value.strip().lower()
-        if User.objects.filter(email=value, is_email_verified=True).exists():
-            raise serializers.ValidationError("An account with this email already exists.")
-        return value
+        return value.strip().lower()
 
     def validate_username(self, value: str) -> str:
-        value = validate_username(value)
-        if User.objects.filter(username=value).exists():
-            raise serializers.ValidationError("This username is already taken.")
-        return value
+        return validate_username_format(value)
 
     def validate_password(self, value: str) -> str:
         return validate_strong_password(value)
@@ -61,7 +52,6 @@ class UserRegistrationSerializer(serializers.Serializer):
 class VerifyOTPSerializer(serializers.Serializer):
     email = serializers.EmailField(required=True)
     otp = serializers.CharField(required=True, min_length=6, max_length=6,)
-
     def validate_email(self, value: str) -> str:
         return value.strip().lower()
 
@@ -72,30 +62,25 @@ class VerifyOTPSerializer(serializers.Serializer):
 
 class ResendOTPSerializer(serializers.Serializer):
     email = serializers.EmailField(required=True)
-
     def validate_email(self, value: str) -> str:
         return value.strip().lower()
 
 class UserLoginSerializer(serializers.Serializer):
     identifier = serializers.CharField(required=True, help_text="Your email address or username.",)
     password = serializers.CharField(write_only=True, required=True, style={"input_type": "password"},)
-
     def validate_identifier(self, value: str) -> str:
         return value.strip().lower()
 
 class PasswordResetRequestSerializer(serializers.Serializer):
     email = serializers.EmailField(required=True)
-
     def validate_email(self, value: str) -> str:
         return value.strip().lower()
 
 class PasswordResetVerifyOTPSerializer(serializers.Serializer):
     email = serializers.EmailField(required=True)
     otp = serializers.CharField(required=True, min_length=6, max_length=6)
-
     def validate_email(self, value: str) -> str:
         return value.strip().lower()
-
     def validate_otp(self, value: str) -> str:
         if not value.isdigit():
             raise serializers.ValidationError("OTP must be a 6-digit number.")
@@ -106,14 +91,14 @@ class PasswordResetConfirmSerializer(serializers.Serializer):
     reset_token = serializers.CharField(required=True)
     new_password = serializers.CharField(write_only=True, required=True, style={"input_type": "password"},)
     confirm_password = serializers.CharField(write_only=True, required=True, style={"input_type": "password"},)
-
     def validate_email(self, value: str) -> str:
         return value.strip().lower()
-
     def validate_new_password(self, value: str) -> str:
         return validate_strong_password(value)
-
     def validate(self, data: dict) -> dict:
         if data.get("new_password") != data.get("confirm_password"):
             raise serializers.ValidationError({"confirm_password": "Passwords do not match."})
         return data
+
+class ConfirmPasswordSerializer(serializers.Serializer):
+    password = serializers.CharField(write_only=True, required=True, style={"input_type": "password"})

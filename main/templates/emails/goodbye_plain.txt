@@ -1,0 +1,16 @@
+TripSync — Account Deleted
+===========================
+
+Goodbye, {{ username }}.
+
+Your TripSync account has been permanently deleted as requested.
+All your data has been removed from our systems.
+
+If you did not request this deletion or believe this was a mistake,
+please contact us immediately at {{ support_email }}.
+
+Thank you for being part of TripSync. We hope your adventures continue.
+
+—
+TripSync Support: {{ support_email }}
+© 2025 TripSync. All rights reserved.

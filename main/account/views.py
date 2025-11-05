@@ -1,4 +1,5 @@
 import logging
+from django.conf import settings
 from django.contrib.auth import get_user_model
 from rest_framework import status
 from rest_framework.response import Response
@@ -10,8 +11,7 @@ from rest_framework_simplejwt.token_blacklist.models import OutstandingToken, Bl
 from drf_spectacular.utils import extend_schema, OpenApiResponse, OpenApiExample, OpenApiTypes
 from account import otp_service
 from account import serializers
-from django.conf import settings
-from account.tasks import send_otp_email_task, send_welcome_email_task
+from account import tasks
 
 User = get_user_model()
 logger = logging.getLogger("account")
@@ -23,6 +23,15 @@ def _get_tokens_for_user(user) -> dict:
         "refresh": str(refresh),
     }
 
+def _blacklist_all_user_tokens(user) -> None:
+    outstanding = OutstandingToken.objects.filter(user=user)
+    count = 0
+    for token in outstanding:
+        _, created = BlacklistedToken.objects.get_or_create(token=token)
+        if created:
+            count += 1
+    logger.info("Blacklisted %d token(s) for user %s", count, user.email)
+
 _ERROR_400 = OpenApiResponse(
     response=OpenApiTypes.OBJECT,
     description="Validation error or bad request",
@@ -30,6 +39,17 @@ _ERROR_400 = OpenApiResponse(
         OpenApiExample(
             "Validation Error",
             value={"status": "error", "message": "...", "errors": {"field": ["detail"]}},
+        )
+    ],
+)
+
+_ERROR_401 = OpenApiResponse(
+    response=OpenApiTypes.OBJECT,
+    description="Authentication required",
+    examples=[
+        OpenApiExample(
+            "Unauthorized",
+            value={"status": "error", "message": "Authentication credentials were not provided."},
         )
     ],
 )
@@ -67,7 +87,7 @@ class UserRegistrationView(APIView):
             429: _ERROR_429,
         },
         tags=["Authentication"],
-        summary="Register a new user — step 1 (request OTP)",
+        summary="Register — step 1 (request OTP)",
         description=("Call `/api/account/verify-otp/` next."),
     )
     def post(self, request):
@@ -79,6 +99,18 @@ class UserRegistrationView(APIView):
         email = serializer.validated_data["email"]
         username = serializer.validated_data["username"]
         password = serializer.validated_data["password"]
+        if User.objects.filter(email=email, is_email_verified=True).exists():
+            return Response(
+                {"status": "error", "message": "An account with this email already exists.",
+                 "errors": {"email": ["This email is already registered."]}},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        if User.objects.filter(username=username).exists():
+            return Response(
+                {"status": "error", "message": "This username is already taken.",
+                 "errors": {"username": ["This username is already taken."]}},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
         eligible, err_msg = otp_service.check_resend_eligibility(email)
         if not eligible:
             return Response(
@@ -87,16 +119,13 @@ class UserRegistrationView(APIView):
             )
         otp_service.store_unverified_user(email, username, password)
         otp_code = otp_service.generate_and_store_otp(email, "registration")
-        send_otp_email_task.delay(email, otp_code, "registration")
+        tasks.send_otp_email_task.delay(email, otp_code, "registration")
         logger.info("Registration initiated for %s", email)
         return Response(
             {
                 "status": "success",
                 "message": "OTP sent to your email. Please verify to complete registration.",
-                "data": {
-                    "email": email,
-                    "otp_expires_in": f"{settings.OTP_EXPIRY_MINUTES} minutes",
-                },
+                "data": {"email": email, "otp_expires_in": f"{settings.OTP_EXPIRY_MINUTES} minutes"},
             },
             status=status.HTTP_200_OK,
         )
@@ -127,8 +156,8 @@ class VerifyRegistrationOTPView(APIView):
             429: _ERROR_429,
         },
         tags=["Authentication"],
-        summary="Verify registration OTP — step 2 (complete registration)",
-        description=("Verifies the 6-digit OTP and JWT tokens are returned."),
+        summary="Register — step 2 (verify OTP)",
+        description=("Verifies the 6-digit OTP. On success the account is created and JWT tokens returned."),
     )
     def post(self, request):
         serializer = serializers.VerifyOTPSerializer(data=request.data)
@@ -154,10 +183,7 @@ class VerifyRegistrationOTPView(APIView):
         pending = otp_service.get_unverified_user(email)
         if not pending:
             return Response(
-                {
-                    "status": "error",
-                    "message": "Registration session expired. Please register again.",
-                },
+                {"status": "error", "message": "Registration session expired. Please register again."},
                 status=status.HTTP_400_BAD_REQUEST,
             )
         if User.objects.filter(email=pending["email"], is_email_verified=True).exists():
@@ -175,24 +201,20 @@ class VerifyRegistrationOTPView(APIView):
         user = User.objects.create_user(
             email=pending["email"],
             username=pending["username"],
-            password=pending["password"], 
+            password=pending["password"],
         )
         user.is_email_verified = True
         user.save()
         otp_service.clear_all_otp_keys(email)
         tokens = _get_tokens_for_user(user)
-        send_welcome_email_task.delay(user.email, user.username)
+        tasks.send_welcome_email_task.delay(user.email, user.username)
         logger.info("New user registered: %s (@%s)", user.email, user.username)
         return Response(
             {
                 "status": "success",
                 "message": "Account created successfully!",
                 "data": {
-                    "user": {
-                        "id": user.id,
-                        "email": user.email,
-                        "username": user.username,
-                    },
+                    "user": {"id": user.id, "email": user.email, "username": user.username},
                     "tokens": tokens,
                 },
             },
@@ -251,7 +273,7 @@ class ResendOTPView(APIView):
                 status=status.HTTP_429_TOO_MANY_REQUESTS,
             )
         otp_code = otp_service.generate_and_store_otp(email, otp_type)
-        send_otp_email_task.delay(email, otp_code, otp_type)
+        tasks.send_otp_email_task.delay(email, otp_code, otp_type)
         logger.info("OTP resent for %s (type=%s)", email, otp_type)
         return Response(
             {
@@ -289,7 +311,7 @@ class UserLoginView(APIView):
         },
         tags=["Authentication"],
         summary="Login (email or username)",
-        description=("Authenticate using either email address or username plus password."),
+        description="Authenticate using email or username + password.\n\n**Rate limit:** 5 wrong attempts → 1 hour lock.",
     )
     def post(self, request):
         serializer = serializers.UserLoginSerializer(data=request.data)
@@ -302,67 +324,46 @@ class UserLoginView(APIView):
         is_locked, minutes_remaining = otp_service.check_login_lock(identifier)
         if is_locked:
             return Response(
-                {
-                    "status": "error",
-                    "message": f"Too many failed attempts. Try again in {minutes_remaining} minute(s).",
-                },
+                {"status": "error",
+                 "message": f"Too many failed attempts. Try again in {minutes_remaining} minute(s)."},
                 status=status.HTTP_429_TOO_MANY_REQUESTS,
             )
         try:
-            if "@" in identifier:
-                user = User.objects.get(email=identifier)
-            else:
-                user = User.objects.get(username=identifier)
+            user = (
+                User.objects.get(email=identifier)
+                if "@" in identifier
+                else User.objects.get(username=identifier)
+            )
         except User.DoesNotExist:
             otp_service.record_failed_login(identifier)
             return Response(
-                {
-                    "status": "error",
-                    "message": "Invalid credentials.",
-                    "errors": {"non_field_errors": ["Email/username or password is incorrect."]},
-                },
+                {"status": "error", "message": "Invalid credentials.",
+                 "errors": {"non_field_errors": ["Email/username or password is incorrect."]}},
                 status=status.HTTP_401_UNAUTHORIZED,
             )
         if not user.check_password(password):
             now_locked, remaining = otp_service.record_failed_login(identifier)
             if now_locked:
                 return Response(
-                    {
-                        "status": "error",
-                        "message": f"Too many failed attempts. Account locked for "
-                                   f"{settings.LOGIN_LOCK_DURATION_MINUTES} minute(s).",
-                    },
+                    {"status": "error",
+                     "message": f"Too many failed attempts. Account locked for {settings.LOGIN_LOCK_DURATION_MINUTES} minute(s)."},
                     status=status.HTTP_429_TOO_MANY_REQUESTS,
                 )
             return Response(
-                {
-                    "status": "error",
-                    "message": "Invalid credentials.",
-                    "errors": {
-                        "non_field_errors": [
-                            f"Email/username or password is incorrect. "
-                            f"{remaining} attempt(s) remaining."
-                        ]
-                    },
-                },
+                {"status": "error", "message": "Invalid credentials.",
+                 "errors": {"non_field_errors": [f"Email/username or password is incorrect. {remaining} attempt(s) remaining."]}},
                 status=status.HTTP_401_UNAUTHORIZED,
             )
         if not user.is_active:
             return Response(
-                {
-                    "status": "error",
-                    "message": "This account has been deactivated. Contact support.",
-                    "errors": {"account": ["Account deactivated"]},
-                },
+                {"status": "error", "message": "This account has been deactivated. Contact support.",
+                 "errors": {"account": ["Account deactivated"]}},
                 status=status.HTTP_403_FORBIDDEN,
             )
         if not user.is_email_verified:
             return Response(
-                {
-                    "status": "error",
-                    "message": "Email not verified. Please complete registration first.",
-                    "errors": {"account": ["Email not verified"]},
-                },
+                {"status": "error", "message": "Email not verified. Please complete registration first.",
+                 "errors": {"account": ["Email not verified"]}},
                 status=status.HTTP_403_FORBIDDEN,
             )
         otp_service.clear_login_lock(identifier)
@@ -373,11 +374,7 @@ class UserLoginView(APIView):
                 "status": "success",
                 "message": "Login successful.",
                 "data": {
-                    "user": {
-                        "id": user.id,
-                        "email": user.email,
-                        "username": user.username,
-                    },
+                    "user": {"id": user.id, "email": user.email, "username": user.username},
                     "tokens": tokens,
                 },
             },
@@ -391,29 +388,24 @@ class UserLogoutView(APIView):
             "application/json": {
                 "type": "object",
                 "required": ["refresh"],
-                "properties": {
-                    "refresh": {"type": "string", "example": "eyJ..."}
-                },
+                "properties": {"refresh": {"type": "string", "example": "eyJ..."}},
             }
         },
         responses={
             200: OpenApiResponse(description="Logged out successfully"),
             400: _ERROR_400,
-            401: OpenApiResponse(description="Missing or invalid Authorization header"),
+            401: _ERROR_401,
         },
         tags=["Authentication"],
         summary="Logout",
-        description=("Blacklists the refresh token. The access token expires naturally."),
+        description="Blacklists the refresh token. Requires `Authorization: Bearer <access_token>`.",
     )
     def post(self, request):
         refresh_token = request.data.get("refresh")
         if not refresh_token:
             return Response(
-                {
-                    "status": "error",
-                    "message": "Refresh token is required.",
-                    "errors": {"refresh": ["This field is required."]},
-                },
+                {"status": "error", "message": "Refresh token is required.",
+                 "errors": {"refresh": ["This field is required."]}},
                 status=status.HTTP_400_BAD_REQUEST,
             )
         try:
@@ -421,18 +413,12 @@ class UserLogoutView(APIView):
             token.blacklist()
         except Exception:
             return Response(
-                {
-                    "status": "error",
-                    "message": "Invalid or expired refresh token.",
-                    "errors": {"refresh": ["Token is invalid or already blacklisted."]},
-                },
+                {"status": "error", "message": "Invalid or expired refresh token.",
+                 "errors": {"refresh": ["Token is invalid or already blacklisted."]}},
                 status=status.HTTP_400_BAD_REQUEST,
             )
         logger.info("User logged out: %s", request.user.email)
-        return Response(
-            {"status": "success", "message": "Logged out successfully."},
-            status=status.HTTP_200_OK,
-        )
+        return Response({"status": "success", "message": "Logged out successfully."}, status=status.HTTP_200_OK)
 
 class PasswordResetRequestView(APIView):
     @extend_schema(
@@ -444,19 +430,17 @@ class PasswordResetRequestView(APIView):
                 examples=[
                     OpenApiExample(
                         "Success",
-                        value={
-                            "status": "success",
-                            "message": "If that email is registered, an OTP has been sent.",
-                            "data": {"otp_expires_in": "10 minutes"},
-                        },
+                        value={"status": "success",
+                               "message": "If that email is registered, an OTP has been sent.",
+                               "data": {"otp_expires_in": "10 minutes"}},
                     )
                 ],
             ),
             429: _ERROR_429,
         },
         tags=["Authentication"],
-        summary="Request password reset OTP — step 1",
-        description=("Follow up with `/api/account/password/reset/verify-otp/`."),
+        summary="Password reset — step 1 (request OTP)",
+        description="Sends reset OTP to the email if registered and verified. Response is identical either way (anti-enumeration).",
     )
     def post(self, request):
         serializer = serializers.PasswordResetRequestSerializer(data=request.data)
@@ -468,10 +452,7 @@ class PasswordResetRequestView(APIView):
         is_locked, minutes_remaining = otp_service.check_login_lock(email)
         if is_locked:
             return Response(
-                {
-                    "status": "error",
-                    "message": f"Account locked. Try again in {minutes_remaining} minute(s).",
-                },
+                {"status": "error", "message": f"Account locked. Try again in {minutes_remaining} minute(s)."},
                 status=status.HTTP_429_TOO_MANY_REQUESTS,
             )
         eligible, err_msg = otp_service.check_resend_eligibility(email)
@@ -483,16 +464,13 @@ class PasswordResetRequestView(APIView):
         try:
             user = User.objects.get(email=email, is_email_verified=True)
             otp_code = otp_service.generate_and_store_otp(email, "password_reset")
-            send_otp_email_task.delay(user.email, otp_code, "password_reset")
+            tasks.send_otp_email_task.delay(user.email, otp_code, "password_reset")
             logger.info("Password reset OTP sent to %s", email)
         except User.DoesNotExist:
             logger.debug("Password reset requested for unknown/unverified email: %s", email)
         return Response(
-            {
-                "status": "success",
-                "message": "If that email is registered, an OTP has been sent.",
-                "data": {"otp_expires_in": f"{settings.OTP_EXPIRY_MINUTES} minutes"},
-            },
+            {"status": "success", "message": "If that email is registered, an OTP has been sent.",
+             "data": {"otp_expires_in": f"{settings.OTP_EXPIRY_MINUTES} minutes"}},
             status=status.HTTP_200_OK,
         )
 
@@ -506,14 +484,9 @@ class PasswordResetVerifyOTPView(APIView):
                 examples=[
                     OpenApiExample(
                         "Success",
-                        value={
-                            "status": "success",
-                            "message": "OTP verified. Use the reset token to set your new password.",
-                            "data": {
-                                "reset_token": "abc123...",
-                                "expires_in": "5 minutes",
-                            },
-                        },
+                        value={"status": "success",
+                               "message": "OTP verified. Use the reset token to set your new password.",
+                               "data": {"reset_token": "abc123...", "expires_in": "5 minutes"}},
                     )
                 ],
             ),
@@ -521,8 +494,8 @@ class PasswordResetVerifyOTPView(APIView):
             429: _ERROR_429,
         },
         tags=["Authentication"],
-        summary="Verify password reset OTP — step 2",
-        description=("Submit it to `/api/account/password/reset/confirm/` to set a new password."),
+        summary="Password reset — step 2 (verify OTP)",
+        description="Verifies OTP. Returns a `reset_token` (5 min, one-time) for step 3.",
     )
     def post(self, request):
         serializer = serializers.PasswordResetVerifyOTPSerializer(data=request.data)
@@ -537,13 +510,10 @@ class PasswordResetVerifyOTPView(APIView):
                 {"status": "error", "message": "No account found for this email."},
                 status=status.HTTP_400_BAD_REQUEST,
             )
-        success, message, attempts_remaining = otp_service.verify_otp(
-            email, otp_code, "password_reset"
-        )
+        success, message, attempts_remaining = otp_service.verify_otp(email, otp_code, "password_reset")
         if not success:
             resp_status = (
-                status.HTTP_429_TOO_MANY_REQUESTS
-                if attempts_remaining <= 0
+                status.HTTP_429_TOO_MANY_REQUESTS if attempts_remaining <= 0
                 else status.HTTP_400_BAD_REQUEST
             )
             resp = {"status": "error", "message": message}
@@ -552,14 +522,9 @@ class PasswordResetVerifyOTPView(APIView):
             return Response(resp, status=resp_status)
         reset_token = otp_service.store_reset_token(email)
         return Response(
-            {
-                "status": "success",
-                "message": "OTP verified. Use the reset token to set your new password.",
-                "data": {
-                    "reset_token": reset_token,
-                    "expires_in": f"{settings.RESET_TOKEN_EXPIRY_MINUTES} minutes",
-                },
-            },
+            {"status": "success",
+             "message": "OTP verified. Use the reset token to set your new password.",
+             "data": {"reset_token": reset_token, "expires_in": f"{settings.RESET_TOKEN_EXPIRY_MINUTES} minutes"}},
             status=status.HTTP_200_OK,
         )
 
@@ -573,18 +538,16 @@ class PasswordResetConfirmView(APIView):
                 examples=[
                     OpenApiExample(
                         "Success",
-                        value={
-                            "status": "success",
-                            "message": "Password reset successfully. Please log in with your new password.",
-                        },
+                        value={"status": "success",
+                               "message": "Password reset successfully. Please log in with your new password."},
                     )
                 ],
             ),
             400: _ERROR_400,
         },
         tags=["Authentication"],
-        summary="Confirm password reset — step 3 (set new password)",
-        description=("The user must log in again on all devices."),
+        summary="Password reset — step 3 (set new password)",
+        description="Sets new password using the `reset_token` from step 2. All existing sessions invalidated.",
     )
     def post(self, request):
         serializer = serializers.PasswordResetConfirmSerializer(data=request.data)
@@ -595,14 +558,11 @@ class PasswordResetConfirmView(APIView):
         email = serializer.validated_data["email"]
         reset_token = serializer.validated_data["reset_token"]
         new_password = serializer.validated_data["new_password"]
-        token_valid = otp_service.verify_and_consume_reset_token(email, reset_token)
-        if not token_valid:
+        if not otp_service.verify_and_consume_reset_token(email, reset_token):
             return Response(
-                {
-                    "status": "error",
-                    "message": "Invalid or expired reset token. Please restart the password reset process.",
-                    "errors": {"reset_token": ["Token is invalid or expired."]},
-                },
+                {"status": "error",
+                 "message": "Invalid or expired reset token. Please restart the password reset process.",
+                 "errors": {"reset_token": ["Token is invalid or expired."]}},
                 status=status.HTTP_400_BAD_REQUEST,
             )
         try:
@@ -617,22 +577,99 @@ class PasswordResetConfirmView(APIView):
         _blacklist_all_user_tokens(user)
         logger.info("Password reset completed for %s", email)
         return Response(
-            {
-                "status": "success",
-                "message": "Password reset successfully. Please log in with your new password.",
-            },
+            {"status": "success", "message": "Password reset successfully. Please log in with your new password."},
             status=status.HTTP_200_OK,
         )
 
-def _blacklist_all_user_tokens(user) -> None:
-    outstanding = OutstandingToken.objects.filter(user=user)
-    count = 0
-    for token in outstanding:
-        _, created = BlacklistedToken.objects.get_or_create(token=token)
-        if created:
-            count += 1
-    logger.info(
-        "Blacklisted %d token(s) for user %s after password reset",
-        count,
-        user.email,
+class DeactivateAccountView(APIView):
+    permission_classes = [IsAuthenticated]
+    @extend_schema(
+        request=serializers.ConfirmPasswordSerializer,
+        responses={
+            200: OpenApiResponse(
+                response=OpenApiTypes.OBJECT,
+                description="Account deactivated",
+                examples=[
+                    OpenApiExample(
+                        "Success",
+                        value={"status": "success", "message": "Your account has been deactivated."},
+                    )
+                ],
+            ),
+            400: _ERROR_400,
+            401: _ERROR_401,
+        },
+        tags=["Account"],
+        summary="Deactivate account (soft delete)",
+        description=("Sets the account as inactive. You will be logged out on all devices."),
     )
+    def post(self, request):
+        serializer = serializers.ConfirmPasswordSerializer(data=request.data)
+        try:
+            serializer.is_valid(raise_exception=True)
+        except DRFValidationError:
+            raise
+        password = serializer.validated_data["password"]
+        user = request.user
+        if not user.check_password(password):
+            return Response(
+                {"status": "error", "message": "Incorrect password.",
+                 "errors": {"password": ["Password is incorrect."]}},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        _blacklist_all_user_tokens(user)
+        user.is_active = False
+        user.save()
+        logger.info("Account deactivated: %s", user.email)
+        return Response(
+            {"status": "success", "message": "Your account has been deactivated."},
+            status=status.HTTP_200_OK,
+        )
+
+class DeleteAccountView(APIView):
+    permission_classes = [IsAuthenticated]
+    @extend_schema(
+        request=serializers.ConfirmPasswordSerializer,
+        responses={
+            200: OpenApiResponse(
+                response=OpenApiTypes.OBJECT,
+                description="Account permanently deleted",
+                examples=[
+                    OpenApiExample(
+                        "Success",
+                        value={"status": "success",
+                               "message": "Your account has been permanently deleted."},
+                    )
+                ],
+            ),
+            400: _ERROR_400,
+            401: _ERROR_401,
+        },
+        tags=["Account"],
+        summary="Delete account (permanent)",
+        description=("**Permanently** deletes the account. This cannot be undone."),
+    )
+    def delete(self, request):
+        serializer = serializers.ConfirmPasswordSerializer(data=request.data)
+        try:
+            serializer.is_valid(raise_exception=True)
+        except DRFValidationError:
+            raise
+        password = serializer.validated_data["password"]
+        user = request.user
+        if not user.check_password(password):
+            return Response(
+                {"status": "error", "message": "Incorrect password.",
+                 "errors": {"password": ["Password is incorrect."]}},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        email = user.email
+        username = user.username
+        _blacklist_all_user_tokens(user)
+        tasks.send_goodbye_email_task.delay(email, username)
+        user.delete()
+        logger.info("Account permanently deleted: %s (@%s)", email, username)
+        return Response(
+            {"status": "success", "message": "Your account has been permanently deleted."},
+            status=status.HTTP_200_OK,
+        )
