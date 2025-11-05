@@ -1,4 +1,4 @@
-import google.generativeai as genai
+from langchain_google_genai import ChatGoogleGenerativeAI
 from django.conf import settings
 import logging
 import json
@@ -8,118 +8,148 @@ logger = logging.getLogger(__name__)
 
 class ItineraryGenerator:
     def __init__(self):
-        genai.configure(api_key=settings.GOOGLE_API_KEY)
-    
-        self.model = genai.GenerativeModel("gemini-2.0-flash-exp",
-                    generation_config={
-                        "temperature": 0.7,
-                        "top_p": 0.95,
-                        "top_k": 40,
-                        "max_output_tokens": 8192,
-                    }
-                )
-                    
-    
+        self.llm = ChatGoogleGenerativeAI(
+            model="gemini-2.0-flash-exp",
+            google_api_key=settings.GOOGLE_API_KEY,
+            temperature=0.7,
+            max_output_tokens=8192,
+        )
+
     def generate_itinerary(self, trip_data):
-        prompt = f"""
-Create a detailed travel itinerary in JSON format for:
+        prompt = f"""You are an expert travel planner. Create detailed itineraries in JSON format only.
 
-Trip Name: {trip_data.get('tripname')}
-Destination: {trip_data.get('destination')}
-From: {trip_data.get('current_loc')}
-Start Date: {trip_data.get('start_date')}
-End Date: {trip_data.get('end_date')}
-Duration: {trip_data.get('days')} days
-Trip Type: {trip_data.get('trip_type')}
-Preferences: {trip_data.get('trip_preferences')}
-Budget: ${trip_data.get('budget')}
+Create a {trip_data['days']}-day travel itinerary in JSON format.
 
-Return ONLY valid JSON in this exact structure (no markdown, no extra text):
+Trip Details:
+- Trip Name: {trip_data['tripname']}
+- Destination: {trip_data['destination']}
+- From: {trip_data['current_loc']}
+- Duration: {trip_data['days']} days
+- Budget: ${trip_data['budget']}
+- Type: {trip_data['trip_type']}
+- Preferences: {trip_data['trip_preferences']}
+
+Return ONLY valid JSON (no markdown, no code blocks, no explanations):
 
 {{
-  "trip_overview": {{
-    "destination": "{trip_data.get('destination')}",
-    "duration_days": {trip_data.get('days')},
-    "total_budget": {trip_data.get('budget')},
-    "trip_type": "{trip_data.get('trip_type')}"
-  }},
-  "daily_itinerary": [
+  "day_plans": [
     {{
-      "day": 1,
-      "date": "YYYY-MM-DD",
-      "title": "Day title",
+      "day_number": 1,
+      "title": "Arrival & City Exploration",
       "activities": [
         {{
           "time": "Morning",
-          "activity": "Activity description",
-          "location": "Place name",
+          "title": "Arrival at Delhi Airport",
+          "description": "Arrive at Indira Gandhi International Airport and transfer to hotel. Check-in and freshen up.",
+          "location": "IGI Airport to Hotel",
           "duration": "2 hours",
-          "cost": 50
-        }}
-      ],
-      "meals": [
+          "cost": 20,
+          "category": "transportation"
+        }},
         {{
-          "type": "Breakfast",
-          "restaurant": "Restaurant name",
-          "cuisine": "Cuisine type",
-          "cost": 20
+          "time": "Afternoon",
+          "title": "Visit India Gate",
+          "description": "Explore the iconic India Gate monument, a war memorial dedicated to Indian soldiers. Perfect for photos and understanding Delhi's history.",
+          "location": "India Gate, Rajpath",
+          "duration": "1.5 hours",
+          "cost": 0,
+          "category": "sightseeing"
+        }},
+        {{
+          "time": "Afternoon",
+          "title": "Lunch at Karim's",
+          "description": "Experience authentic Mughlai cuisine at the famous Karim's restaurant. Try their signature kebabs and curries.",
+          "location": "Jama Masjid, Old Delhi",
+          "duration": "1 hour",
+          "cost": 25,
+          "category": "dining"
+        }},
+        {{
+          "time": "Evening",
+          "title": "Connaught Place Shopping",
+          "description": "Visit the heart of Delhi for shopping, dining, and experiencing the local culture. Browse through shops and enjoy street food.",
+          "location": "Connaught Place",
+          "duration": "2 hours",
+          "cost": 30,
+          "category": "shopping"
+        }},
+        {{
+          "time": "Night",
+          "title": "Dinner at Indian Accent",
+          "description": "Fine dining experience with modern Indian cuisine. Book in advance for the best tables.",
+          "location": "Lodhi Road",
+          "duration": "1.5 hours",
+          "cost": 50,
+          "category": "dining"
         }}
-      ],
-      "accommodation": {{
-        "name": "Hotel name",
-        "type": "Hotel/Hostel",
-        "cost": 100
-      }},
-      "day_total_cost": 170
-    }}
-  ],
-  "budget_breakdown": {{
-    "accommodation": 700,
-    "food": 420,
-    "activities": 350,
-    "transportation": 200,
-    "miscellaneous": 100,
-    "total": {trip_data.get('budget')}
-  }},
-  "travel_tips": [
-    "Tip 1",
-    "Tip 2"
-  ],
-  "must_see_attractions": [
+      ]
+    }},
     {{
-      "name": "Attraction name",
-      "description": "Description",
-      "entry_fee": 10,
-      "best_time": "Morning"
+      "day_number": 2,
+      "title": "Historical Delhi Tour",
+      "activities": [
+        {{
+          "time": "Morning",
+          "title": "Red Fort Visit",
+          "description": "Explore the magnificent Red Fort, a UNESCO World Heritage site and symbol of India's rich history.",
+          "location": "Netaji Subhash Marg, Old Delhi",
+          "duration": "2 hours",
+          "cost": 10,
+          "category": "sightseeing"
+        }},
+        {{
+          "time": "Morning",
+          "title": "Jama Masjid",
+          "description": "Visit one of India's largest mosques with stunning Mughal architecture.",
+          "location": "Chandni Chowk",
+          "duration": "1 hour",
+          "cost": 0,
+          "category": "sightseeing"
+        }},
+        {{
+          "time": "Afternoon",
+          "title": "Lunch at Paranthe Wali Gali",
+          "description": "Try the famous stuffed parathas in the narrow lanes of Old Delhi.",
+          "location": "Chandni Chowk",
+          "duration": "1 hour",
+          "cost": 15,
+          "category": "dining"
+        }}
+      ]
     }}
   ]
 }}
 
-Generate complete itinerary for all {trip_data.get('days')} days. Return ONLY the JSON, no other text.
+IMPORTANT RULES:
+1. Create exactly {trip_data['days']} day plans
+2. Each day should have 4-6 activities
+3. Activities must have: time (Morning/Afternoon/Evening/Night), title, description, location, duration, cost, category
+4. Categories: sightseeing, dining, shopping, transportation, adventure, relaxation
+5. Keep activities realistic and within budget
+6. Return ONLY the JSON, no other text
+7. Make descriptions detailed and helpful
 """
         
         try:
-            response = self.model.generate_content(prompt)
-            response_text = response.text.strip()
+            response = self.llm.invoke(prompt)
+            response_text = response.content.strip()
             response_text = re.sub(r'^```json\s*', '', response_text)
             response_text = re.sub(r'^```\s*', '', response_text)
             response_text = re.sub(r'\s*```$', '', response_text)
             response_text = response_text.strip()
+            
             try:
-                itinerary_json = json.loads(response_text)
+                itinerary_data = json.loads(response_text)
                 return {
                     'success': True,
-                    'itinerary': json.dumps(itinerary_json, indent=2),
-                    'itinerary_json': itinerary_json,
-                    'model_used': self.model_name
+                    'data': itinerary_data
                 }
             except json.JSONDecodeError as je:
-                logger.warning(f"JSON parse error: {str(je)}")
+                logger.error(f"JSON parse error: {str(je)}")
+                logger.error(f"Response: {response_text[:500]}")
                 return {
-                    'success': True,
-                    'itinerary': response_text,
-                    'model_used': self.model,
-                    'format': 'text'
+                    'success': False,
+                    'error': f"Invalid JSON from AI: {str(je)}"
                 }
                 
         except Exception as e:

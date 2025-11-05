@@ -1,13 +1,33 @@
 from rest_framework import serializers
-from .models import Trip
+from .models import Trip, Itinerary, DayPlan
 
-class ItenarySerializer(serializers.ModelSerializer):
+class DayPlanSerializer(serializers.ModelSerializer):
     class Meta:
-        model = Trip
-        fields = ['id', 'tripname', 'current_loc', 'destination', 'trending', 'start_date', 'end_date', 'days', 'trip_type', 'trip_preferences', 'budget', 'Itenary_data','Itenary_json', 'created_at', 'updated_at']
+        model = DayPlan
+        fields = ['id', 'day_number', 'title', 'activities', 'created_at', 'updated_at']
         read_only_fields = ['id', 'created_at', 'updated_at']
 
-class ItenaryCreateSerializer(serializers.ModelSerializer):
+class ItinerarySerializer(serializers.ModelSerializer):
+    day_plans = DayPlanSerializer(many=True, read_only=True)
+    
+    class Meta:
+        model = Itinerary
+        fields = ['id', 'day_plans', 'created_at', 'updated_at']
+        read_only_fields = ['id', 'created_at', 'updated_at']
+
+class TripSerializer(serializers.ModelSerializer):
+    itinerary = ItinerarySerializer(read_only=True)
+    
+    class Meta:
+        model = Trip
+        fields = [
+            'id', 'tripname', 'current_loc', 'destination', 'trending',
+            'start_date', 'end_date', 'days', 'trip_type', 'trip_preferences',
+            'budget', 'itinerary', 'created_at', 'updated_at'
+        ]
+        read_only_fields = ['id', 'created_at', 'updated_at']
+
+class TripCreateUpdateSerializer(serializers.ModelSerializer):
     class Meta:
         model = Trip
         fields = ['tripname', 'current_loc', 'destination', 'start_date', 'end_date', 'days', 'trip_type', 'trip_preferences', 'budget']
@@ -17,3 +37,14 @@ class ItenaryCreateSerializer(serializers.ModelSerializer):
             if data['start_date'] > data['end_date']:
                 raise serializers.ValidationError("End date must be after start date")
         return data
+
+class RegenerateItinerarySerializer(serializers.Serializer):
+    tripname = serializers.CharField(max_length=100, required=False)
+    current_loc = serializers.CharField(max_length=200, required=False)
+    destination = serializers.CharField(max_length=200, required=False)
+    start_date = serializers.DateField(required=False)
+    end_date = serializers.DateField(required=False)
+    days = serializers.IntegerField(required=False)
+    trip_type = serializers.CharField(max_length=50, required=False)
+    trip_preferences = serializers.CharField(max_length=200, required=False)
+    budget = serializers.FloatField(required=False)
