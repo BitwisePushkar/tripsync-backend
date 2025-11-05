@@ -354,18 +354,19 @@ class UserLoginView(APIView):
                  "errors": {"non_field_errors": [f"Email/username or password is incorrect. {remaining} attempt(s) remaining."]}},
                 status=status.HTTP_401_UNAUTHORIZED,
             )
-        if not user.is_active:
-            return Response(
-                {"status": "error", "message": "This account has been deactivated. Contact support.",
-                 "errors": {"account": ["Account deactivated"]}},
-                status=status.HTTP_403_FORBIDDEN,
-            )
         if not user.is_email_verified:
             return Response(
-                {"status": "error", "message": "Email not verified. Please complete registration first.",
-                 "errors": {"account": ["Email not verified"]}},
+                {
+                    "status": "error",
+                    "message": "Email not verified. Please complete registration first.",
+                    "errors": {"account": ["Email not verified"]},
+                },
                 status=status.HTTP_403_FORBIDDEN,
             )
+        if not user.is_active:
+            user.is_active = True
+            user.save(update_fields=["is_active", "updated_at"])
+            logger.info("Account reactivated on login: %s", user.email)
         otp_service.clear_login_lock(identifier)
         tokens = _get_tokens_for_user(user)
         logger.info("User logged in: %s", user.email)
@@ -599,7 +600,7 @@ class DeactivateAccountView(APIView):
             400: _ERROR_400,
             401: _ERROR_401,
         },
-        tags=["Account"],
+        tags=["Authentication"],
         summary="Deactivate account (soft delete)",
         description=("Sets the account as inactive. You will be logged out on all devices."),
     )
@@ -645,7 +646,7 @@ class DeleteAccountView(APIView):
             400: _ERROR_400,
             401: _ERROR_401,
         },
-        tags=["Account"],
+        tags=["Authentication"],
         summary="Delete account (permanent)",
         description=("**Permanently** deletes the account. This cannot be undone."),
     )
