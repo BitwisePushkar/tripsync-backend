@@ -1,378 +1,387 @@
-from rest_framework.decorators import api_view, permission_classes
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
-from django.shortcuts import get_object_or_404
-from .models import Trip
-from .serializers import (TripCreateSerializer, TripSerializer, TripListSerializer, ItineraryUpdateSerializer,TripManualCreateSerializer)
+from rest_framework.permissions import IsAuthenticated
+from drf_spectacular.utils import extend_schema
+from .models import Trip, Itinerary, DayPlan
+from .serializers import (TripSerializer, TripCreateUpdateSerializer, RegenerateItinerarySerializer,ActivitySerializer, ActivityUpdateSerializer, DayPlanSerializer, ManualItinerarySerializer)
 from .ai_services import ItineraryGenerator
-from drf_spectacular.utils import extend_schema, OpenApiExample, OpenApiResponse
-from drf_spectacular.types import OpenApiTypes
-from expense.models import Budget  
+import logging
 
-@extend_schema(
-    methods=['GET'],
-    tags=['Trips'],
-    summary="Get all trips",
-    description="Retrieve all trips for the authenticated user with itinerary status.",
-    responses={
-        200: OpenApiResponse(
-            response=OpenApiTypes.OBJECT,
-            description="Trips retrieved successfully",
-            examples=[
-                OpenApiExample(
-                    name="Success Response",
-                    value={
-                        "success": True,
-                        "message": "Trips retrieved successfully",
-                        "data": [
-                            {
-                                "id": 1,
-                                "tripname": "Summer Vacation",
-                                "current_loc": "New York",
-                                "destination": "Paris",
-                                "start_date": "2025-07-01",
-                                "end_date": "2025-07-05",
-                                "trip_type": "solo",
-                                "trip_preferences": "adventure",
-                                "budget": 1500,
-                                "days": [
-                                    {
-                                        "day_number": 1,
-                                        "title": "Day 1 - Arrival",
-                                        "activities": []
-                                    }
-                                ]
-                            }
-                        ]
-                    }
-                )
-            ]
-        ),
-        401: OpenApiResponse(
-            response=OpenApiTypes.OBJECT,
-            description="Unauthorized - user not authenticated",
-            examples=[
-                OpenApiExample(
-                    name="Unauthorized",
-                    value={"detail": "Authentication credentials were not provided."}
-                )
-            ]
-        )
-    }
-)
+logger = logging.getLogger(__name__)
 
-@extend_schema(
-    methods=['POST'],
-    tags=['Trips'],
-    summary="Create a new trip",
-    description="Create a new trip. AI-based or manual itinerary creation supported.",
-    request=TripCreateSerializer,
-    responses={
-        201: OpenApiResponse(
-            response=OpenApiTypes.OBJECT,
-            description="Trip created successfully",
-            examples=[
-                OpenApiExample(
-                    name="Success - AI Itinerary",
-                    value={
-                        "success": True,
-                        "message": "Trip created successfully",
-                        "data": {
-                            "id": 1,
-                            "tripname": "Summer Vacation",
-                            "current_loc": "New York",
-                            "destination": "Paris",
-                            "start_date": "2025-07-01",
-                            "end_date": "2025-07-05",
-                            "trip_type": "solo",
-                            "trip_preferences": "adventure",
-                            "budget": 1500,
-                            "days": [
-                                {
-                                    "day_number": 1,
-                                    "title": "Day 1 - Arrival",
-                                    "activities": []
-                                }
-                            ]
-                        }
-                    }
-                ),
-                OpenApiExample(
-                    name="Trip created but AI itinerary failed",
-                    value={
-                        "success": True,
-                        "message": "Trip created but itinerary generation failed",
-                        "trip_id": 1,
-                        "error": {"error": "Failed to generate itinerary due to API limit"}
-                    }
-                )
-            ]
-        ),
-        400: OpenApiResponse(
-            response=OpenApiTypes.OBJECT,
-            description="Validation failed or budget not found",
-            examples=[
-                OpenApiExample(
-                    name="Validation Error",
-                    value={
-                        "success": False,
-                        "message": "Validation failed",
-                        "errors": {"tripname": ["This field is required."]}
-                    }
-                ),
-                OpenApiExample(
-                    name="Budget Not Found",
-                    value={"error": "No budget found in expense app."}
-                )
-            ]
-        ),
-        500: OpenApiResponse(
-            response=OpenApiTypes.OBJECT,
-            description="Internal server error fetching budget",
-            examples=[
-                OpenApiExample(
-                    name="Budget Fetch Error",
-                    value={"error": "Failed to fetch budget from expense app: connection timeout"}
-                )
-            ]
-        ),
-        401: OpenApiResponse(
-            response=OpenApiTypes.OBJECT,
-            description="Unauthorized - user not authenticated",
-            examples=[
-                OpenApiExample(
-                    name="Unauthorized",
-                    value={"detail": "Authentication credentials were not provided."}
-                )
-            ]
-        )
-    }
-)
-
-@api_view(['POST', 'GET'])
-@permission_classes([IsAuthenticated]) 
-def trip_list_create(request):
-    if request.method == 'GET':
-        trips = Trip.objects.filter(user=request.user)
-        serializer = TripListSerializer(trips, many=True)
-        return Response(serializer.data, status=status.HTTP_200_OK)   
-    if request.method == 'POST':
+class TripCreateView(APIView):
+    permission_classes = [IsAuthenticated]
+    @extend_schema(
+        summary="Create trip with AI itinerary",
+        request=TripCreateUpdateSerializer,
+        responses={201: TripSerializer},
+        tags=['Trip Management']
+    )
+    def post(self, request):
+        serializer = TripCreateUpdateSerializer(data=request.data)
+        if not serializer.is_valid():
+            return Response({'success': False,'message': 'Validation failed','errors': serializer.errors}, status=status.HTTP_400_BAD_REQUEST)  
+        trip = Trip.objects.create(user=request.user,**serializer.validated_data)
         try:
-            user_budget = Budget.objects.get(user=request.user)
-            budget = float(user_budget.total) 
-        except Budget.DoesNotExist:
-            return Response({"error": "No budget found in expense app."},status=status.HTTP_400_BAD_REQUEST)
+            generator = ItineraryGenerator()
+            result = generator.generate_itinerary({
+                'tripname': trip.tripname,
+                'destination': trip.destination,
+                'current_loc': trip.current_loc,
+                'start_date': trip.start_date,
+                'end_date': trip.end_date,
+                'days': trip.days,
+                'trip_type': trip.trip_type,
+                'trip_preferences': trip.trip_preferences,
+                'budget': trip.budget
+            })
+            if result['success']:
+                data = result['data']
+                itinerary = Itinerary.objects.create(trip=trip)
+                for day_data in data.get('day_plans', []):
+                    DayPlan.objects.create(
+                        itinerary=itinerary,
+                        day_number=day_data['day_number'],
+                        title=day_data['title'],
+                        activities=day_data['activities']
+                    )
+                
+                response_serializer = TripSerializer(trip)
+                return Response({'success': True,'message': 'Trip and itinerary created successfully','data': response_serializer.data}, status=status.HTTP_201_CREATED)
+            else:
+                return Response({'success': False,'message': 'Trip created but itinerary generation failed','trip_id': trip.id,'error': result.get('error')}, status=status.HTTP_201_CREATED)
+                
         except Exception as e:
-            return Response({"error": f"Failed to fetch budget from expense app: {str(e)}"},status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-        use_ai = request.data.get('use_ai', True)         
-        if use_ai:
-            serializer = TripCreateSerializer(data=request.data)
-            if serializer.is_valid():
-                trip = serializer.save(user=request.user, budget=budget)
-                trip_data = {'tripname': trip.tripname,'current_loc': trip.current_loc,'destination': trip.destination,'start_date': str(trip.start_date),'end_date': str(trip.end_date),'days': trip.days,'trip_type': trip.trip_type,'trip_preferences': trip.trip_preferences,'budget': trip.budget  }
-                generator = ItineraryGenerator()
-                itinerary_data = generator.generate_itinerary(trip_data)               
-                if 'error' in itinerary_data:
-                    return Response({"message": "Trip created but itinerary generation failed","trip_id": trip.id,"error": itinerary_data},status=status.HTTP_201_CREATED)              
-                trip.itinerary_data = itinerary_data
-                trip.save()       
+            logger.error(f"Error: {str(e)}")
+            return Response({'success': False,'message': 'Trip created but itinerary generation failed','trip_id': trip.id,'error': str(e)}, status=status.HTTP_201_CREATED)
+
+
+class TripListView(APIView):
+    permission_classes = [IsAuthenticated]
+    
+    @extend_schema(
+        summary="Get all user trips",
+        responses={200: TripSerializer(many=True)},
+        tags=['Trip Management']
+    )
+    def get(self, request):
+        trips = Trip.objects.filter(user=request.user).prefetch_related(
+            'itinerary__day_plans'
+        ).order_by('-created_at')
+        serializer = TripSerializer(trips, many=True)
+        return Response({'success': True,'count': trips.count(),'data': serializer.data}, status=status.HTTP_200_OK)
+
+class TripDetailView(APIView):
+    permission_classes = [IsAuthenticated]
+    
+    @extend_schema(
+        summary="Get trip details",
+        responses={200: TripSerializer},
+        tags=['Trip Management']
+    )
+    def get(self, request, pk):
+        try:
+            trip = Trip.objects.prefetch_related(
+                'itinerary__day_plans'
+            ).get(pk=pk, user=request.user)
+            serializer = TripSerializer(trip)
+            return Response({'success': True,'data': serializer.data}, status=status.HTTP_200_OK)
+        except Trip.DoesNotExist:
+            return Response({'success': False,'message': 'Trip not found'}, status=status.HTTP_404_NOT_FOUND)
+    
+    @extend_schema(
+        summary="Update trip details",
+        request=TripCreateUpdateSerializer,
+        responses={200: TripSerializer},
+        tags=['Trip Management']
+    )
+    def put(self, request, pk):
+        try:
+            trip = Trip.objects.get(pk=pk, user=request.user)
+        except Trip.DoesNotExist:
+            return Response({'success': False,'message': 'Trip not found'}, status=status.HTTP_404_NOT_FOUND)
+        serializer = TripCreateUpdateSerializer(trip, data=request.data)
+        if not serializer.is_valid():
+            return Response({'success': False,'message': 'Validation failed','errors': serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
+        serializer.save()
+        response_serializer = TripSerializer(trip)
+        return Response({'success': True,'message': 'Trip updated successfully','data': response_serializer.data}, status=status.HTTP_200_OK)
+    
+    @extend_schema(
+        summary="Delete trip",
+        responses={204: None},
+        tags=['Trip Management']
+    )
+    def delete(self, request, pk):
+        try:
+            trip = Trip.objects.get(pk=pk, user=request.user)
+            trip.delete()
+            return Response({'success': True,'message': 'Trip deleted successfully'}, status=status.HTTP_204_NO_CONTENT)
+        except Trip.DoesNotExist:
+            return Response({'success': False,'message': 'Trip not found'}, status=status.HTTP_404_NOT_FOUND)
+
+class ItineraryRegenerateView(APIView):
+    permission_classes = [IsAuthenticated]
+    
+    @extend_schema(
+        summary="Regenerate itinerary with updated parameters",
+        request=RegenerateItinerarySerializer,
+        responses={200: TripSerializer},
+        tags=['Itinerary Management']
+    )
+    def post(self, request, trip_id):
+        try:
+            trip = Trip.objects.get(pk=trip_id, user=request.user)
+        except Trip.DoesNotExist:
+            return Response({'success': False,'message': 'Trip not found'}, status=status.HTTP_404_NOT_FOUND)
+        
+        serializer = RegenerateItinerarySerializer(data=request.data)
+        
+        if not serializer.is_valid():
+            return Response({'success': False,'message': 'Validation failed','errors': serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
+        
+        updated_data = serializer.validated_data
+        
+        for field, value in updated_data.items():
+            setattr(trip, field, value)
+        trip.save()
+        
+        try:
+            if hasattr(trip, 'itinerary'):
+                trip.itinerary.day_plans.all().delete()
+                trip.itinerary.delete()
+            
+            generator = ItineraryGenerator()
+            result = generator.generate_itinerary({
+                'tripname': trip.tripname,
+                'destination': trip.destination,
+                'current_loc': trip.current_loc,
+                'start_date': trip.start_date,
+                'end_date': trip.end_date,
+                'days': trip.days,
+                'trip_type': trip.trip_type,
+                'trip_preferences': trip.trip_preferences,
+                'budget': trip.budget
+            })
+            
+            if result['success']:
+                data = result['data']
+                
+                itinerary = Itinerary.objects.create(trip=trip)
+                
+                for day_data in data.get('day_plans', []):
+                    DayPlan.objects.create(
+                        itinerary=itinerary,
+                        day_number=day_data['day_number'],
+                        title=day_data['title'],
+                        activities=day_data['activities']
+                    )
+                
                 response_serializer = TripSerializer(trip)
-                return Response(response_serializer.data, status=status.HTTP_201_CREATED)
-            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)       
-        else:
-            serializer = TripManualCreateSerializer(data=request.data)
-            if serializer.is_valid():
-                trip = serializer.save(user=request.user, budget=budget)               
-                response_serializer = TripSerializer(trip)
-                return Response(response_serializer.data, status=status.HTTP_201_CREATED)           
-            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+                return Response({'success': True,'message': 'Itinerary regenerated successfully','data': response_serializer.data}, status=status.HTTP_200_OK)
+            else:
+                return Response({'success': False,'message': 'Failed to regenerate itinerary','error': result.get('error')}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+                
+        except Exception as e:
+            logger.error(f"Error regenerating itinerary: {str(e)}")
+            return Response({'success': False,'message': 'Failed to regenerate itinerary','error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-@extend_schema(
-    methods=['GET'],
-    tags=['Trips'],
-    summary="Get trip details",
-    description="Retrieve details of a trip including complete itinerary data for a specific trip.",
-    responses={
-        200: OpenApiResponse(
-            response=OpenApiTypes.OBJECT,
-            description="Trip retrieved successfully",
-            examples=[
-                OpenApiExample(
-                    name="Success Response",
-                    value={
-                        "success": True,
-                        "message": "Trip retrieved successfully",
-                        "data": {
-                            "id": 1,
-                            "tripname": "Summer Vacation",
-                            "current_loc": "New York",
-                            "destination": "Paris",
-                            "start_date": "2025-07-01",
-                            "end_date": "2025-07-05",
-                            "trip_type": "solo",
-                            "trip_preferences": "adventure",
-                            "budget": 1500,
-                            "itinerary_data": {
-                                "days": [
-                                    {
-                                        "day_number": 1,
-                                        "title": "Day 1 - Arrival",
-                                        "activities": []
-                                    }
-                                ]
-                            }
-                        }
-                    }
-                )
-            ]
-        ),
-        401: OpenApiResponse(
-            response=OpenApiTypes.OBJECT,
-            description="Unauthorized - user not authenticated",
-            examples=[
-                OpenApiExample(
-                    name="Unauthorized",
-                    value={"detail": "Authentication credentials were not provided."}
-                )
-            ]
-        ),
-        404: OpenApiResponse(
-            response=OpenApiTypes.OBJECT,
-            description="Trip not found",
-            examples=[
-                OpenApiExample(
-                    name="Not Found",
-                    value={"success": False, "message": "Trip not found."}
-                )
-            ]
-        )
-    }
-)
+class ItineraryDetailView(APIView):
+    permission_classes = [IsAuthenticated]
+    
+    @extend_schema(
+        summary="Get itinerary details",
+        responses={200: TripSerializer},
+        tags=['Itinerary Management']
+    )
+    def get(self, request, trip_id):
+        try:
+            trip = Trip.objects.prefetch_related(
+                'itinerary__day_plans'
+            ).get(pk=trip_id, user=request.user)
+            
+            if not hasattr(trip, 'itinerary'):
+                return Response({'success': False,'message': 'No itinerary found for this trip'}, status=status.HTTP_404_NOT_FOUND)
+            serializer = TripSerializer(trip)
+            return Response({'success': True,'data': serializer.data}, status=status.HTTP_200_OK)
+        except Trip.DoesNotExist:
+            return Response({'success': False,'message': 'Trip not found'}, status=status.HTTP_404_NOT_FOUND)
+    
+    @extend_schema(
+        summary="Delete itinerary",
+        responses={204: None},
+        tags=['Itinerary Management']
+    )
+    def delete(self, request, trip_id):
+        try:
+            trip = Trip.objects.get(pk=trip_id, user=request.user)
+            
+            if hasattr(trip, 'itinerary'):
+                trip.itinerary.delete()
+                return Response({'success': True,'message': 'Itinerary deleted successfully'}, status=status.HTTP_204_NO_CONTENT)
+            else:
+                return Response({'success': False,'message': 'No itinerary found for this trip'}, status=status.HTTP_404_NOT_FOUND)
+        except Trip.DoesNotExist:
+            return Response({'success': False,'message': 'Trip not found'}, status=status.HTTP_404_NOT_FOUND)
 
-@extend_schema(
-    methods=['PUT'],
-    tags=['Trips'],
-    summary="Update trip itinerary",
-    description="Update itinerary data for a specific trip.",
-    request=ItineraryUpdateSerializer,
-    responses={
-        200: OpenApiResponse(
-            response=OpenApiTypes.OBJECT,
-            description="Trip updated successfully",
-            examples=[
-                OpenApiExample(
-                    name="Success Response",
-                    value={
-                        "success": True,
-                        "message": "Trip updated successfully",
-                        "data": {
-                            "id": 1,
-                            "tripname": "Summer Vacation",
-                            "itinerary_data": {
-                                "days": [
-                                    {
-                                        "day_number": 1,
-                                        "title": "Day 1 - Arrival",
-                                        "activities": []
-                                    }
-                                ]
-                            }
-                        }
-                    }
-                )
-            ]
-        ),
-        400: OpenApiResponse(
-            response=OpenApiTypes.OBJECT,
-            description="Validation failed",
-            examples=[
-                OpenApiExample(
-                    name="Validation Error",
-                    value={
-                        "success": False,
-                        "message": "Validation failed",
-                        "errors": {"itinerary_data": ["This field is required."]}
-                    }
-                )
-            ]
-        ),
-        401: OpenApiResponse(
-            response=OpenApiTypes.OBJECT,
-            description="Unauthorized",
-            examples=[
-                OpenApiExample(
-                    name="Unauthorized",
-                    value={"detail": "Authentication credentials were not provided."}
-                )
-            ]
-        ),
-        404: OpenApiResponse(
-            response=OpenApiTypes.OBJECT,
-            description="Trip not found",
-            examples=[
-                OpenApiExample(
-                    name="Not Found",
-                    value={"success": False, "message": "Trip not found."}
-                )
-            ]
-        )
-    }
-)
+class DayPlanDetailView(APIView):
+    permission_classes = [IsAuthenticated]
+    
+    @extend_schema(
+        summary="Get day plan details",
+        responses={200: None},
+        tags=['Itinerary Management']
+    )
+    def get(self, request, trip_id, day_number):
+        try:
+            trip = Trip.objects.get(pk=trip_id, user=request.user)
+            day_plan = DayPlan.objects.get(
+                itinerary__trip=trip,
+                day_number=day_number
+            )
+            serializer = DayPlanSerializer(day_plan)
+            return Response({'success': True,'data': serializer.data}, status=status.HTTP_200_OK)
+        except Trip.DoesNotExist:
+            return Response({'success': False,'message': 'Trip not found'}, status=status.HTTP_404_NOT_FOUND)
+        except DayPlan.DoesNotExist:
+            return Response({'success': False,'message': 'Day plan not found'}, status=status.HTTP_404_NOT_FOUND)
 
-@extend_schema(
-    methods=['DELETE'],
-    tags=['Trips'],
-    summary="Delete trip",
-    description="Delete an entire trip along with its itinerary data.",
-    responses={
-        204: OpenApiResponse(
-            response=OpenApiTypes.OBJECT,
-            description="Trip deleted successfully",
-            examples=[
-                OpenApiExample(
-                    name="Deleted",
-                    value={"success": True, "message": "Trip and itinerary deleted successfully"}
+
+class ActivityManagementView(APIView):
+    permission_classes = [IsAuthenticated]
+    
+    @extend_schema(
+        summary="Add new activity to day plan",
+        request=ActivitySerializer,
+        responses={201: DayPlanSerializer},
+        tags=['Activity Management']
+    )
+    def post(self, request, trip_id, day_number):
+        try:
+            trip = Trip.objects.get(pk=trip_id, user=request.user)
+            day_plan = DayPlan.objects.get(
+                itinerary__trip=trip,
+                day_number=day_number
+            )
+        except Trip.DoesNotExist:
+            return Response({'success': False,'message': 'Trip not found'}, status=status.HTTP_404_NOT_FOUND)
+        except DayPlan.DoesNotExist:
+            return Response({'success': False,'message': 'Day plan not found'}, status=status.HTTP_404_NOT_FOUND)
+        
+        serializer = ActivitySerializer(data=request.data)
+        
+        if not serializer.is_valid():
+            return Response({'success': False,'message': 'Validation failed','errors': serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
+        
+        activities = day_plan.activities if day_plan.activities else []
+        activities.append(serializer.validated_data)
+        day_plan.activities = activities
+        day_plan.save()
+        
+        response_serializer = DayPlanSerializer(day_plan)
+        return Response({'success': True,'message': 'Activity added successfully','data': response_serializer.data}, status=status.HTTP_201_CREATED)
+
+class ActivityDetailView(APIView):
+    permission_classes = [IsAuthenticated]
+    
+    @extend_schema(
+        summary="Update specific activity",
+        request=ActivityUpdateSerializer,
+        responses={200: DayPlanSerializer},
+        tags=['Activity Management']
+    )
+    def put(self, request, trip_id, day_number, activity_index):
+        try:
+            trip = Trip.objects.get(pk=trip_id, user=request.user)
+            day_plan = DayPlan.objects.get(
+                itinerary__trip=trip,
+                day_number=day_number
+            )
+        except Trip.DoesNotExist:
+            return Response({'success': False,'message': 'Trip not found'}, status=status.HTTP_404_NOT_FOUND)
+        except DayPlan.DoesNotExist:
+            return Response({'success': False,'message': 'Day plan not found'}, status=status.HTTP_404_NOT_FOUND)
+        
+        activities = day_plan.activities if day_plan.activities else []
+        
+        if activity_index < 0 or activity_index >= len(activities):
+            return Response({'success': False,'message': 'Activity index out of range'}, status=status.HTTP_404_NOT_FOUND)
+        
+        serializer = ActivityUpdateSerializer(data=request.data)
+        
+        if not serializer.is_valid():
+            return Response({'success': False,'message': 'Validation failed','errors': serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
+        
+        for field, value in serializer.validated_data.items():
+            activities[activity_index][field] = value
+        day_plan.activities = activities
+        day_plan.save()
+        response_serializer = DayPlanSerializer(day_plan)
+        return Response({'success': True,'message': 'Activity updated successfully','data': response_serializer.data}, status=status.HTTP_200_OK)
+    
+    @extend_schema(
+        summary="Delete specific activity",
+        responses={200: DayPlanSerializer},
+        tags=['Activity Management']
+    )
+    def delete(self, request, trip_id, day_number, activity_index):
+        try:
+            trip = Trip.objects.get(pk=trip_id, user=request.user)
+            day_plan = DayPlan.objects.get(
+                itinerary__trip=trip,
+                day_number=day_number
+            )
+        except Trip.DoesNotExist:
+            return Response({'success': False,'message': 'Trip not found'}, status=status.HTTP_404_NOT_FOUND)
+        except DayPlan.DoesNotExist:
+            return Response({'success': False,'message': 'Day plan not found'}, status=status.HTTP_404_NOT_FOUND)
+        activities = day_plan.activities if day_plan.activities else []
+        if activity_index < 0 or activity_index >= len(activities):
+            return Response({'success': False,'message': 'Activity index out of range'}, status=status.HTTP_404_NOT_FOUND)
+        activities.pop(activity_index)
+        day_plan.activities = activities
+        day_plan.save()
+        
+        response_serializer = DayPlanSerializer(day_plan)
+        return Response({'success': True,'message': 'Activity deleted successfully','data': response_serializer.data}, status=status.HTTP_200_OK)
+    
+class ManualItineraryCreateView(APIView):
+    permission_classes = [IsAuthenticated]
+    
+    @extend_schema(
+        summary="Create itinerary manually without AI",
+        request=ManualItinerarySerializer,
+        responses={201: TripSerializer},
+        tags=['Itinerary Management']
+    )
+    def post(self, request, trip_id):
+        try:
+            trip = Trip.objects.get(pk=trip_id, user=request.user)
+        except Trip.DoesNotExist:
+            return Response({'success': False,'message': 'Trip not found'}, status=status.HTTP_404_NOT_FOUND)
+        
+        if hasattr(trip, 'itinerary'):
+            return Response({'success': False,'message': 'Itinerary already exists for this trip. Delete it first or use regenerate endpoint.'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        serializer = ManualItinerarySerializer(data=request.data)
+        
+        if not serializer.is_valid():
+            return Response({'success': False,'message': 'Validation failed','errors': serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
+        
+        try:
+            itinerary = Itinerary.objects.create(trip=trip)
+            for day_plan_data in serializer.validated_data['day_plans']:
+                DayPlan.objects.create(
+                    itinerary=itinerary,
+                    day_number=day_plan_data['day_number'],
+                    title=day_plan_data['title'],
+                    activities=day_plan_data['activities']
                 )
-            ]
-        ),
-        401: OpenApiResponse(
-            response=OpenApiTypes.OBJECT,
-            description="Unauthorized",
-            examples=[
-                OpenApiExample(
-                    name="Unauthorized",
-                    value={"detail": "Authentication credentials were not provided."}
-                )
-            ]
-        ),
-        404: OpenApiResponse(
-            response=OpenApiTypes.OBJECT,
-            description="Trip not found",
-            examples=[
-                OpenApiExample(
-                    name="Not Found",
-                    value={"success": False, "message": "Trip not found."}
-                )
-            ]
-        )
-    }
-)
-@api_view(['GET', 'PUT', 'DELETE'])
-@permission_classes([IsAuthenticated]) 
-def trip_detail(request, pk):
-    trip = get_object_or_404(Trip, pk=pk, user=request.user)
-    if request.method == 'GET':
-        serializer = TripSerializer(trip)
-        return Response(serializer.data, status=status.HTTP_200_OK)
-    if request.method == 'PUT':
-        serializer = ItineraryUpdateSerializer(data=request.data)
-        if serializer.is_valid():
-            trip.itinerary_data = serializer.validated_data['itinerary_data']
-            trip.save()
             response_serializer = TripSerializer(trip)
-            return Response(response_serializer.data, status=status.HTTP_200_OK)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-    if request.method == 'DELETE':
-        trip.delete()
-        return Response({"message": "Trip and itinerary deleted successfully"},status=status.HTTP_204_NO_CONTENT)
+            return Response({'success': True,'message': 'Manual itinerary created successfully','data': response_serializer.data}, status=status.HTTP_201_CREATED) 
+        except Exception as e:
+            logger.error(f"Error creating manual itinerary: {str(e)}")
+            if hasattr(trip, 'itinerary'):
+                trip.itinerary.delete()
+            return Response({'success': False,'message': 'Failed to create manual itinerary','error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)

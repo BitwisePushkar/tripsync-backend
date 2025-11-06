@@ -1,114 +1,136 @@
 from rest_framework import serializers
-from .models import Trip
-from datetime import datetime
+from .models import Trip, Itinerary, DayPlan
+
+class DayPlanSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = DayPlan
+        fields = ['id', 'day_number', 'title', 'activities', 'created_at', 'updated_at']
+        read_only_fields = ['id', 'created_at', 'updated_at']
+
+class ItinerarySerializer(serializers.ModelSerializer):
+    day_plans = DayPlanSerializer(many=True, read_only=True)
+    
+    class Meta:
+        model = Itinerary
+        fields = ['id', 'day_plans', 'created_at', 'updated_at']
+        read_only_fields = ['id', 'created_at', 'updated_at']
 
 class TripSerializer(serializers.ModelSerializer):
+    itinerary = ItinerarySerializer(read_only=True)
+    
     class Meta:
         model = Trip
-        fields = ['id', 'tripname', 'current_loc', 'destination', 'trending','start_date', 'end_date', 'days', 'trip_type', 'trip_preferences','budget', 'itinerary_data', 'created_at', 'updated_at']
-        read_only_fields = ['id', 'created_at', 'updated_at', 'trending', 'budget']    
+        fields = [
+            'id', 'tripname', 'current_loc', 'destination', 'trending',
+            'start_date', 'end_date', 'days', 'trip_type', 'trip_preferences',
+            'budget', 'itinerary', 'created_at', 'updated_at'
+        ]
+        read_only_fields = ['id', 'created_at', 'updated_at']
+
+class TripCreateUpdateSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Trip
+        fields = ['tripname', 'current_loc', 'destination', 'start_date', 'end_date', 'days', 'trip_type', 'trip_preferences', 'budget']
+    
     def validate(self, data):
         if data.get('start_date') and data.get('end_date'):
             if data['start_date'] > data['end_date']:
-                raise serializers.ValidationError({"end_date": "End date must be after start date"})
-            days_diff = (data['end_date'] - data['start_date']).days + 1
-            data['days'] = days_diff
+                raise serializers.ValidationError("End date must be after start date")
         return data
 
-class TripCreateSerializer(serializers.ModelSerializer):
-    use_ai = serializers.BooleanField(default=True, write_only=True)    
-    class Meta:
-        model = Trip
-        fields = ['tripname', 'current_loc', 'destination','start_date', 'end_date', 'trip_type', 'trip_preferences', 'use_ai']
+class RegenerateItinerarySerializer(serializers.Serializer):
+    tripname = serializers.CharField(max_length=100, required=False)
+    current_loc = serializers.CharField(max_length=200, required=False)
+    destination = serializers.CharField(max_length=200, required=False)
+    start_date = serializers.DateField(required=False)
+    end_date = serializers.DateField(required=False)
+    days = serializers.IntegerField(required=False)
+    trip_type = serializers.CharField(max_length=50, required=False)
+    trip_preferences = serializers.CharField(max_length=200, required=False)
+    budget = serializers.FloatField(required=False)
+
+class ActivitySerializer(serializers.Serializer):
+    time = serializers.CharField(max_length=50)
+    title = serializers.CharField(max_length=200)
+    description = serializers.CharField()
+    location = serializers.CharField(max_length=300)
+    duration = serializers.CharField(max_length=50)
+    cost = serializers.FloatField()
+    category = serializers.CharField(max_length=50)
     
-    def validate(self, data):
-        if data['start_date'] > data['end_date']:
-            raise serializers.ValidationError({"end_date": "End date must be after start date"})       
-        if data['start_date'] < datetime.now().date():
-            raise serializers.ValidationError({"start_date": "Start date cannot be in the past"})        
-        days_diff = (data['end_date'] - data['start_date']).days + 1
-        data['days'] = days_diff        
-        if days_diff > 7:
-            raise serializers.ValidationError({"end_date": "Trip duration cannot exceed 7 days"})
-        data.pop('use_ai', None)       
-        return data
+    def validate_category(self, value):
+        valid_categories = ['sightseeing', 'dining', 'shopping', 'transportation', 'adventure', 'relaxation']
+        if value.lower() not in valid_categories:
+            raise serializers.ValidationError(f"Category must be one of: {', '.join(valid_categories)}")
+        return value.lower()
+    
+    def validate_time(self, value):
+        valid_times = ['Morning', 'Afternoon', 'Evening', 'Night']
+        if value not in valid_times:
+            raise serializers.ValidationError(f"Time must be one of: {', '.join(valid_times)}")
+        return value
 
-class TripManualCreateSerializer(serializers.ModelSerializer):
-    use_ai = serializers.BooleanField(default=False, write_only=True)
-    itinerary_data = serializers.JSONField(required=True)    
-    class Meta:
-        model = Trip
-        fields = ['tripname', 'current_loc', 'destination','start_date', 'end_date', 'trip_type', 'trip_preferences','use_ai', 'itinerary_data']    
-    def validate(self, data):
-        if data['start_date'] > data['end_date']:
-            raise serializers.ValidationError({"end_date": "End date must be after start date"})        
-        if data['start_date'] < datetime.now().date():
-            raise serializers.ValidationError({"start_date": "Start date cannot be in the past"})        
-        days_diff = (data['end_date'] - data['start_date']).days + 1
-        data['days'] = days_diff        
-        if days_diff > 7:
-            raise serializers.ValidationError({"end_date": "Trip duration cannot exceed 7 days"})
-        itinerary = data.get('itinerary_data')
-        if not isinstance(itinerary, dict):
-            raise serializers.ValidationError({"itinerary_data": "Itinerary data must be a dictionary"})        
-        if 'days' not in itinerary:
-            raise serializers.ValidationError({"itinerary_data": "Itinerary data must contain 'days' key"})        
-        if not isinstance(itinerary['days'], list):
-            raise serializers.ValidationError({"itinerary_data": "'days' must be a list"})        
-        if len(itinerary['days']) != days_diff:
-            raise serializers.ValidationError({"itinerary_data": f"Number of days in itinerary ({len(itinerary['days'])}) must match trip duration ({days_diff} days)"})
-        for idx, day in enumerate(itinerary['days']):
-            if not isinstance(day, dict):
-                raise serializers.ValidationError({"itinerary_data": f"Day {idx + 1} must be a dictionary"})            
-            required_fields = ['day_number', 'title', 'activities']
-            for field in required_fields:
-                if field not in day:
-                    raise serializers.ValidationError({"itinerary_data": f"Day {idx + 1} must contain '{field}' field"})           
-            if day['day_number'] != idx + 1:
-                raise serializers.ValidationError({"itinerary_data": f"Day number must be {idx + 1}, got {day['day_number']}"})
-            if not isinstance(day['activities'], list):
-                raise serializers.ValidationError({"itinerary_data": f"Day {idx + 1} activities must be a list"})            
-            if len(day['activities']) == 0:
-                raise serializers.ValidationError({"itinerary_data": f"Day {idx + 1} must have at least one activity"})
-            valid_time_slots = ['morning', 'afternoon', 'evening', 'night']
-            for act_idx, activity in enumerate(day['activities']):
-                if not isinstance(activity, dict):
-                    raise serializers.ValidationError({"itinerary_data": f"Day {idx + 1}, Activity {act_idx + 1} must be a dictionary"})                
-                required_activity_fields = ['time_slot', 'title', 'description', 'location', 'duration', 'estimated_cost']
-                for field in required_activity_fields:
-                    if field not in activity:
-                        raise serializers.ValidationError({"itinerary_data": f"Day {idx + 1}, Activity {act_idx + 1} must contain '{field}' field"})
-                if activity['time_slot'] not in valid_time_slots:
-                    raise serializers.ValidationError({"itinerary_data": f"Day {idx + 1}, Activity {act_idx + 1}: Invalid time_slot. Must be one of {valid_time_slots}"})
-                try:
-                    float(activity['estimated_cost'])
-                except (ValueError, TypeError):
-                    raise serializers.ValidationError({"itinerary_data": f"Day {idx + 1}, Activity {act_idx + 1}: estimated_cost must be a number"})
-        data.pop('use_ai', None)       
-        return data
+class ActivityUpdateSerializer(serializers.Serializer):
+    time = serializers.CharField(max_length=50, required=False)
+    title = serializers.CharField(max_length=200, required=False)
+    description = serializers.CharField(required=False)
+    location = serializers.CharField(max_length=300, required=False)
+    duration = serializers.CharField(max_length=50, required=False)
+    cost = serializers.FloatField(required=False)
+    category = serializers.CharField(max_length=50, required=False)
+    
+    def validate_category(self, value):
+        valid_categories = ['sightseeing', 'dining', 'shopping', 'transportation', 'adventure', 'relaxation']
+        if value.lower() not in valid_categories:
+            raise serializers.ValidationError(f"Category must be one of: {', '.join(valid_categories)}")
+        return value.lower()
+    
+    def validate_time(self, value):
+        valid_times = ['Morning', 'Afternoon', 'Evening', 'Night']
+        if value not in valid_times:
+            raise serializers.ValidationError(f"Time must be one of: {', '.join(valid_times)}")
+        return value
+    
+class ManualActivitySerializer(serializers.Serializer):
+    time = serializers.CharField(max_length=50)
+    title = serializers.CharField(max_length=200)
+    description = serializers.CharField()
+    location = serializers.CharField(max_length=300)
+    duration = serializers.CharField(max_length=50)
+    cost = serializers.FloatField()
+    category = serializers.CharField(max_length=50)
+    
+    def validate_category(self, value):
+        valid_categories = ['sightseeing', 'dining', 'shopping', 'transportation', 'adventure', 'relaxation']
+        if value.lower() not in valid_categories:
+            raise serializers.ValidationError(f"Category must be one of: {', '.join(valid_categories)}")
+        return value.lower()
+    
+    def validate_time(self, value):
+        valid_times = ['Morning', 'Afternoon', 'Evening', 'Night']
+        if value not in valid_times:
+            raise serializers.ValidationError(f"Time must be one of: {', '.join(valid_times)}")
+        return value
 
-class TripListSerializer(serializers.ModelSerializer):
-    has_itinerary = serializers.SerializerMethodField()    
-    class Meta:
-        model = Trip
-        fields = ['id', 'tripname', 'destination', 'start_date', 'end_date','days', 'trip_type', 'budget', 'has_itinerary', 'created_at']   
-    def get_has_itinerary(self, obj):
-        return obj.itinerary_data is not None and bool(obj.itinerary_data)
+class ManualDayPlanSerializer(serializers.Serializer):
+    day_number = serializers.IntegerField()
+    title = serializers.CharField(max_length=200)
+    activities = ManualActivitySerializer(many=True)
+    
+    def validate_day_number(self, value):
+        if value < 1:
+            raise serializers.ValidationError("Day number must be greater than 0")
+        return value
 
-class ItineraryUpdateSerializer(serializers.Serializer):
-    itinerary_data = serializers.JSONField()    
-    def validate_itinerary_data(self, value):
-        if not isinstance(value, dict):
-            raise serializers.ValidationError("Itinerary data must be a dictionary")       
-        if 'days' not in value:
-            raise serializers.ValidationError("Itinerary data must contain 'days' key")       
-        if not isinstance(value['days'], list):
-            raise serializers.ValidationError("'days' must be a list")      
-        for day in value['days']:
-            if not isinstance(day, dict):
-                raise serializers.ValidationError("Each day must be a dictionary")           
-            required_fields = ['day_number', 'title', 'activities']
-            for field in required_fields:
-                if field not in day:
-                    raise serializers.ValidationError(f"Each day must contain '{field}' field")       
+class ManualItinerarySerializer(serializers.Serializer):
+    day_plans = ManualDayPlanSerializer(many=True)
+    
+    def validate_day_plans(self, value):
+        if not value:
+            raise serializers.ValidationError("At least one day plan is required")
+        
+        day_numbers = [dp['day_number'] for dp in value]
+        if len(day_numbers) != len(set(day_numbers)):
+            raise serializers.ValidationError("Duplicate day numbers are not allowed")
+        
         return value
