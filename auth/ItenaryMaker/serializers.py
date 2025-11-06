@@ -48,3 +48,45 @@ class RegenerateItinerarySerializer(serializers.Serializer):
     trip_type = serializers.CharField(max_length=50, required=False)
     trip_preferences = serializers.CharField(max_length=200, required=False)
     budget = serializers.FloatField(required=False)
+
+class ActivitySerializer(serializers.Serializer):
+    time = serializers.CharField(max_length=50)
+    title = serializers.CharField(max_length=200)
+    description = serializers.CharField()
+    location = serializers.CharField(max_length=300)
+    duration = serializers.CharField(max_length=50)
+    cost = serializers.FloatField()
+    category = serializers.CharField(max_length=50)
+    
+    def validate_category(self, value):
+        valid_categories = ['sightseeing', 'dining', 'shopping', 'transportation', 'adventure', 'relaxation']
+        if value.lower() not in valid_categories:
+            raise serializers.ValidationError(f"Category must be one of: {', '.join(valid_categories)}")
+        return value.lower()
+    
+    def validate_time(self, value):
+        valid_times = ['Morning', 'Afternoon', 'Evening', 'Night']
+        if value not in valid_times:
+            raise serializers.ValidationError(f"Time must be one of: {', '.join(valid_times)}")
+        return value
+
+class ActivityUpdateSerializer(serializers.Serializer):
+    time = serializers.CharField(max_length=50, required=False)
+    title = serializers.CharField(max_length=200, required=False)
+    description = serializers.CharField(required=False)
+    location = serializers.CharField(max_length=300, required=False)
+    duration = serializers.CharField(max_length=50, required=False)
+    cost = serializers.FloatField(required=False)
+    category = serializers.CharField(max_length=50, required=False)
+    
+    def validate_category(self, value):
+        valid_categories = ['sightseeing', 'dining', 'shopping', 'transportation', 'adventure', 'relaxation']
+        if value.lower() not in valid_categories:
+            raise serializers.ValidationError(f"Category must be one of: {', '.join(valid_categories)}")
+        return value.lower()
+    
+    def validate_time(self, value):
+        valid_times = ['Morning', 'Afternoon', 'Evening', 'Night']
+        if value not in valid_times:
+            raise serializers.ValidationError(f"Time must be one of: {', '.join(valid_times)}")
+        return value

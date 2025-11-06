@@ -4,7 +4,10 @@ from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
 from drf_spectacular.utils import extend_schema
 from .models import Trip, Itinerary, DayPlan
-from .serializers import TripSerializer, TripCreateUpdateSerializer, RegenerateItinerarySerializer
+from .serializers import (
+    TripSerializer, TripCreateUpdateSerializer, RegenerateItinerarySerializer,
+    ActivitySerializer, ActivityUpdateSerializer, DayPlanSerializer
+)
 from .ai_services import ItineraryGenerator
 import logging
 
@@ -342,7 +345,6 @@ class DayPlanDetailView(APIView):
                 day_number=day_number
             )
             
-            from .serializers import DayPlanSerializer
             serializer = DayPlanSerializer(day_plan)
             return Response({
                 'success': True,
@@ -358,3 +360,152 @@ class DayPlanDetailView(APIView):
                 'success': False,
                 'message': 'Day plan not found'
             }, status=status.HTTP_404_NOT_FOUND)
+
+
+class ActivityManagementView(APIView):
+    permission_classes = [IsAuthenticated]
+    
+    @extend_schema(
+        summary="Add new activity to day plan",
+        request=ActivitySerializer,
+        responses={201: DayPlanSerializer},
+        tags=['Activity Management']
+    )
+    def post(self, request, trip_id, day_number):
+        try:
+            trip = Trip.objects.get(pk=trip_id, user=request.user)
+            day_plan = DayPlan.objects.get(
+                itinerary__trip=trip,
+                day_number=day_number
+            )
+        except Trip.DoesNotExist:
+            return Response({
+                'success': False,
+                'message': 'Trip not found'
+            }, status=status.HTTP_404_NOT_FOUND)
+        except DayPlan.DoesNotExist:
+            return Response({
+                'success': False,
+                'message': 'Day plan not found'
+            }, status=status.HTTP_404_NOT_FOUND)
+        
+        serializer = ActivitySerializer(data=request.data)
+        
+        if not serializer.is_valid():
+            return Response({
+                'success': False,
+                'message': 'Validation failed',
+                'errors': serializer.errors
+            }, status=status.HTTP_400_BAD_REQUEST)
+        
+        activities = day_plan.activities if day_plan.activities else []
+        activities.append(serializer.validated_data)
+        day_plan.activities = activities
+        day_plan.save()
+        
+        response_serializer = DayPlanSerializer(day_plan)
+        return Response({
+            'success': True,
+            'message': 'Activity added successfully',
+            'data': response_serializer.data
+        }, status=status.HTTP_201_CREATED)
+
+
+class ActivityDetailView(APIView):
+    permission_classes = [IsAuthenticated]
+    
+    @extend_schema(
+        summary="Update specific activity",
+        request=ActivityUpdateSerializer,
+        responses={200: DayPlanSerializer},
+        tags=['Activity Management']
+    )
+    def put(self, request, trip_id, day_number, activity_index):
+        try:
+            trip = Trip.objects.get(pk=trip_id, user=request.user)
+            day_plan = DayPlan.objects.get(
+                itinerary__trip=trip,
+                day_number=day_number
+            )
+        except Trip.DoesNotExist:
+            return Response({
+                'success': False,
+                'message': 'Trip not found'
+            }, status=status.HTTP_404_NOT_FOUND)
+        except DayPlan.DoesNotExist:
+            return Response({
+                'success': False,
+                'message': 'Day plan not found'
+            }, status=status.HTTP_404_NOT_FOUND)
+        
+        activities = day_plan.activities if day_plan.activities else []
+        
+        if activity_index < 0 or activity_index >= len(activities):
+            return Response({
+                'success': False,
+                'message': 'Activity index out of range'
+            }, status=status.HTTP_404_NOT_FOUND)
+        
+        serializer = ActivityUpdateSerializer(data=request.data)
+        
+        if not serializer.is_valid():
+            return Response({
+                'success': False,
+                'message': 'Validation failed',
+                'errors': serializer.errors
+            }, status=status.HTTP_400_BAD_REQUEST)
+        
+        for field, value in serializer.validated_data.items():
+            activities[activity_index][field] = value
+        
+        day_plan.activities = activities
+        day_plan.save()
+        
+        response_serializer = DayPlanSerializer(day_plan)
+        return Response({
+            'success': True,
+            'message': 'Activity updated successfully',
+            'data': response_serializer.data
+        }, status=status.HTTP_200_OK)
+    
+    @extend_schema(
+        summary="Delete specific activity",
+        responses={200: DayPlanSerializer},
+        tags=['Activity Management']
+    )
+    def delete(self, request, trip_id, day_number, activity_index):
+        try:
+            trip = Trip.objects.get(pk=trip_id, user=request.user)
+            day_plan = DayPlan.objects.get(
+                itinerary__trip=trip,
+                day_number=day_number
+            )
+        except Trip.DoesNotExist:
+            return Response({
+                'success': False,
+                'message': 'Trip not found'
+            }, status=status.HTTP_404_NOT_FOUND)
+        except DayPlan.DoesNotExist:
+            return Response({
+                'success': False,
+                'message': 'Day plan not found'
+            }, status=status.HTTP_404_NOT_FOUND)
+        
+        activities = day_plan.activities if day_plan.activities else []
+        
+        if activity_index < 0 or activity_index >= len(activities):
+            return Response({
+                'success': False,
+                'message': 'Activity index out of range'
+            }, status=status.HTTP_404_NOT_FOUND)
+        
+        activities.pop(activity_index)
+        day_plan.activities = activities
+        day_plan.save()
+        
+        response_serializer = DayPlanSerializer(day_plan)
+        return Response({
+            'success': True,
+            'message': 'Activity deleted successfully',
+            'data': response_serializer.data
+        }, status=status.HTTP_200_OK)
