@@ -14,14 +14,10 @@ class Post(models.Model):
     vid = models.FileField(upload_to='videos/', blank=True, null=True)
     created = models.DateTimeField(auto_now_add=True)
     updated = models.DateTimeField(auto_now=True)
+    
     class Meta:
         ordering = ['-created']
-        
-    def save(self, *args, **kwargs):
-        if self.img:
-            logger.error(f"POST MODEL: Image storage type: {type(self.img.storage)}")
-            logger.error(f"POST MODEL: Image storage class: {self.img.storage.__class__.__name__}")
-        super().save(*args, **kwargs)
+    
     def __str__(self):
         return self.title
 

@@ -1,7 +1,7 @@
 from django.conf import settings
 from django.conf.urls.static import static
 from django.urls import path
-from .views import (PostListView,PostCreateView,PostDetailView,PostUpdateView,PostDeleteView,PostSearchView,MyPostsView,CommentCreateView,CommentUpdateView,CommentDeleteView,PostLikeView,test_media)
+from .views import (PostListView,PostCreateView,PostDetailView,PostUpdateView,PostDeleteView,PostSearchView,MyPostsView,CommentCreateView,CommentUpdateView,CommentDeleteView,PostLikeView)
 
 urlpatterns = [
     path('posts/', PostListView.as_view(), name='post-list'),
@@ -15,5 +15,4 @@ urlpatterns = [
     path('comments/<int:pk>/update/', CommentUpdateView.as_view(), name='comment-update'),
     path('comments/<int:pk>/delete/', CommentDeleteView.as_view(), name='comment-delete'),
     path('posts/<int:pk>/like/', PostLikeView.as_view(), name='post-like'),
-    path('test-media/', test_media, name='test-media'),
 ]

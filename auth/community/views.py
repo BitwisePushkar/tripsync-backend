@@ -66,6 +66,7 @@ class PostListView(APIView):
             posts = posts.filter(title__icontains=q.strip())        
         s = PostSerializer(posts, many=True, context={'request': req})
         return Response({'status': 'success','count': posts.count(),'data': s.data})
+
 class PostCreateView(APIView):
     permission_classes = [IsAuthenticated]
     parser_classes = [parsers.MultiPartParser, parsers.FormParser, parsers.JSONParser]    
@@ -130,61 +131,15 @@ class PostCreateView(APIView):
         ],
     )
     def post(self, req):
-        from django.core.files.storage import default_storage, storages
-        
-        logger.error("="*50)
-        logger.error("DEBUG: Storage Check")
-        logger.error("USE_S3: " + str(settings.USE_S3))
-        
-        has_aws_bucket = hasattr(settings, 'AWS_STORAGE_BUCKET_NAME')
-        logger.error("Has AWS_STORAGE_BUCKET_NAME: " + str(has_aws_bucket))
-        
-        if has_aws_bucket:
-            logger.error("AWS_STORAGE_BUCKET_NAME: " + str(settings.AWS_STORAGE_BUCKET_NAME))
-            logger.error("AWS_S3_REGION_NAME: " + str(settings.AWS_S3_REGION_NAME))
-        
-        logger.error("STORAGES config: " + str(settings.STORAGES.get('default', {}).get('BACKEND', 'Not set')))
-        
-        try:
-            logger.error("default_storage class: " + str(default_storage.__class__))
-            logger.error("default_storage module: " + str(default_storage.__class__.__module__))
-            logger.error("default_storage name: " + str(default_storage.__class__.__name__))
-        except Exception as e:
-            logger.error("Error checking default_storage: " + str(e))
-        
-        try:
-            file_storage = storages['default']
-            logger.error("storages['default'] class: " + str(file_storage.__class__))
-            logger.error("storages['default'] name: " + str(file_storage.__class__.__name__))
-        except Exception as e:
-            logger.error("Error checking storages: " + str(e))
-        
-        logger.error("="*50)
-        
         s = PostSerializer(data=req.data, context={'request': req})
         s.is_valid(raise_exception=True)
-        
-        if 'img' in req.FILES:
-            logger.error("Image file received: " + str(req.FILES['img'].name))
-            logger.error("Image file size: " + str(req.FILES['img'].size))
-        
-        post = s.save(user=req.user)
-        
-        if post.img:
-            logger.error("Image saved to: " + str(post.img))
-            logger.error("Image name: " + str(post.img.name))
-            logger.error("Image URL: " + str(post.img.url))
-            logger.error("Image storage class: " + str(post.img.storage.__class__.__name__))
-            logger.error("Image storage module: " + str(post.img.storage.__class__.__module__))
-        
-        logger.error("="*50)
-        
+        s.save(user=req.user)
         return Response({
             'status': 'success',
             'message': 'Post created successfully',
             'data': s.data
         }, status=status.HTTP_201_CREATED)
-        
+    
 class PostDetailView(APIView):
     permission_classes = [AllowAny]   
     @extend_schema(
@@ -845,21 +800,3 @@ class PostLikeView(APIView):
         
 
 
-
-
-@api_view(['GET'])
-def test_media(request):
-    post = Post.objects.first()
-    if post:
-        return Response({
-            'img_field': str(post.img) if post.img else None,
-            'img_url': request.build_absolute_uri(post.img.url) if post.img else None,
-            'vid_field': str(post.vid) if post.vid else None,
-            'vid_url': request.build_absolute_uri(post.vid.url) if post.vid else None,
-            'settings': {
-                'USE_S3': getattr(settings, 'USE_S3', False),
-                'MEDIA_URL': settings.MEDIA_URL,
-                'DEFAULT_FILE_STORAGE': settings.DEFAULT_FILE_STORAGE
-            }
-        })
-    return Response({'error': 'No posts found'})
