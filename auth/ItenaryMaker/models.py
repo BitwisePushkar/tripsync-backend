@@ -3,7 +3,7 @@ from django.core.validators import MinValueValidator, MaxValueValidator
 from django.conf import settings
 
 class Trip(models.Model):
-    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='trips')
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='itinerary_trips')
     tripname = models.CharField(max_length=100)
     current_loc = models.CharField(max_length=200)
     destination = models.CharField(max_length=200)

@@ -24,7 +24,7 @@ INSTALLED_APPS = ['channels',
                   'account.apps.AccountConfig',
                   'community.apps.CommunityConfig',
                   'chatbot.apps.ChatbotConfig',
-                  'ItenaryMaker'
+                  'ItenaryMaker',
                   'rest_framework',
                   'rest_framework_simplejwt',
                   'rest_framework_simplejwt.token_blacklist',
