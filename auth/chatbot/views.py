@@ -25,8 +25,8 @@ from .serializers import (ChatRequestSerializer, ChatResponseSerializer,ChatHist
                     name="Success Response",
                     value={
                         'success': True,
-                        'message': 'What is machine learning?',
-                        'response': 'Machine learning is a subset of artificial intelligence...',
+                        'message': 'what should I do for a adventorous trip?',
+                        'response': 'To make your trip adventorous make sure to go to...',
                         'session_id': 'abc-123-def-456',
                         'created_at': '2025-11-05T10:30:00Z'
                     }
@@ -93,14 +93,14 @@ from .serializers import (ChatRequestSerializer, ChatResponseSerializer,ChatHist
     examples=[
         OpenApiExample(
             name="Basic Chat",
-            value={'message': 'What is machine learning?'},
+            value={'message': 'Best Place to go?'},
             request_only=True
         ),
         OpenApiExample(
             name="Chat with Custom Prompt",
             value={
-                'message': 'Explain quantum computing',
-                'system_prompt': 'You are a physics professor explaining complex topics simply.'
+                'message': 'Tell how to travek safely',
+                'system_prompt': 'You are a professional traveller explain how to travel safely in points.'
             },
             request_only=True
         ),
