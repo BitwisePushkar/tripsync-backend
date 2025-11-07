@@ -1,85 +1,160 @@
-import google.generativeai as genai
+from langchain_google_genai import ChatGoogleGenerativeAI
 from django.conf import settings
+import logging
 import json
+import re
+
+logger = logging.getLogger(__name__)
 
 class ItineraryGenerator:
     def __init__(self):
-        genai.configure(api_key=settings.GOOGLE_API_KEY)
-        self.model = genai.GenerativeModel('gemini-1.5-flash')
-        self.generation_config = {'temperature': 0.7,'top_p': 0.95,'top_k': 40,'max_output_tokens': 8192,}
-    def create_prompt(self, trip_data):
-        prompt = f"""You are an expert travel planner. Generate a detailed day-by-day itinerary based on the following information:
+        self.llm = ChatGoogleGenerativeAI(
+            model="gemini-2.0-flash-exp",
+            google_api_key=settings.GOOGLE_API_KEY,
+            temperature=0.7,
+            max_output_tokens=8192,
+        )
 
-Trip Name: {trip_data['tripname']}
-Starting From: {trip_data['current_loc']}
-Destination: {trip_data['destination']}
-Start Date: {trip_data['start_date']}
-End Date: {trip_data['end_date']}
-Number of Days: {trip_data['days']}
-Trip Type: {trip_data['trip_type']}
-Preferences: {trip_data['trip_preferences']}
-Budget: ₹{trip_data['budget']}
+    def generate_itinerary(self, trip_data):
+        prompt = f"""You are an expert travel planner. Create detailed itineraries in JSON format only.
 
-Create a detailed itinerary with activities for each day. For each day, organize activities into time slots:
-- Morning (8:00 AM - 12:00 PM)
-- Afternoon (12:00 PM - 5:00 PM)
-- Evening (5:00 PM - 8:00 PM)
-- Night (8:00 PM - 12:00 AM)
+Create a {trip_data['days']}-day travel itinerary in JSON format.
 
-Return ONLY a valid JSON object in this EXACT format (no markdown, no extra text):
+Trip Details:
+- Trip Name: {trip_data['tripname']}
+- Destination: {trip_data['destination']}
+- From: {trip_data['current_loc']}
+- Duration: {trip_data['days']} days
+- Budget: ${trip_data['budget']}
+- Type: {trip_data['trip_type']}
+- Preferences: {trip_data['trip_preferences']}
+
+Return ONLY valid JSON (no markdown, no code blocks, no explanations):
+
 {{
-  "days": [
+  "day_plans": [
     {{
       "day_number": 1,
-      "title": "Day 1 - Arrival",
+      "title": "Arrival & City Exploration",
       "activities": [
         {{
-          "time_slot": "morning",
-          "title": "Activity Title",
-          "description": "Detailed description of the activity",
-          "location": "Specific location",
+          "time": "Morning",
+          "title": "Arrival at Delhi Airport",
+          "description": "Arrive at Indira Gandhi International Airport and transfer to hotel. Check-in and freshen up.",
+          "location": "IGI Airport to Hotel",
           "duration": "2 hours",
-          "estimated_cost": 500
+          "cost": 20,
+          "category": "transportation"
+        }},
+        {{
+          "time": "Afternoon",
+          "title": "Visit India Gate",
+          "description": "Explore the iconic India Gate monument, a war memorial dedicated to Indian soldiers. Perfect for photos and understanding Delhi's history.",
+          "location": "India Gate, Rajpath",
+          "duration": "1.5 hours",
+          "cost": 0,
+          "category": "sightseeing"
+        }},
+        {{
+          "time": "Afternoon",
+          "title": "Lunch at Karim's",
+          "description": "Experience authentic Mughlai cuisine at the famous Karim's restaurant. Try their signature kebabs and curries.",
+          "location": "Jama Masjid, Old Delhi",
+          "duration": "1 hour",
+          "cost": 25,
+          "category": "dining"
+        }},
+        {{
+          "time": "Evening",
+          "title": "Connaught Place Shopping",
+          "description": "Visit the heart of Delhi for shopping, dining, and experiencing the local culture. Browse through shops and enjoy street food.",
+          "location": "Connaught Place",
+          "duration": "2 hours",
+          "cost": 30,
+          "category": "shopping"
+        }},
+        {{
+          "time": "Night",
+          "title": "Dinner at Indian Accent",
+          "description": "Fine dining experience with modern Indian cuisine. Book in advance for the best tables.",
+          "location": "Lodhi Road",
+          "duration": "1.5 hours",
+          "cost": 50,
+          "category": "dining"
+        }}
+      ]
+    }},
+    {{
+      "day_number": 2,
+      "title": "Historical Delhi Tour",
+      "activities": [
+        {{
+          "time": "Morning",
+          "title": "Red Fort Visit",
+          "description": "Explore the magnificent Red Fort, a UNESCO World Heritage site and symbol of India's rich history.",
+          "location": "Netaji Subhash Marg, Old Delhi",
+          "duration": "2 hours",
+          "cost": 10,
+          "category": "sightseeing"
+        }},
+        {{
+          "time": "Morning",
+          "title": "Jama Masjid",
+          "description": "Visit one of India's largest mosques with stunning Mughal architecture.",
+          "location": "Chandni Chowk",
+          "duration": "1 hour",
+          "cost": 0,
+          "category": "sightseeing"
+        }},
+        {{
+          "time": "Afternoon",
+          "title": "Lunch at Paranthe Wali Gali",
+          "description": "Try the famous stuffed parathas in the narrow lanes of Old Delhi.",
+          "location": "Chandni Chowk",
+          "duration": "1 hour",
+          "cost": 15,
+          "category": "dining"
         }}
       ]
     }}
   ]
 }}
 
-Important guidelines:
-1. Create exactly {trip_data['days']} days of activities
-2. Include 2-4 activities per day across different time slots
-3. Make activities realistic and suitable for {trip_data['trip_preferences']} preference
-4. Ensure total estimated costs across all days stay within ₹{trip_data['budget']}
-5. Consider {trip_data['trip_type']} trip type when suggesting activities
-6. Use Indian Rupees (₹) for all cost estimates
-7. Return ONLY the JSON object, no other text"""        
-        return prompt   
-    
-    def generate_itinerary(self, trip_data):
+IMPORTANT RULES:
+1. Create exactly {trip_data['days']} day plans
+2. Each day should have 4-6 activities
+3. Activities must have: time (Morning/Afternoon/Evening/Night), title, description, location, duration, cost, category
+4. Categories: sightseeing, dining, shopping, transportation, adventure, relaxation
+5. Keep activities realistic and within budget
+6. Return ONLY the JSON, no other text
+7. Make descriptions detailed and helpful
+"""
+        
         try:
-            prompt = self.create_prompt(trip_data)
-            response = self.model.generate_content(prompt,generation_config=self.generation_config)
-            content = response.text.strip()
-            if content.startswith('```json'):
-                content = content[7:]
-            elif content.startswith('```'):
-                content = content[3:]
-            if content.endswith('```'):
-                content = content[:-3]
-            content = content.strip()
-            itinerary = json.loads(content)
-            if 'days' not in itinerary:
-                return {"error": "Invalid AI response structure","details": "Missing 'days' key in response"}           
-            if not isinstance(itinerary['days'], list):
-                return {"error": "Invalid AI response structure","details": "'days' should be a list"}           
-            if len(itinerary['days']) != trip_data['days']:
-                return {"error": "Incorrect number of days","details": f"Expected {trip_data['days']} days, got {len(itinerary['days'])}"}
-            for idx, day in enumerate(itinerary['days']):
-                if 'day_number' not in day or 'title' not in day or 'activities' not in day:
-                    return {"error": f"Invalid day {idx + 1} structure","details": "Each day must have day_number, title, and activities"}            
-            return itinerary            
-        except json.JSONDecodeError as e:
-            return {"error": "Failed to parse AI response as JSON","details": str(e),"raw_response": content[:500] if 'content' in locals() else "No response"}
+            response = self.llm.invoke(prompt)
+            response_text = response.content.strip()
+            response_text = re.sub(r'^```json\s*', '', response_text)
+            response_text = re.sub(r'^```\s*', '', response_text)
+            response_text = re.sub(r'\s*```$', '', response_text)
+            response_text = response_text.strip()
+            
+            try:
+                itinerary_data = json.loads(response_text)
+                return {
+                    'success': True,
+                    'data': itinerary_data
+                }
+            except json.JSONDecodeError as je:
+                logger.error(f"JSON parse error: {str(je)}")
+                logger.error(f"Response: {response_text[:500]}")
+                return {
+                    'success': False,
+                    'error': f"Invalid JSON from AI: {str(je)}"
+                }
+                
         except Exception as e:
-            return {"error": "Failed to generate itinerary","details": str(e),"error_type": type(e).__name__}
+            logger.error(f"Error generating itinerary: {str(e)}")
+            return {
+                'success': False,
+                'error': str(e)
+            }
