@@ -30,7 +30,7 @@ class Comment(models.Model):
     class Meta:
         ordering = ['-created']
     def __str__(self):
-        return self.user.id + " commented on '" + self.post.title + "'"
+        return str(self.user.id) + " commented on '" + self.post.title + "'"
 
 class PostLike(models.Model):
     post = models.ForeignKey(Post, on_delete=models.CASCADE, related_name='likes')
@@ -43,6 +43,6 @@ class PostLike(models.Model):
         ordering = ['-created']
     def __str__(self):
         if self.like:
-            return self.user.id + " liked the post '" + self.post.title + "'"
+            return str(self.user.id) + " liked the post '" + self.post.title + "'"
         else:
-            return self.user.id + " disliked the post '" + self.post.title + "'"
+            return str(self.user.id) + " disliked the post '" + self.post.title + "'"
