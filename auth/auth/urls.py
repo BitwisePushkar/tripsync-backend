@@ -28,7 +28,7 @@ urlpatterns = [
     path('api/community/',include('community.urls')),
     path('api/Homepage/',include('HomePage.urls')),
     path('api/expense/',include('expense.urls')),
-    path('api/itinerary/',include('Itinerary.urls')),
+    path('api/itinerary/',include('ItenaryMaker.urls')),
     path('api/trending/',include('trending.urls')),
     path('api/schema/', SpectacularAPIView.as_view(), name='schema'),
     path('api/docs/', SpectacularSwaggerView.as_view(url_name='schema'), name='swagger-ui'),
