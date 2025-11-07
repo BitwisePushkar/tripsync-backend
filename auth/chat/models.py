@@ -4,9 +4,7 @@ from django.db.models import Prefetch
 
 class ConversationManager(models.Manager):
     def get_queryset(self):
-        return super().get_queryset().prefetch_related(
-            Prefetch('participants', queryset=User.objects.only('id', 'email'))
-        )
+        return super().get_queryset().prefetch_related( Prefetch('participants', queryset=User.objects.only('id', 'email')))
     def for_user(self, user):
         return self.get_queryset().filter(participants=user)
 
