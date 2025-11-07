@@ -34,7 +34,6 @@ INSTALLED_APPS = ['channels',
                   'personal.apps.PersonalConfig',
                   'HomePage.apps.HomepageConfig',
                   'expense.apps.ExpenseConfig',
-                  'Itinerary.apps.ItineraryConfig',
                   'tripmate.apps.TripmateConfig',
                   'trending.apps.TrendingConfig',
                 ]
