@@ -156,5 +156,5 @@ else:
     MEDIA_URL = '/media/'
     MEDIA_ROOT = BASE_DIR / 'media'
 
-GEMINI_API_KEY=config('GOOGLE_API_KEY')
+GOOGLE_API_KEY=config('GOOGLE_API_KEY')
 WEATHER_API_KEY = config('WEATHER_API_KEY')
