@@ -14,6 +14,7 @@ ALLOWED_HOSTS = os.environ.get("ALLOWED_HOSTS", "localhost,127.0.0.1,51.20.254.5
 
 INSTALLED_APPS = ['channels',
                   'daphne',
+                  'storages',
                   'django.contrib.admin',
                   'django.contrib.auth',
                   'django.contrib.contenttypes',
@@ -135,13 +136,14 @@ if USE_S3:
     AWS_STORAGE_BUCKET_NAME = config('AWS_STORAGE_BUCKET_NAME') 
     AWS_S3_REGION_NAME = config('AWS_S3_REGION_NAME')
     AWS_S3_CUSTOM_DOMAIN = f'{AWS_STORAGE_BUCKET_NAME}.s3.amazonaws.com'
-    AWS_S3_OBJECT_PARAMETERS = {'CacheControl': 'max-age=86400',}
+    AWS_S3_OBJECT_PARAMETERS = {'CacheControl': 'max-age=86400'}
     AWS_DEFAULT_ACL = 'public-read'
     AWS_S3_FILE_OVERWRITE = False
     AWS_QUERYSTRING_AUTH = False
-    AWS_LOCATION = 'static'
-    STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
-    DEFAULT_FILE_STORAGE = 'storages.backends.s3boto3.S3Boto3Storage'
+    # AWS_LOCATION = 'static'
+    # STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
+    # DEFAULT_FILE_STORAGE = 'storages.backends.s3boto3.S3Boto3Storage'
+    DEFAULT_FILE_STORAGE = 'auth.storage_backends.MediaStorage'  
     MEDIA_URL = f'https://{AWS_S3_CUSTOM_DOMAIN}/media/'
     STATIC_URL = '/static/'
     STATIC_ROOT = BASE_DIR / 'staticfiles'
