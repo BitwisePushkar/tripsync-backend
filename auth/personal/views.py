@@ -323,6 +323,68 @@ class ProfileDetailView(APIView):
         
         except Profile.DoesNotExist:
             return Response({'success': False,'message': 'Profile not found','error_code': 'PROFILE_NOT_FOUND'}, status=status.HTTP_404_NOT_FOUND)
+    
+    @extend_schema(
+    summary="Delete Profile & User Account",
+    description="Permanently delete the user's profile and associated user account.",
+    responses={
+        200: OpenApiResponse(
+            description="Profile and user account deleted successfully",
+            response=OpenApiTypes.OBJECT,
+            examples=[
+                OpenApiExample(
+                    "Success",
+                    value={
+                        "success": True,
+                        "message": "Profile and user account deleted successfully"
+                    }
+                )
+            ]
+        ),
+        404: OpenApiResponse(
+            description="Profile not found",
+            response=OpenApiTypes.OBJECT,
+            examples=[
+                OpenApiExample(
+                    "Profile Not Found",
+                    value={
+                        "success": False,
+                        "message": "Profile not found",
+                        "error_code": "PROFILE_NOT_FOUND"
+                    }
+                )
+            ]
+        ),
+        500: OpenApiResponse(
+            description="Internal server error",
+            response=OpenApiTypes.OBJECT,
+            examples=[
+                OpenApiExample(
+                    "Internal Error",
+                    value={
+                        "success": False,
+                        "message": "An error occurred while deleting the profile. Please try again later.",
+                        "error_code": "INTERNAL_ERROR"
+                    }
+                )
+            ]
+        )
+    }
+    )
+    def delete(self, request):
+        try:
+            try:
+                profile = request.user.profile
+            except Profile.DoesNotExist:
+                return Response({'success': False,'message': 'Profile not found','error_code': 'PROFILE_NOT_FOUND'}, status=status.HTTP_404_NOT_FOUND)
+            user_id = request.user.id
+            user_email = request.user.email
+            request.user.delete()
+            logger.info(f"User account {user_id} ({user_email}) and associated profile deleted successfully")
+            return Response({'success': True,'message': 'Profile and user account deleted successfully'}, status=status.HTTP_200_OK)
+        except Exception as e:
+            logger.error(f"Error in ProfileDetailView DELETE: {str(e)}")
+            return Response({'success': False,'message': 'An error occurred. Please try again later.','error_code': 'INTERNAL_ERROR'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 class VerifyOTPView(APIView):
     permission_classes = [IsAuthenticated]
