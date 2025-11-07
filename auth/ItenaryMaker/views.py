@@ -6,7 +6,7 @@ from drf_spectacular.utils import extend_schema
 from .models import Trip, Itinerary, DayPlan
 from .serializers import (
     TripSerializer, TripCreateUpdateSerializer, RegenerateItinerarySerializer,
-    ActivitySerializer, ActivityUpdateSerializer, DayPlanSerializer
+    ActivitySerializer, ActivityUpdateSerializer, DayPlanSerializer, ManualItinerarySerializer
 )
 from .ai_services import ItineraryGenerator
 import logging
@@ -509,3 +509,64 @@ class ActivityDetailView(APIView):
             'message': 'Activity deleted successfully',
             'data': response_serializer.data
         }, status=status.HTTP_200_OK)
+    
+    class ManualItineraryCreateView(APIView):
+        permission_classes = [IsAuthenticated]
+    
+    @extend_schema(
+        summary="Create itinerary manually without AI",
+        request=ManualItinerarySerializer,
+        responses={201: TripSerializer},
+        tags=['Itinerary Management']
+    )
+    def post(self, request, trip_id):
+        try:
+            trip = Trip.objects.get(pk=trip_id, user=request.user)
+        except Trip.DoesNotExist:
+            return Response({
+                'success': False,
+                'message': 'Trip not found'
+            }, status=status.HTTP_404_NOT_FOUND)
+        
+        if hasattr(trip, 'itinerary'):
+            return Response({
+                'success': False,
+                'message': 'Itinerary already exists for this trip. Delete it first or use regenerate endpoint.'
+            }, status=status.HTTP_400_BAD_REQUEST)
+        
+        serializer = ManualItinerarySerializer(data=request.data)
+        
+        if not serializer.is_valid():
+            return Response({
+                'success': False,
+                'message': 'Validation failed',
+                'errors': serializer.errors
+            }, status=status.HTTP_400_BAD_REQUEST)
+        
+        try:
+            itinerary = Itinerary.objects.create(trip=trip)
+            
+            for day_plan_data in serializer.validated_data['day_plans']:
+                DayPlan.objects.create(
+                    itinerary=itinerary,
+                    day_number=day_plan_data['day_number'],
+                    title=day_plan_data['title'],
+                    activities=day_plan_data['activities']
+                )
+            
+            response_serializer = TripSerializer(trip)
+            return Response({
+                'success': True,
+                'message': 'Manual itinerary created successfully',
+                'data': response_serializer.data
+            }, status=status.HTTP_201_CREATED)
+            
+        except Exception as e:
+            logger.error(f"Error creating manual itinerary: {str(e)}")
+            if hasattr(trip, 'itinerary'):
+                trip.itinerary.delete()
+            return Response({
+                'success': False,
+                'message': 'Failed to create manual itinerary',
+                'error': str(e)
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)

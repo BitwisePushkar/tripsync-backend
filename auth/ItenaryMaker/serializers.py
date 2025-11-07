@@ -90,3 +90,47 @@ class ActivityUpdateSerializer(serializers.Serializer):
         if value not in valid_times:
             raise serializers.ValidationError(f"Time must be one of: {', '.join(valid_times)}")
         return value
+    
+class ManualActivitySerializer(serializers.Serializer):
+    time = serializers.CharField(max_length=50)
+    title = serializers.CharField(max_length=200)
+    description = serializers.CharField()
+    location = serializers.CharField(max_length=300)
+    duration = serializers.CharField(max_length=50)
+    cost = serializers.FloatField()
+    category = serializers.CharField(max_length=50)
+    
+    def validate_category(self, value):
+        valid_categories = ['sightseeing', 'dining', 'shopping', 'transportation', 'adventure', 'relaxation']
+        if value.lower() not in valid_categories:
+            raise serializers.ValidationError(f"Category must be one of: {', '.join(valid_categories)}")
+        return value.lower()
+    
+    def validate_time(self, value):
+        valid_times = ['Morning', 'Afternoon', 'Evening', 'Night']
+        if value not in valid_times:
+            raise serializers.ValidationError(f"Time must be one of: {', '.join(valid_times)}")
+        return value
+
+class ManualDayPlanSerializer(serializers.Serializer):
+    day_number = serializers.IntegerField()
+    title = serializers.CharField(max_length=200)
+    activities = ManualActivitySerializer(many=True)
+    
+    def validate_day_number(self, value):
+        if value < 1:
+            raise serializers.ValidationError("Day number must be greater than 0")
+        return value
+
+class ManualItinerarySerializer(serializers.Serializer):
+    day_plans = ManualDayPlanSerializer(many=True)
+    
+    def validate_day_plans(self, value):
+        if not value:
+            raise serializers.ValidationError("At least one day plan is required")
+        
+        day_numbers = [dp['day_number'] for dp in value]
+        if len(day_numbers) != len(set(day_numbers)):
+            raise serializers.ValidationError("Duplicate day numbers are not allowed")
+        
+        return value
