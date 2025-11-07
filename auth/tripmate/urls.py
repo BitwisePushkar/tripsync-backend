@@ -22,5 +22,4 @@ urlpatterns = [
     path('trip/invitations/', ReceivedTripSharesView.as_view(), name='received-trip-shares'),
     path('trip/invitations/<int:share_id>/respond/', RespondTripShareView.as_view(), name='respond-trip-share'),
     path('trip/shared/<int:pk>/', SharedTripDetailView.as_view(), name='shared-trip-detail'),
-    path('trip/share/<int:share_id>/revoke/', RevokeTripShareView.as_view(), name='revoke-trip-share'),
-]
+    path('trip/share/<int:share_id>/revoke/', RevokeTripShareView.as_view(), name='revoke-trip-share'), ]
