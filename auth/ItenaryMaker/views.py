@@ -510,8 +510,8 @@ class ActivityDetailView(APIView):
             'data': response_serializer.data
         }, status=status.HTTP_200_OK)
     
-    class ManualItineraryCreateView(APIView):
-        permission_classes = [IsAuthenticated]
+class ManualItineraryCreateView(APIView):
+    permission_classes = [IsAuthenticated]
     
     @extend_schema(
         summary="Create itinerary manually without AI",
