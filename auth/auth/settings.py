@@ -130,7 +130,10 @@ OTP_LOCKOUT_MINUTES = 15
 LOGGING = {'version': 1, 'disable_existing_loggers': False, 'formatters': {'verbose': {'format': '{levelname} {asctime} {module} {message}', 'style': '{'}}, 'handlers': {'console': {'class': 'logging.StreamHandler', 'formatter': 'verbose'}}, 'root': {'handlers': ['console'], 'level': 'INFO'}, 'loggers': {'django': {'handlers': ['console'], 'level': 'INFO', 'propagate': False}, 'account': {'handlers': ['console'], 'level': 'DEBUG', 'propagate': False}}}
 TWOFACTOR_API_KEY =  config('TWOFACTOR_API_KEY', '')
 
-USE_S3 = config('USE_S3', default=False, cast=bool)
+
+
+USE_S3 = config('USE_S3', default=True, cast=bool)
+
 if USE_S3:
     AWS_ACCESS_KEY_ID = config('AWS_ACCESS_KEY_ID')
     AWS_SECRET_ACCESS_KEY = config('AWS_SECRET_ACCESS_KEY')
@@ -138,19 +141,33 @@ if USE_S3:
     AWS_S3_REGION_NAME = config('AWS_S3_REGION_NAME')
     AWS_S3_CUSTOM_DOMAIN = f'{AWS_STORAGE_BUCKET_NAME}.s3.amazonaws.com'
     AWS_S3_OBJECT_PARAMETERS = {'CacheControl': 'max-age=86400'}
-    AWS_DEFAULT_ACL = 'public-read'
+    AWS_DEFAULT_ACL = None
     AWS_S3_FILE_OVERWRITE = False
     AWS_QUERYSTRING_AUTH = False
-    DEFAULT_FILE_STORAGE = 'auth.storage_backends.MediaStorage'  
+    AWS_S3_VERIFY = True
+    
+    STORAGES = {
+        "default": {
+            "BACKEND": "auth.storage_backends.MediaStorage",
+        },
+        "staticfiles": {
+            "BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage",
+        },
+    }
+    
     MEDIA_URL = f'https://{AWS_S3_CUSTOM_DOMAIN}/media/'
     STATIC_URL = '/static/'
     STATIC_ROOT = BASE_DIR / 'staticfiles'
 else:
-    if DEBUG:
-        STATICFILES_STORAGE = 'django.contrib.staticfiles.storage.StaticFilesStorage'
-    else:
-        STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage' 
-    DEFAULT_FILE_STORAGE = 'django.core.files.storage.FileSystemStorage'
+    STORAGES = {
+        "default": {
+            "BACKEND": "django.core.files.storage.FileSystemStorage",
+        },
+        "staticfiles": {
+            "BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage" if not DEBUG else "django.contrib.staticfiles.storage.StaticFilesStorage",
+        },
+    }
+    
     STATIC_URL = '/static/'
     STATIC_ROOT = BASE_DIR / 'staticfiles'
     MEDIA_URL = '/media/'

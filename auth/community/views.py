@@ -7,6 +7,10 @@ from drf_spectacular.utils import extend_schema, OpenApiParameter, OpenApiExampl
 from drf_spectacular.types import OpenApiTypes
 from .models import Post, Comment, PostLike
 from .serializers import PostSerializer, PostDetailSerializer, CommentSerializer
+from rest_framework.decorators import api_view
+from django.conf import settings
+import logging
+logger = logging.getLogger(__name__)
 
 class PostListView(APIView):
     permission_classes = [AllowAny]    
@@ -62,10 +66,10 @@ class PostListView(APIView):
             posts = posts.filter(title__icontains=q.strip())        
         s = PostSerializer(posts, many=True, context={'request': req})
         return Response({'status': 'success','count': posts.count(),'data': s.data})
-    
 class PostCreateView(APIView):
     permission_classes = [IsAuthenticated]
     parser_classes = [parsers.MultiPartParser, parsers.FormParser, parsers.JSONParser]    
+
     @extend_schema(
         tags=["Posts"],
         summary="Create a new post",
@@ -126,11 +130,61 @@ class PostCreateView(APIView):
         ],
     )
     def post(self, req):
+        from django.core.files.storage import default_storage, storages
+        
+        logger.error("="*50)
+        logger.error("DEBUG: Storage Check")
+        logger.error("USE_S3: " + str(settings.USE_S3))
+        
+        has_aws_bucket = hasattr(settings, 'AWS_STORAGE_BUCKET_NAME')
+        logger.error("Has AWS_STORAGE_BUCKET_NAME: " + str(has_aws_bucket))
+        
+        if has_aws_bucket:
+            logger.error("AWS_STORAGE_BUCKET_NAME: " + str(settings.AWS_STORAGE_BUCKET_NAME))
+            logger.error("AWS_S3_REGION_NAME: " + str(settings.AWS_S3_REGION_NAME))
+        
+        logger.error("STORAGES config: " + str(settings.STORAGES.get('default', {}).get('BACKEND', 'Not set')))
+        
+        try:
+            logger.error("default_storage class: " + str(default_storage.__class__))
+            logger.error("default_storage module: " + str(default_storage.__class__.__module__))
+            logger.error("default_storage name: " + str(default_storage.__class__.__name__))
+        except Exception as e:
+            logger.error("Error checking default_storage: " + str(e))
+        
+        try:
+            file_storage = storages['default']
+            logger.error("storages['default'] class: " + str(file_storage.__class__))
+            logger.error("storages['default'] name: " + str(file_storage.__class__.__name__))
+        except Exception as e:
+            logger.error("Error checking storages: " + str(e))
+        
+        logger.error("="*50)
+        
         s = PostSerializer(data=req.data, context={'request': req})
         s.is_valid(raise_exception=True)
-        s.save(user=req.user)        
-        return Response({'status': 'success','message': 'Post created successfully','data': s.data}, status=status.HTTP_201_CREATED)
-
+        
+        if 'img' in req.FILES:
+            logger.error("Image file received: " + str(req.FILES['img'].name))
+            logger.error("Image file size: " + str(req.FILES['img'].size))
+        
+        post = s.save(user=req.user)
+        
+        if post.img:
+            logger.error("Image saved to: " + str(post.img))
+            logger.error("Image name: " + str(post.img.name))
+            logger.error("Image URL: " + str(post.img.url))
+            logger.error("Image storage class: " + str(post.img.storage.__class__.__name__))
+            logger.error("Image storage module: " + str(post.img.storage.__class__.__module__))
+        
+        logger.error("="*50)
+        
+        return Response({
+            'status': 'success',
+            'message': 'Post created successfully',
+            'data': s.data
+        }, status=status.HTTP_201_CREATED)
+        
 class PostDetailView(APIView):
     permission_classes = [AllowAny]   
     @extend_schema(
@@ -183,6 +237,7 @@ class PostDetailView(APIView):
         p = get_object_or_404(Post.objects.select_related('user__profile').prefetch_related('comments__user__profile'),pk=pk)
         s = PostDetailSerializer(p, context={'request': req})
         return Response({'status': 'success','data': s.data})
+
 
 class PostUpdateView(APIView):
     permission_classes = [IsAuthenticated]
@@ -787,3 +842,24 @@ class PostLikeView(APIView):
         else:
             PostLike.objects.create(post=p, user=req.user, like=like)
             return Response({'status': 'success','message': f'Post {"liked" if like else "disliked"}','data': {'action': 'created','like': like,'likes': p.likes.filter(like=True).count(),'dislikes': p.likes.filter(like=False).count()}}, status=status.HTTP_201_CREATED)
+        
+
+
+
+
+@api_view(['GET'])
+def test_media(request):
+    post = Post.objects.first()
+    if post:
+        return Response({
+            'img_field': str(post.img) if post.img else None,
+            'img_url': request.build_absolute_uri(post.img.url) if post.img else None,
+            'vid_field': str(post.vid) if post.vid else None,
+            'vid_url': request.build_absolute_uri(post.vid.url) if post.vid else None,
+            'settings': {
+                'USE_S3': getattr(settings, 'USE_S3', False),
+                'MEDIA_URL': settings.MEDIA_URL,
+                'DEFAULT_FILE_STORAGE': settings.DEFAULT_FILE_STORAGE
+            }
+        })
+    return Response({'error': 'No posts found'})
