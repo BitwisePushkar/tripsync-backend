@@ -4,11 +4,9 @@ from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
 from drf_spectacular.utils import extend_schema
 from .models import Trip, Itinerary, DayPlan
-from .serializers import (
-    TripSerializer, TripCreateUpdateSerializer, RegenerateItinerarySerializer,
-    ActivitySerializer, ActivityUpdateSerializer, DayPlanSerializer, ManualItinerarySerializer
-)
+from .serializers import TripSerializer, TripCreateUpdateSerializer, RegenerateItinerarySerializer,ActivitySerializer, ActivityUpdateSerializer, DayPlanSerializer, ManualItinerarySerializer
 from .ai_services import ItineraryGenerator
+from expense.models import Budget
 import logging
 
 logger = logging.getLogger(__name__)
@@ -22,6 +20,7 @@ class TripCreateView(APIView):
         responses={201: TripSerializer},
         tags=['Trip Management']
     )
+
     def post(self, request):
         serializer = TripCreateUpdateSerializer(data=request.data)
         
@@ -32,8 +31,18 @@ class TripCreateView(APIView):
                 'errors': serializer.errors
             }, status=status.HTTP_400_BAD_REQUEST)
         
+        try:
+            budget_obj = Budget.objects.get(user=request.user)
+            budget_amount = float(budget_obj.total)
+        except Budget.DoesNotExist:
+            return Response({
+                'success': False,
+                'message': 'Please create a budget in expense tracker first'
+            }, status=status.HTTP_400_BAD_REQUEST)
+        
         trip = Trip.objects.create(
             user=request.user,
+            budget=budget_amount,
             **serializer.validated_data
         )
         
@@ -308,7 +317,7 @@ class ItineraryDetailView(APIView):
             
             if hasattr(trip, 'itinerary'):
                 trip.itinerary.delete()
-                return Response(status=status.HTTP_204_NO_CONTENT)
+                return Response({},status=status.HTTP_204_NO_CONTENT)
             else:
                 return Response({
                     'success': False,

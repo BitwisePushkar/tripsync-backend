@@ -30,14 +30,14 @@ class TripSerializer(serializers.ModelSerializer):
 class TripCreateUpdateSerializer(serializers.ModelSerializer):
     class Meta:
         model = Trip
-        fields = ['tripname', 'current_loc', 'destination', 'start_date', 'end_date', 'days', 'trip_type', 'trip_preferences', 'budget']
+        fields = ['tripname', 'current_loc', 'destination', 'start_date', 'end_date', 'days', 'trip_type', 'trip_preferences']
     
     def validate(self, data):
         if data.get('start_date') and data.get('end_date'):
             if data['start_date'] > data['end_date']:
                 raise serializers.ValidationError("End date must be after start date")
         return data
-
+    
 class RegenerateItinerarySerializer(serializers.Serializer):
     tripname = serializers.CharField(max_length=100, required=False)
     current_loc = serializers.CharField(max_length=200, required=False)
