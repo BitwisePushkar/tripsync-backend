@@ -151,10 +151,14 @@ class TripDetailView(APIView):
         try:
             trip = Trip.objects.get(pk=pk, user=request.user)
         except Trip.DoesNotExist:
-            return Response({
-                'success': False,
-                'message': 'Trip not found'
-            }, status=status.HTTP_404_NOT_FOUND)
+            from tripmate.models import TripMember
+            member = TripMember.objects.filter(trip_id=pk, user=request.user, permission='edit').first()
+            if not member:
+                return Response({
+                    'success': False,
+                    'message': 'Trip not found or you do not have edit permission'
+                }, status=status.HTTP_404_NOT_FOUND)
+            trip = member.trip
         
         serializer = TripCreateUpdateSerializer(trip, data=request.data)
         
@@ -374,15 +378,21 @@ class ActivityManagementView(APIView):
     def post(self, request, trip_id, day_number):
         try:
             trip = Trip.objects.get(pk=trip_id, user=request.user)
+        except Trip.DoesNotExist:
+            from tripmate.models import TripMember
+            member = TripMember.objects.filter(trip_id=trip_id, user=request.user, permission='edit').first()
+            if not member:
+                return Response({
+                    'success': False,
+                    'message': 'Trip not found or you do not have edit permission'
+                }, status=status.HTTP_404_NOT_FOUND)
+            trip = member.trip
+        
+        try:
             day_plan = DayPlan.objects.get(
                 itinerary__trip=trip,
                 day_number=day_number
             )
-        except Trip.DoesNotExist:
-            return Response({
-                'success': False,
-                'message': 'Trip not found'
-            }, status=status.HTTP_404_NOT_FOUND)
         except DayPlan.DoesNotExist:
             return Response({
                 'success': False,
@@ -423,15 +433,21 @@ class ActivityDetailView(APIView):
     def put(self, request, trip_id, day_number, activity_index):
         try:
             trip = Trip.objects.get(pk=trip_id, user=request.user)
+        except Trip.DoesNotExist:
+            from tripmate.models import TripMember
+            member = TripMember.objects.filter(trip_id=trip_id, user=request.user, permission='edit').first()
+            if not member:
+                return Response({
+                    'success': False,
+                    'message': 'Trip not found or you do not have edit permission'
+                }, status=status.HTTP_404_NOT_FOUND)
+            trip = member.trip
+        
+        try:
             day_plan = DayPlan.objects.get(
                 itinerary__trip=trip,
                 day_number=day_number
             )
-        except Trip.DoesNotExist:
-            return Response({
-                'success': False,
-                'message': 'Trip not found'
-            }, status=status.HTTP_404_NOT_FOUND)
         except DayPlan.DoesNotExist:
             return Response({
                 'success': False,
@@ -467,24 +483,25 @@ class ActivityDetailView(APIView):
             'message': 'Activity updated successfully',
             'data': response_serializer.data
         }, status=status.HTTP_200_OK)
-    
-    @extend_schema(
-        summary="Delete specific activity",
-        responses={200: DayPlanSerializer},
-        tags=['Activity Management']
-    )
+
     def delete(self, request, trip_id, day_number, activity_index):
         try:
             trip = Trip.objects.get(pk=trip_id, user=request.user)
+        except Trip.DoesNotExist:
+            from tripmate.models import TripMember
+            member = TripMember.objects.filter(trip_id=trip_id, user=request.user, permission='edit').first()
+            if not member:
+                return Response({
+                    'success': False,
+                    'message': 'Trip not found or you do not have edit permission'
+                }, status=status.HTTP_404_NOT_FOUND)
+            trip = member.trip
+        
+        try:
             day_plan = DayPlan.objects.get(
                 itinerary__trip=trip,
                 day_number=day_number
             )
-        except Trip.DoesNotExist:
-            return Response({
-                'success': False,
-                'message': 'Trip not found'
-            }, status=status.HTTP_404_NOT_FOUND)
         except DayPlan.DoesNotExist:
             return Response({
                 'success': False,
