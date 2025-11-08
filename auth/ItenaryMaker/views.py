@@ -7,6 +7,7 @@ from .models import Trip, Itinerary, DayPlan
 from .serializers import TripSerializer, TripCreateUpdateSerializer, RegenerateItinerarySerializer,ActivitySerializer, ActivityUpdateSerializer, DayPlanSerializer, ManualItinerarySerializer
 from .ai_services import ItineraryGenerator
 from expense.models import Budget
+from tripmate.models import TripMember
 import logging
 
 logger = logging.getLogger(__name__)
@@ -151,7 +152,6 @@ class TripDetailView(APIView):
         try:
             trip = Trip.objects.get(pk=pk, user=request.user)
         except Trip.DoesNotExist:
-            from tripmate.models import TripMember
             member = TripMember.objects.filter(trip_id=pk, user=request.user, permission='edit').first()
             if not member:
                 return Response({
@@ -379,7 +379,6 @@ class ActivityManagementView(APIView):
         try:
             trip = Trip.objects.get(pk=trip_id, user=request.user)
         except Trip.DoesNotExist:
-            from tripmate.models import TripMember
             member = TripMember.objects.filter(trip_id=trip_id, user=request.user, permission='edit').first()
             if not member:
                 return Response({
@@ -434,7 +433,6 @@ class ActivityDetailView(APIView):
         try:
             trip = Trip.objects.get(pk=trip_id, user=request.user)
         except Trip.DoesNotExist:
-            from tripmate.models import TripMember
             member = TripMember.objects.filter(trip_id=trip_id, user=request.user, permission='edit').first()
             if not member:
                 return Response({
@@ -488,7 +486,6 @@ class ActivityDetailView(APIView):
         try:
             trip = Trip.objects.get(pk=trip_id, user=request.user)
         except Trip.DoesNotExist:
-            from tripmate.models import TripMember
             member = TripMember.objects.filter(trip_id=trip_id, user=request.user, permission='edit').first()
             if not member:
                 return Response({
