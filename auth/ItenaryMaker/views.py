@@ -166,24 +166,20 @@ class TripDetailView(APIView):
         }, status=status.HTTP_200_OK)
     
     @extend_schema(
-        summary="Delete trip",
-        responses={204: None},
-        tags=['Trip Management']
+    summary="Delete trip",
+    responses={204: None},
+    tags=['Trip Management']
     )
     def delete(self, request, pk):
         try:
             trip = Trip.objects.get(pk=pk, user=request.user)
             trip.delete()
-            return Response({
-                'success': True,
-                'message': 'Trip deleted successfully'
-            }, status=status.HTTP_204_NO_CONTENT)
+            return Response(status=status.HTTP_204_NO_CONTENT)
         except Trip.DoesNotExist:
             return Response({
                 'success': False,
                 'message': 'Trip not found'
             }, status=status.HTTP_404_NOT_FOUND)
-
 
 class ItineraryRegenerateView(APIView):
     permission_classes = [IsAuthenticated]
@@ -282,8 +278,7 @@ class ItineraryDetailView(APIView):
     def get(self, request, trip_id):
         try:
             trip = Trip.objects.prefetch_related(
-                'itinerary__day_plans'
-            ).get(pk=trip_id, user=request.user)
+                'itinerary__day_plans').get(pk=trip_id, user=request.user)
             
             if not hasattr(trip, 'itinerary'):
                 return Response({
@@ -313,10 +308,7 @@ class ItineraryDetailView(APIView):
             
             if hasattr(trip, 'itinerary'):
                 trip.itinerary.delete()
-                return Response({
-                    'success': True,
-                    'message': 'Itinerary deleted successfully'
-                }, status=status.HTTP_204_NO_CONTENT)
+                return Response(status=status.HTTP_204_NO_CONTENT)
             else:
                 return Response({
                     'success': False,
@@ -327,7 +319,6 @@ class ItineraryDetailView(APIView):
                 'success': False,
                 'message': 'Trip not found'
             }, status=status.HTTP_404_NOT_FOUND)
-
 
 class DayPlanDetailView(APIView):
     permission_classes = [IsAuthenticated]
