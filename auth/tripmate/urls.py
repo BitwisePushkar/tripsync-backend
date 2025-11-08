@@ -1,5 +1,5 @@
 from django.urls import path
-from .views import (SearchUser, ViewTripmates, SendFriendRequestView,ReceivedFriendRequestsView, SentFriendRequestsView,RespondFriendRequestView, CancelFriendRequestView,RemoveTripmateView, ShareTripView, MySharedTripsView,ReceivedTripSharesView, RespondTripShareView,SharedTripDetailView, RevokeTripShareView)
+from .views import SearchUser, ViewTripmates, SendFriendRequestView,ReceivedFriendRequestsView, SentFriendRequestsView,RespondFriendRequestView, CancelFriendRequestView,RemoveTripmateView, AddTripMemberView, TripMembersListView,UpdateTripMemberView, RemoveTripMemberView
 
 urlpatterns = [
     path('search/', SearchUser.as_view(), name='search-users'),
@@ -10,10 +10,8 @@ urlpatterns = [
     path('friend-request/<int:request_id>/respond/', RespondFriendRequestView.as_view(), name='respond-friend-request'),
     path('friend-request/<int:request_id>/cancel/', CancelFriendRequestView.as_view(), name='cancel-friend-request'),
     path('tripmate/<int:user_id>/remove/', RemoveTripmateView.as_view(), name='remove-tripmate'),
-    path('trip/share/', ShareTripView.as_view(), name='share-trip'),
-    path('trip/shared/', MySharedTripsView.as_view(), name='my-shared-trips'),
-    path('trip/invitations/', ReceivedTripSharesView.as_view(), name='received-trip-shares'),
-    path('trip/invitations/<int:share_id>/respond/', RespondTripShareView.as_view(), name='respond-trip-share'),
-    path('trip/shared/<int:pk>/', SharedTripDetailView.as_view(), name='shared-trip-detail'),
-    path('trip/share/<int:share_id>/revoke/', RevokeTripShareView.as_view(), name='revoke-trip-share'),
+    path('trip/<int:trip_id>/members/', TripMembersListView.as_view(), name='trip-members-list'),
+    path('trip/<int:trip_id>/members/add/', AddTripMemberView.as_view(), name='add-trip-member'),
+    path('trip/<int:trip_id>/members/<int:member_id>/', UpdateTripMemberView.as_view(), name='update-trip-member'),
+    path('trip/<int:trip_id>/members/<int:member_id>/remove/', RemoveTripMemberView.as_view(), name='remove-trip-member'),
 ]
