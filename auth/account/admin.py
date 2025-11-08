@@ -10,10 +10,10 @@ class UserModelAdmin(BaseUserAdmin):
         ('Authentication', {"fields": ["email", "password"]}),
         ("Permissions", {"fields": ["is_admin", "is_active", "is_email_verified"]}),
         ("OTP Information", {"fields": ["otp", "otp_exp", "otp_verified", "otp_type"]}),
-        ("Important Dates", {"fields": ["created_at", "updated_at", "last_login"]})]
+        ("Important Dates", {"fields": ["created_at", "updated_at", "last_login"]})
+        ]
     
-    add_fieldsets = [
-        (None, {"classes": ["wide"], "fields": ["email", "password1", "password2"]})]
+    add_fieldsets = [(None, {"classes": ["wide"], "fields": ["email", "password1", "password2"]})]
     
     readonly_fields = ["created_at", "updated_at", "last_login", "otp", "otp_exp", "otp_verified", "otp_type"]
 
@@ -25,7 +25,6 @@ class UserModelAdmin(BaseUserAdmin):
         if obj:
             return self.readonly_fields + ["email"]
         return self.readonly_fields
-
 
 admin.site.register(User, UserModelAdmin)
 admin.site.site_header = "TripSync Admin"

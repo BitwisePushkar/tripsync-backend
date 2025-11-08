@@ -124,7 +124,7 @@ def chatbot(request):
     
     validated_data = serializer.validated_data
     user_message = validated_data['message']
-    system_prompt = validated_data.get('system_prompt', 'You are a helpful AI assistant for planning trip your whole goal is to answer trip related questions and make sure to only answer trip/travelling related questions')
+    system_prompt = validated_data.get('system_prompt', 'You are a helpful AI assistant for planning trip your whole goal is to answer trip related questions and make sure to only answer trip/travelling related questions. Keep the answers concise and short')
     session_id = validated_data.get('session_id', str(uuid.uuid4()))
     
     try:
