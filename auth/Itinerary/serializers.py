@@ -30,7 +30,7 @@ class TripSerializer(serializers.ModelSerializer):
 class TripCreateUpdateSerializer(serializers.ModelSerializer):
     class Meta:
         model = Trip
-        fields = ['tripname', 'current_loc', 'destination', 'start_date', 'end_date', 'days', 'trip_type', 'trip_preferences', 'budget']
+        fields = ['tripname', 'current_loc', 'destination', 'start_date', 'end_date', 'days', 'trip_type', 'trip_preferences']
     
     def validate(self, data):
         if data.get('start_date') and data.get('end_date'):

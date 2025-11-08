@@ -7,6 +7,7 @@ from .models import Trip, Itinerary, DayPlan
 from .serializers import (TripSerializer, TripCreateUpdateSerializer, RegenerateItinerarySerializer,ActivitySerializer, ActivityUpdateSerializer, DayPlanSerializer, ManualItinerarySerializer)
 from .ai_services import ItineraryGenerator
 import logging
+from expense.models import Budget
 
 logger = logging.getLogger(__name__)
 
@@ -22,7 +23,16 @@ class TripCreateView(APIView):
         serializer = TripCreateUpdateSerializer(data=request.data)
         if not serializer.is_valid():
             return Response({'success': False,'message': 'Validation failed','errors': serializer.errors}, status=status.HTTP_400_BAD_REQUEST)  
-        trip = Trip.objects.create(user=request.user,**serializer.validated_data)
+        try:
+            budget_obj = Budget.objects.get(user=request.user)
+            budget_amount = float(budget_obj.total)
+        except Budget.DoesNotExist:
+            return Response({
+                'success': False,
+                'message': 'Please create a budget in expense tracker first'
+            }, status=status.HTTP_400_BAD_REQUEST)
+        
+        trip = Trip.objects.create(user=request.user,budget=budget_amount,**serializer.validated_data)
         try:
             generator = ItineraryGenerator()
             result = generator.generate_itinerary({
@@ -117,7 +127,7 @@ class TripDetailView(APIView):
         try:
             trip = Trip.objects.get(pk=pk, user=request.user)
             trip.delete()
-            return Response({'success': True,'message': 'Trip deleted successfully'}, status=status.HTTP_204_NO_CONTENT)
+            return Response(status=status.HTTP_204_NO_CONTENT)
         except Trip.DoesNotExist:
             return Response({'success': False,'message': 'Trip not found'}, status=status.HTTP_404_NOT_FOUND)
 
@@ -219,7 +229,7 @@ class ItineraryDetailView(APIView):
             
             if hasattr(trip, 'itinerary'):
                 trip.itinerary.delete()
-                return Response({'success': True,'message': 'Itinerary deleted successfully'}, status=status.HTTP_204_NO_CONTENT)
+                return Response(status=status.HTTP_204_NO_CONTENT)
             else:
                 return Response({'success': False,'message': 'No itinerary found for this trip'}, status=status.HTTP_404_NOT_FOUND)
         except Trip.DoesNotExist:
