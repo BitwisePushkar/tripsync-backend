@@ -1,10 +1,11 @@
 from rest_framework import serializers
 from django.contrib.auth import get_user_model
-from .models import Tripmate, FriendRequest, TripShare
+from .models import Tripmate, FriendRequest, TripMember
 from personal.models import Profile
-from Itinerary.models import Trip
+from ItenaryMaker.models import Trip
 
 User = get_user_model()
+
 class UserBasicSerializer(serializers.ModelSerializer):
     full_name = serializers.SerializerMethodField()
     profile_pic = serializers.SerializerMethodField()
@@ -59,11 +60,13 @@ class UserSearchSerializer(serializers.ModelSerializer):
                 else:
                     profile_pic_url = profile.profile_pic.url
             
-            return {'full_name': f"{profile.fname} {profile.lname}",
-                    'bio': profile.bio,
-                    'profile_pic': profile_pic_url,
-                    'gender': profile.gender,
-                    'preference': profile.prefrence,}
+            return {
+                'full_name': f"{profile.fname} {profile.lname}",
+                'bio': profile.bio,
+                'profile_pic': profile_pic_url,
+                'gender': profile.gender,
+                'preference': profile.prefrence,
+            }
         except:
             return None
     
@@ -145,74 +148,51 @@ class RespondFriendRequestSerializer(serializers.Serializer):
     action = serializers.ChoiceField(choices=['accept', 'decline'])
 
 
-class ItenaryBasicSerializer(serializers.ModelSerializer):
-    owner_info = UserBasicSerializer(source='user', read_only=True)
-    duration_days = serializers.SerializerMethodField()
+class TripMemberSerializer(serializers.ModelSerializer):
+    user_info = UserBasicSerializer(source='user', read_only=True)
+    added_by_info = UserBasicSerializer(source='added_by', read_only=True)
+    trip_name = serializers.CharField(source='trip.tripname', read_only=True)
     
     class Meta:
-        model = Trip
-        fields = ['id', 'tripname', 'destination', 'start_date', 'end_date', 'duration_days', 'budget', 'owner_info']
-        read_only_fields = ['id']
-    
-    def get_duration_days(self, obj):
-        if obj.start_date and obj.end_date:
-            return (obj.end_date - obj.start_date).days + 1
-        return obj.days
-
-
-class TripShareSerializer(serializers.ModelSerializer):
-    itenary_info = ItenaryBasicSerializer(source='itenary', read_only=True)
-    shared_with_info = UserBasicSerializer(source='shared_with', read_only=True)
-    shared_by_info = UserBasicSerializer(source='shared_by', read_only=True)
-    
-    class Meta:
-        model = TripShare
-        fields = ['id', 'itenary_info', 'shared_with_info', 'shared_by_info', 'status', 'role', 'invitation_message', 'created_at', 'updated_at']
+        model = TripMember
+        fields = ['id', 'user_info', 'trip_name', 'added_by_info', 'permission', 'created_at', 'updated_at']
         read_only_fields = ['id', 'created_at', 'updated_at']
 
 
-class ShareTripSerializer(serializers.Serializer):
-    itenary_id = serializers.IntegerField()
-    tripmate_id = serializers.IntegerField()
-    role = serializers.ChoiceField(choices=['viewer', 'editor'], default='viewer')
-    invitation_message = serializers.CharField(max_length=500, required=False, allow_blank=True)
+class AddTripMemberSerializer(serializers.Serializer):
+    user_id = serializers.IntegerField()
+    permission = serializers.ChoiceField(choices=['view', 'edit'], default='view')
     
-    def validate_itenary_id(self, value):
+    def validate_user_id(self, value):
         request_user = self.context['request'].user
-        try:
-            itenary = Trip.objects.get(id=value, user=request_user)
-        except Trip.DoesNotExist:
-            raise serializers.ValidationError("Trip not found or you don't own this trip")
-        return value
-    
-    def validate_tripmate_id(self, value):
-        request_user = self.context['request'].user
+        trip_id = self.context.get('trip_id')
         
         if value == request_user.id:
-            raise serializers.ValidationError("Cannot share trip with yourself")
+            raise serializers.ValidationError("Cannot add yourself to the trip")
         
         try:
-            tripmate_user = User.objects.get(id=value)
+            user = User.objects.get(id=value)
         except User.DoesNotExist:
             raise serializers.ValidationError("User not found")
         
         try:
-            if not request_user.tripmate_profile.are_tripmates(tripmate_user):
-                raise serializers.ValidationError("Can only share trips with tripmates")
+            trip = Trip.objects.get(id=trip_id)
+            if user.id == trip.user.id:
+                raise serializers.ValidationError("Trip owner is already part of the trip")
+        except Trip.DoesNotExist:
+            raise serializers.ValidationError("Trip not found")
+        
+        try:
+            if not request_user.tripmate_profile.are_tripmates(user):
+                raise serializers.ValidationError("Can only add tripmates to your trip")
         except Tripmate.DoesNotExist:
             raise serializers.ValidationError("You don't have a tripmate profile")
         
+        if TripMember.objects.filter(trip_id=trip_id, user_id=value).exists():
+            raise serializers.ValidationError("User is already a member of this trip")
+        
         return value
-    
-    def validate(self, data):
-        itenary_id = data.get('itenary_id')
-        tripmate_id = data.get('tripmate_id')
-        
-        if TripShare.objects.filter(itenary_id=itenary_id, shared_with_id=tripmate_id).exists():
-            raise serializers.ValidationError("Trip already shared with this tripmate")
-        
-        return data
 
 
-class RespondTripShareSerializer(serializers.Serializer):
-    action = serializers.ChoiceField(choices=['accept', 'decline'])
+class UpdateTripMemberSerializer(serializers.Serializer):
+    permission = serializers.ChoiceField(choices=['view', 'edit'])
