@@ -3,4 +3,4 @@ from .models import *
 
 admin.site.register(Tripmate)
 admin.site.register(FriendRequest)
-admin.site.register(TripShare)
+admin.site.register(TripMember)

@@ -8,13 +8,11 @@ os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'auth.settings')
 
 django.setup()
 
-import tripmate.routing
 import chat.routing
 
 application = ProtocolTypeRouter({
     'http': get_asgi_application(),
     'websocket':AuthMiddlewareStack(
-        URLRouter(tripmate.routing.websocket_urlpatterns +
-            chat.routing.websocket_urlpatterns)
+        URLRouter(chat.routing.websocket_urlpatterns)
     ),
 })
