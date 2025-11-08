@@ -31,8 +31,8 @@ class User(AbstractBaseUser):
     is_email_verified = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
-    
     otp = models.CharField(max_length=255, blank=True, null=True)
+    last_otp_sent_at = models.DateTimeField(blank=True, null=True)
     otp_exp = models.DateTimeField(blank=True, null=True)
     otp_attempts = models.IntegerField(default=0)
     otp_locked_until = models.DateTimeField(blank=True, null=True)
@@ -66,6 +66,7 @@ class User(AbstractBaseUser):
         self.otp_attempts = 0
         self.otp_type = otp_type
         self.otp_verified = False
+        self.last_otp_sent_at = timezone.now()
         self.save()
         return otp_code
     
