@@ -1,12 +1,11 @@
 from django.conf import settings
+from django.core.mail import send_mail
 import logging
 
 logger = logging.getLogger(__name__)
 
 def send_otp_email(email, otp, purpose="verification"):
     try:
-        from sendgrid import SendGridAPIClient
-        from sendgrid.helpers.mail import Mail
         if purpose == "verification":
             subject = "Email Verification OTP - TripSync"
             html_content = f"""
@@ -37,25 +36,18 @@ def send_otp_email(email, otp, purpose="verification"):
             </body>
             </html>
             """
-        
-        message = Mail(
-            from_email=settings.DEFAULT_FROM_EMAIL,
-            to_emails=email,
+        send_mail(
             subject=subject,
-            html_content=html_content
+            message='',                                  
+            from_email=settings.DEFAULT_FROM_EMAIL,
+            recipient_list=[email],
+            html_message=html_content,
+            fail_silently=False,                      
         )
-        
-        sg = SendGridAPIClient(settings.SENDGRID_API_KEY)
-        response = sg.send(message)
-        
-        if response.status_code in [200, 201, 202]:
-            logger.info(f"✓ OTP email sent successfully to {email} via SendGrid API")
-            return True
-        else:
-            logger.error(f"✗ SendGrid API returned status {response.status_code}")
-            return False
-            
+        logger.info(f"OTP email sent successfully to {email}")
+        return True
+
     except Exception as e:
-        logger.error(f"✗ SendGrid API error for {email}: {str(e)}")
+        logger.error(f"Failed to send OTP email to {email}: {str(e)}")
         logger.exception("Full traceback:")
         return False

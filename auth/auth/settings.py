@@ -21,15 +21,18 @@ INSTALLED_APPS = ['channels',
                   'django.contrib.sessions',
                   'django.contrib.messages',
                   'django.contrib.staticfiles',
-                  'account.apps.AccountConfig',
-                  'django_extensions',
-                  'community.apps.CommunityConfig',
-                  'chatbot.apps.ChatbotConfig',
                   'rest_framework',
                   'rest_framework_simplejwt',
                   'rest_framework_simplejwt.token_blacklist',
                   'corsheaders',
                   'drf_spectacular',
+                  'django_extensions',
+
+
+
+                  'account.apps.AccountConfig',
+                  'community.apps.CommunityConfig',
+                  'chatbot.apps.ChatbotConfig',
                   'chat.apps.ChatConfig',
                   'personal.apps.PersonalConfig',
                   'HomePage.apps.HomepageConfig',
@@ -79,7 +82,11 @@ REST_FRAMEWORK = {
 
 SPECTACULAR_SETTINGS = {'TITLE': 'TripSync API', 'DESCRIPTION': 'TripSync - API Documentation', 'VERSION': '1.0.0', 'SERVE_INCLUDE_SCHEMA': False, 'CONTACT': {'name': 'TripSync Support', 'email': 'support@tripsync.com'}, 'LICENSE': {'name': 'MIT License'}, 'SERVERS': [{'url': 'http://127.0.0.1:8000', 'description': 'Development server'}, {'url': 'http://51.20.254.52', 'description': 'Production server'}], 'COMPONENT_SPLIT_REQUEST': True, 'SWAGGER_UI_SETTINGS': {'deepLinking': True, 'persistAuthorization': True, 'displayOperationId': False, 'filter': True}}
 
-AUTH_PASSWORD_VALIDATORS = [{'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator'}, {'NAME': 'django.contrib.auth.password_validation.MinimumLengthValidator', 'OPTIONS': {'min_length': 8}}, {'NAME': 'django.contrib.auth.password_validation.CommonPasswordValidator'}, {'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator'}]
+
+AUTH_PASSWORD_VALIDATORS = [{'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator'}, 
+                            {'NAME': 'django.contrib.auth.password_validation.MinimumLengthValidator', 'OPTIONS': {'min_length': 8}}, 
+                            {'NAME': 'django.contrib.auth.password_validation.CommonPasswordValidator'}, 
+                            {'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator'}]
 
 LANGUAGE_CODE = 'en-us'
 TIME_ZONE = 'UTC'
