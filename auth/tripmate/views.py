@@ -1,22 +1,17 @@
-from rest_framework import generics, status
-from rest_framework.views import APIView
-from rest_framework.response import Response
-from rest_framework.permissions import IsAuthenticated
-from django.shortcuts import get_object_or_404
-from django.db.models import Q
 from django.contrib.auth import get_user_model
-from drf_spectacular.utils import extend_schema, OpenApiParameter, OpenApiExample, OpenApiResponse
+from django.db.models import Q
+from django.shortcuts import get_object_or_404
 from drf_spectacular.types import OpenApiTypes
-from .models import Tripmate, FriendRequest, TripMember
-from .serializers import (
-    TripmateSerializer, FriendRequestSerializer, SendFriendRequestSerializer,
-    RespondFriendRequestSerializer, UserSearchSerializer, TripMemberSerializer,
-    AddTripMemberSerializer, UpdateTripMemberSerializer
-)
+from drf_spectacular.utils import extend_schema,OpenApiExample,OpenApiParameter,OpenApiResponse
+from rest_framework import generics, status
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.response import Response
+from rest_framework.views import APIView
 from ItenaryMaker.models import Trip
+from .models import FriendRequest, TripMember, Tripmate
+from .serializers import AddTripMemberSerializer,FriendRequestSerializer,RespondFriendRequestSerializer,SendFriendRequestSerializer,TripMemberSerializer,TripmateSerializer,UpdateTripMemberSerializer,UserSearchSerializer
 
 User = get_user_model()
-
 class SearchUser(generics.ListAPIView):
     permission_classes = [IsAuthenticated]
     serializer_class = UserSearchSerializer
@@ -41,11 +36,47 @@ class SearchUser(generics.ListAPIView):
                 name='q',
                 type=OpenApiTypes.STR,
                 location=OpenApiParameter.QUERY,
-                description='Search query',
-                required=True
+                description='Search query (minimum 2 characters)',
+                required=True,
+                examples=[
+                    OpenApiExample(
+                        'Search by first name',
+                        value='john',
+                        description='Search for users with "john" in their name'
+                    ),
+                    OpenApiExample(
+                        'Search by email',
+                        value='user@example.com',
+                        description='Search by email address'
+                    ),
+                ]
             )
         ],
-        responses={200: UserSearchSerializer(many=True)}
+        responses={
+            200: UserSearchSerializer(many=True),
+            401: OpenApiResponse(description="Unauthorized - Authentication required")
+        },
+        examples=[
+            OpenApiExample(
+                'Successful search response',
+                value=[
+                    {
+                        "id": 2,
+                        "email": "john@example.com",
+                        "profile_data": {
+                            "full_name": "John Doe",
+                            "bio": "Travel enthusiast",
+                            "profile_pic": "http://127.0.0.1:8000/media/profiles/john.jpg",
+                            "gender": "Male",
+                            "preference": "Adventure"
+                        },
+                        "is_tripmate": False,
+                        "request_status": None
+                    }
+                ],
+                response_only=True
+            )
+        ]
     )
     def get(self, request, *args, **kwargs):
         return super().get(request, *args, **kwargs)
@@ -65,8 +96,32 @@ class ViewTripmates(generics.ListAPIView):
     @extend_schema(
         tags=['Tripmate'],
         summary="Get my tripmates list",
-        description="Retrieve list of all your tripmates.",
-        responses={200: UserSearchSerializer(many=True)}
+        description="Retrieve list of all your tripmates (accepted friends).",
+        responses={
+            200: UserSearchSerializer(many=True),
+            401: OpenApiResponse(description="Unauthorized")
+        },
+        examples=[
+            OpenApiExample(
+                'Tripmates list response',
+                value=[
+                    {
+                        "id": 3,
+                        "email": "jane@example.com",
+                        "profile_data": {
+                            "full_name": "Jane Smith",
+                            "bio": "Love exploring new places",
+                            "profile_pic": "http://127.0.0.1:8000/media/profiles/jane.jpg",
+                            "gender": "Female",
+                            "preference": "Cultural"
+                        },
+                        "is_tripmate": True,
+                        "request_status": None
+                    }
+                ],
+                response_only=True
+            )
+        ]
     )
     def get(self, request, *args, **kwargs):
         return super().get(request, *args, **kwargs)
@@ -78,12 +133,59 @@ class SendFriendRequestView(APIView):
     @extend_schema(
         tags=['Tripmate'],
         summary="Send friend request",
-        description="Send a friend request to another user.",
+        description="Send a friend request to another user to become tripmates.",
         request=SendFriendRequestSerializer,
         responses={
             201: FriendRequestSerializer,
-            400: OpenApiResponse(description="Validation error")
-        }
+            400: OpenApiResponse(description="Validation error"),
+            401: OpenApiResponse(description="Unauthorized")
+        },
+        examples=[
+            OpenApiExample(
+                'Send friend request',
+                value={
+                    "receiver_id": 2,
+                    "message": "Hey! Let's be tripmates and plan some awesome trips together!"
+                },
+                request_only=True
+            ),
+            OpenApiExample(
+                'Send friend request without message',
+                value={
+                    "receiver_id": 5
+                },
+                request_only=True
+            ),
+            OpenApiExample(
+                'Success response',
+                value={
+                    "success": True,
+                    "message": "Friend request sent successfully",
+                    "data": {
+                        "id": 1,
+                        "sender_info": {
+                            "id": 1,
+                            "email": "user@example.com",
+                            "full_name": "John Doe",
+                            "profile_pic": "http://127.0.0.1:8000/media/profiles/john.jpg",
+                            "phone_number": "+1234567890"
+                        },
+                        "receiver_info": {
+                            "id": 2,
+                            "email": "jane@example.com",
+                            "full_name": "Jane Smith",
+                            "profile_pic": "http://127.0.0.1:8000/media/profiles/jane.jpg",
+                            "phone_number": "+0987654321"
+                        },
+                        "status": "pending",
+                        "message": "Hey! Let's be tripmates!",
+                        "created_at": "2025-11-08T10:30:00Z",
+                        "updated_at": "2025-11-08T10:30:00Z"
+                    }
+                },
+                response_only=True
+            )
+        ]
     )
     def post(self, request):
         serializer = SendFriendRequestSerializer(data=request.data, context={'request': request})
@@ -129,7 +231,39 @@ class ReceivedFriendRequestsView(generics.ListAPIView):
         tags=['Tripmate'],
         summary="Get received friend requests",
         description="Retrieve all pending friend requests you've received.",
-        responses={200: FriendRequestSerializer(many=True)}
+        responses={
+            200: FriendRequestSerializer(many=True),
+            401: OpenApiResponse(description="Unauthorized")
+        },
+        examples=[
+            OpenApiExample(
+                'Received requests response',
+                value=[
+                    {
+                        "id": 1,
+                        "sender_info": {
+                            "id": 3,
+                            "email": "alice@example.com",
+                            "full_name": "Alice Johnson",
+                            "profile_pic": "http://127.0.0.1:8000/media/profiles/alice.jpg",
+                            "phone_number": "+1122334455"
+                        },
+                        "receiver_info": {
+                            "id": 1,
+                            "email": "user@example.com",
+                            "full_name": "John Doe",
+                            "profile_pic": None,
+                            "phone_number": "+1234567890"
+                        },
+                        "status": "pending",
+                        "message": "Hi! Want to plan a trip together?",
+                        "created_at": "2025-11-08T09:15:00Z",
+                        "updated_at": "2025-11-08T09:15:00Z"
+                    }
+                ],
+                response_only=True
+            )
+        ]
     )
     def get(self, request, *args, **kwargs):
         return super().get(request, *args, **kwargs)
@@ -149,7 +283,39 @@ class SentFriendRequestsView(generics.ListAPIView):
         tags=['Tripmate'],
         summary="Get sent friend requests",
         description="Retrieve all pending friend requests you've sent.",
-        responses={200: FriendRequestSerializer(many=True)}
+        responses={
+            200: FriendRequestSerializer(many=True),
+            401: OpenApiResponse(description="Unauthorized")
+        },
+        examples=[
+            OpenApiExample(
+                'Sent requests response',
+                value=[
+                    {
+                        "id": 2,
+                        "sender_info": {
+                            "id": 1,
+                            "email": "user@example.com",
+                            "full_name": "John Doe",
+                            "profile_pic": None,
+                            "phone_number": "+1234567890"
+                        },
+                        "receiver_info": {
+                            "id": 4,
+                            "email": "bob@example.com",
+                            "full_name": "Bob Wilson",
+                            "profile_pic": "http://127.0.0.1:8000/media/profiles/bob.jpg",
+                            "phone_number": "+5566778899"
+                        },
+                        "status": "pending",
+                        "message": "Let's explore together!",
+                        "created_at": "2025-11-07T14:20:00Z",
+                        "updated_at": "2025-11-07T14:20:00Z"
+                    }
+                ],
+                response_only=True
+            )
+        ]
     )
     def get(self, request, *args, **kwargs):
         return super().get(request, *args, **kwargs)
@@ -161,21 +327,63 @@ class RespondFriendRequestView(APIView):
     @extend_schema(
         tags=['Tripmate'],
         summary="Accept or decline friend request",
-        description="Respond to a received friend request.",
+        description="Respond to a received friend request. Accepting makes you tripmates.",
         request=RespondFriendRequestSerializer,
         parameters=[
             OpenApiParameter(
                 name='request_id',
                 type=OpenApiTypes.INT,
                 location=OpenApiParameter.PATH,
-                description='Friend request ID'
+                description='Friend request ID',
+                required=True
             )
         ],
         responses={
             200: FriendRequestSerializer,
             400: OpenApiResponse(description="Invalid action"),
             404: OpenApiResponse(description="Request not found")
-        }
+        },
+        examples=[
+            OpenApiExample(
+                'Accept friend request',
+                value={"action": "accept"},
+                request_only=True
+            ),
+            OpenApiExample(
+                'Decline friend request',
+                value={"action": "decline"},
+                request_only=True
+            ),
+            OpenApiExample(
+                'Accept response',
+                value={
+                    "success": True,
+                    "message": "Friend request accepted. You are now tripmates!",
+                    "data": {
+                        "id": 1,
+                        "sender_info": {
+                            "id": 3,
+                            "email": "alice@example.com",
+                            "full_name": "Alice Johnson",
+                            "profile_pic": "http://127.0.0.1:8000/media/profiles/alice.jpg",
+                            "phone_number": "+1122334455"
+                        },
+                        "receiver_info": {
+                            "id": 1,
+                            "email": "user@example.com",
+                            "full_name": "John Doe",
+                            "profile_pic": None,
+                            "phone_number": "+1234567890"
+                        },
+                        "status": "accepted",
+                        "message": "Hi! Want to plan a trip together?",
+                        "created_at": "2025-11-08T09:15:00Z",
+                        "updated_at": "2025-11-08T10:45:00Z"
+                    }
+                },
+                response_only=True
+            )
+        ]
     )
     def post(self, request, request_id):
         friend_request = get_object_or_404(
@@ -232,13 +440,24 @@ class CancelFriendRequestView(APIView):
                 name='request_id',
                 type=OpenApiTypes.INT,
                 location=OpenApiParameter.PATH,
-                description='Friend request ID'
+                description='Friend request ID',
+                required=True
             )
         ],
         responses={
-            204: OpenApiResponse(description="Request cancelled"),
+            204: OpenApiResponse(description="Request cancelled successfully"),
             404: OpenApiResponse(description="Request not found")
-        }
+        },
+        examples=[
+            OpenApiExample(
+                'Cancel response',
+                value={
+                    "success": True,
+                    "message": "Friend request cancelled"
+                },
+                response_only=True
+            )
+        ]
     )
     def delete(self, request, request_id):
         friend_request = get_object_or_404(
@@ -261,20 +480,31 @@ class RemoveTripmateView(APIView):
     @extend_schema(
         tags=['Tripmate'],
         summary="Remove tripmate",
-        description="Remove a user from your tripmates list.",
+        description="Remove a user from your tripmates list. This removes the connection for both users.",
         parameters=[
             OpenApiParameter(
                 name='user_id',
                 type=OpenApiTypes.INT,
                 location=OpenApiParameter.PATH,
-                description='User ID to remove'
+                description='User ID to remove from tripmates',
+                required=True
             )
         ],
         responses={
             200: OpenApiResponse(description="Tripmate removed"),
             400: OpenApiResponse(description="Not tripmates"),
             404: OpenApiResponse(description="User or profile not found")
-        }
+        },
+        examples=[
+            OpenApiExample(
+                'Success response',
+                value={
+                    "success": True,
+                    "message": "Tripmate removed successfully"
+                },
+                response_only=True
+            )
+        ]
     )
     def delete(self, request, user_id):
         try:
@@ -331,14 +561,44 @@ class TripMembersListView(generics.ListAPIView):
                 name='trip_id',
                 type=OpenApiTypes.INT,
                 location=OpenApiParameter.PATH,
-                description='Trip ID'
+                description='Trip ID',
+                required=True
             )
         ],
         responses={
             200: TripMemberSerializer(many=True),
             403: OpenApiResponse(description="Access denied"),
             404: OpenApiResponse(description="Trip not found")
-        }
+        },
+        examples=[
+            OpenApiExample(
+                'Trip members response',
+                value=[
+                    {
+                        "id": 1,
+                        "user_info": {
+                            "id": 3,
+                            "email": "alice@example.com",
+                            "full_name": "Alice Johnson",
+                            "profile_pic": "http://127.0.0.1:8000/media/profiles/alice.jpg",
+                            "phone_number": "+1122334455"
+                        },
+                        "trip_name": "Tokyo Adventure 2025",
+                        "added_by_info": {
+                            "id": 1,
+                            "email": "user@example.com",
+                            "full_name": "John Doe",
+                            "profile_pic": None,
+                            "phone_number": "+1234567890"
+                        },
+                        "permission": "view",
+                        "created_at": "2025-11-08T11:00:00Z",
+                        "updated_at": "2025-11-08T11:00:00Z"
+                    }
+                ],
+                response_only=True
+            )
+        ]
     )
     def get(self, request, *args, **kwargs):
         return super().get(request, *args, **kwargs)
@@ -350,14 +610,15 @@ class AddTripMemberView(APIView):
     @extend_schema(
         tags=['Trip Members'],
         summary="Add member to trip",
-        description="Add a tripmate to your trip with view or edit permissions.",
+        description="Add a tripmate to your trip with view or edit permissions. Can only add users who are your tripmates.",
         request=AddTripMemberSerializer,
         parameters=[
             OpenApiParameter(
                 name='trip_id',
                 type=OpenApiTypes.INT,
                 location=OpenApiParameter.PATH,
-                description='Trip ID'
+                description='Trip ID',
+                required=True
             )
         ],
         responses={
@@ -365,7 +626,54 @@ class AddTripMemberView(APIView):
             400: OpenApiResponse(description="Validation error"),
             403: OpenApiResponse(description="Permission denied"),
             404: OpenApiResponse(description="Trip not found")
-        }
+        },
+        examples=[
+            OpenApiExample(
+                'Add member with view permission',
+                value={
+                    "user_id": 3,
+                    "permission": "view"
+                },
+                request_only=True
+            ),
+            OpenApiExample(
+                'Add member with edit permission',
+                value={
+                    "user_id": 5,
+                    "permission": "edit"
+                },
+                request_only=True
+            ),
+            OpenApiExample(
+                'Success response',
+                value={
+                    "success": True,
+                    "message": "Member added to trip successfully",
+                    "data": {
+                        "id": 2,
+                        "user_info": {
+                            "id": 3,
+                            "email": "alice@example.com",
+                            "full_name": "Alice Johnson",
+                            "profile_pic": "http://127.0.0.1:8000/media/profiles/alice.jpg",
+                            "phone_number": "+1122334455"
+                        },
+                        "trip_name": "Tokyo Adventure 2025",
+                        "added_by_info": {
+                            "id": 1,
+                            "email": "user@example.com",
+                            "full_name": "John Doe",
+                            "profile_pic": None,
+                            "phone_number": "+1234567890"
+                        },
+                        "permission": "view",
+                        "created_at": "2025-11-08T12:30:00Z",
+                        "updated_at": "2025-11-08T12:30:00Z"
+                    }
+                },
+                response_only=True
+            )
+        ]
     )
     def post(self, request, trip_id):
         trip = get_object_or_404(Trip, id=trip_id)
@@ -411,18 +719,71 @@ class UpdateTripMemberView(APIView):
     @extend_schema(
         tags=['Trip Members'],
         summary="Update member permission",
-        description="Update permission level for a trip member.",
+        description="Update permission level for a trip member. Only trip owner can update permissions.",
         request=UpdateTripMemberSerializer,
         parameters=[
-            OpenApiParameter(name='trip_id', type=OpenApiTypes.INT, location=OpenApiParameter.PATH),
-            OpenApiParameter(name='member_id', type=OpenApiTypes.INT, location=OpenApiParameter.PATH)
+            OpenApiParameter(
+                name='trip_id',
+                type=OpenApiTypes.INT,
+                location=OpenApiParameter.PATH,
+                description='Trip ID',
+                required=True
+            ),
+            OpenApiParameter(
+                name='member_id',
+                type=OpenApiTypes.INT,
+                location=OpenApiParameter.PATH,
+                description='Trip member ID',
+                required=True
+            )
         ],
         responses={
             200: TripMemberSerializer,
             400: OpenApiResponse(description="Validation error"),
             403: OpenApiResponse(description="Permission denied"),
             404: OpenApiResponse(description="Member not found")
-        }
+        },
+        examples=[
+            OpenApiExample(
+                'Update to edit permission',
+                value={"permission": "edit"},
+                request_only=True
+            ),
+            OpenApiExample(
+                'Update to view permission',
+                value={"permission": "view"},
+                request_only=True
+            ),
+            OpenApiExample(
+                'Success response',
+                value={
+                    "success": True,
+                    "message": "Member permission updated successfully",
+                    "data": {
+                        "id": 2,
+                        "user_info": {
+                            "id": 3,
+                            "email": "alice@example.com",
+                            "full_name": "Alice Johnson",
+                            "profile_pic": "http://127.0.0.1:8000/media/profiles/alice.jpg",
+                            "phone_number": "+1122334455"
+                        },
+                        "trip_name": "Tokyo Adventure 2025",
+                        "added_by_info": {
+                            "id": 1,
+                            "email": "user@example.com",
+                            "full_name": "John Doe",
+                            "profile_pic": None,
+                            "phone_number": "+1234567890"
+                        },
+                        "permission": "edit",
+                        "created_at": "2025-11-08T12:30:00Z",
+                        "updated_at": "2025-11-08T13:00:00Z"
+                    }
+                },
+                response_only=True
+            )
+        ]
     )
     def put(self, request, trip_id, member_id):
         trip = get_object_or_404(Trip, id=trip_id)
@@ -461,16 +822,38 @@ class RemoveTripMemberView(APIView):
     @extend_schema(
         tags=['Trip Members'],
         summary="Remove member from trip",
-        description="Remove a member from the trip.",
+        description="Remove a member from the trip. Trip owner or members with edit permission can remove others.",
         parameters=[
-            OpenApiParameter(name='trip_id', type=OpenApiTypes.INT, location=OpenApiParameter.PATH),
-            OpenApiParameter(name='member_id', type=OpenApiTypes.INT, location=OpenApiParameter.PATH)
+            OpenApiParameter(
+                name='trip_id',
+                type=OpenApiTypes.INT,
+                location=OpenApiParameter.PATH,
+                description='Trip ID',
+                required=True
+            ),
+            OpenApiParameter(
+                name='member_id',
+                type=OpenApiTypes.INT,
+                location=OpenApiParameter.PATH,
+                description='Trip member ID',
+                required=True
+            )
         ],
         responses={
             200: OpenApiResponse(description="Member removed"),
             403: OpenApiResponse(description="Permission denied"),
             404: OpenApiResponse(description="Member not found")
-        }
+        },
+        examples=[
+            OpenApiExample(
+                'Success response',
+                value={
+                    "success": True,
+                    "message": "Member removed from trip successfully"
+                },
+                response_only=True
+            )
+        ]
     )
     def delete(self, request, trip_id, member_id):
         trip = get_object_or_404(Trip, id=trip_id)

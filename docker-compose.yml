@@ -1,0 +1,79 @@
+version: '3.9'
+
+services:
+  redis:
+    image: redis:7-alpine
+    container_name: tripsync_redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  db:
+    image: postgres:15-alpine
+    container_name: tripsync_db
+    environment:
+      POSTGRES_DB: tripsync_db
+      POSTGRES_USER: tripsync_user
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-changeme123}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U tripsync_user -d tripsync_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  web:
+    build:
+      context: .
+      target: production
+    container_name: tripsync_web
+    working_dir: /app/auth
+    command: >
+      sh -c "python manage.py migrate &&
+             gunicorn auth.wsgi:application --bind 0.0.0.0:8000 --workers 3 &
+             daphne -b 0.0.0.0 -p 8001 auth.asgi:application"
+    env_file:
+      - .env
+    environment:
+      - DATABASE_URL=postgresql://tripsync_user:${DB_PASSWORD:-changeme123}@db:5432/tripsync_db
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - DEBUG=False
+    volumes:
+      - ./auth/staticfiles:/app/auth/staticfiles
+      - ./auth/media:/app/auth/media
+    expose:
+      - "8000"
+      - "8001"
+    depends_on:
+      redis:
+        condition: service_healthy
+      db:
+        condition: service_healthy
+
+  nginx:
+    image: nginx:alpine
+    container_name: tripsync_nginx
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./auth/staticfiles:/app/auth/staticfiles:ro
+      - ./auth/media:/app/auth/media:ro
+    depends_on:
+      - web
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+  redis_data:
