@@ -17,53 +17,111 @@ class ProfileDetailView(APIView):
     permission_classes = [IsAuthenticated]
     parser_classes = [MultiPartParser, FormParser, JSONParser]
     @extend_schema(
-        summary="Create Complete Profile & Send OTP",
-        description="Create a complete profile with personal info, medical details, emergency contact, and preferences. Sends OTP for verification.",
-        request={
-            'multipart/form-data': {
-                'type': 'object',
-                'properties': {
-                    'fname': {'type': 'string', 'example': 'John'},
-                    'lname': {'type': 'string', 'example': 'Doe'},
-                    'phone_number': {'type': 'string', 'example': '+1234567890'},
-                    'date': {'type': 'string', 'format': 'date', 'example': '1998-05-15'},
-                    'gender': {'type': 'string', 'enum': ['male', 'female', 'other'], 'example': 'male'},
-                    'bio': {'type': 'string', 'example': 'Software Developer'},
-                    'profile_pic': {'type': 'string', 'format': 'binary', 'description': 'Optional photo (max 5MB)'},
-                    'bgroup': {'type': 'string', 'enum': ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'], 'example': 'O+'},
-                    'allergies': {'type': 'string', 'example': 'Peanuts, Dust'},
-                    'medical': {'type': 'string', 'example': 'Asthma, takes inhaler'},
-                    'ename': {'type': 'string', 'example': 'Jane Doe'},
-                    'enumber': {'type': 'string', 'example': '+1987654321'},
-                    'erelation': {'type': 'string', 'enum': ['Spouse', 'Parent', 'Friend', 'Sibling'], 'example': 'Spouse'},
-                    'prefrence': {'type': 'string', 'enum': ['Adventure', 'Relaxation', 'Nature', 'Explore', 'Spiritual', 'Historic'], 'example': 'Adventure'}
-                },
-                'required': ['fname', 'lname', 'phone_number']
-            }
-        },
-        responses={
-            201: OpenApiResponse(
-                description="Profile created, OTP sent",
-                examples=[OpenApiExample("Success", value={
-                    "success": True,
-                    "message": "Profile created successfully. OTP sent for verification.",
-                    "data": {
-                        "phone_number": "+1234567890",
-                        "otp_expiry_minutes": 5,
-                        "max_attempts": 3,
-                        "profile_pic_uploaded": True
-                    }
-                })]
-            ),
-            400: OpenApiResponse(
-                description="Validation error or profile exists",
-                examples=[OpenApiExample("Profile Exists", value={
-                    "success": False,
-                    "message": "Profile already exists.",
-                    "error_code": "PROFILE_EXISTS"
-                })]
-            )
+    summary="Create Complete Profile & Send OTP",
+    description=("Create a complete profile with personal info,"),
+    request={
+        'multipart/form-data': {
+            'type': 'object',
+            'properties': {
+                'fname': {'type': 'string', 'example': 'John'},
+                'lname': {'type': 'string', 'example': 'Doe'},
+                'phone_number': {'type': 'string', 'example': '+1234567890'},
+                'date': {'type': 'string', 'format': 'date', 'example': '1998-05-15'},
+                'gender': {'type': 'string', 'enum': ['male', 'female', 'other'], 'example': 'male'},
+                'bio': {'type': 'string', 'example': 'Software Developer'},
+                'profile_pic': {'type': 'string', 'format': 'binary', 'description': 'Optional photo (max 5MB)'},
+                'bgroup': {'type': 'string', 'enum': ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'], 'example': 'O+'},
+                'allergies': {'type': 'string', 'example': 'Peanuts, Dust'},
+                'medical': {'type': 'string', 'example': 'Asthma, takes inhaler'},
+                'ename': {'type': 'string', 'example': 'Jane Doe'},
+                'enumber': {'type': 'string', 'example': '+1987654321'},
+                'erelation': {'type': 'string', 'enum': ['Spouse', 'Parent', 'Friend', 'Sibling'], 'example': 'Spouse'},
+                'prefrence': {'type': 'string', 'enum': ['Adventure', 'Relaxation', 'Nature', 'Explore', 'Spiritual', 'Historic'], 'example': 'Adventure'}
+            },
+            'required': ['fname', 'lname', 'phone_number']
         }
+    },
+    responses={
+        201: OpenApiResponse(
+            description="Profile created and OTP sent successfully",
+            response=OpenApiTypes.OBJECT,
+            examples=[
+                OpenApiExample(
+                    "Success",
+                    value={
+                        "success": True,
+                        "message": "Profile created successfully. OTP sent for verification.",
+                        "data": {
+                            "phone_number": "+1234567890",
+                            "otp_expiry_minutes": 5,
+                            "max_attempts": 3,
+                            "profile_pic_uploaded": True
+                        }
+                    }
+                )
+            ]
+        ),
+        400: OpenApiResponse(
+            description="Validation error or profile exists",
+            response=OpenApiTypes.OBJECT,
+            examples=[
+                OpenApiExample(
+                    "Profile Exists",
+                    value={
+                        "success": False,
+                        "message": "Profile already exists.",
+                        "error_code": "PROFILE_EXISTS"
+                    }
+                ),
+                OpenApiExample(
+                    "Validation Failed",
+                    value={
+                        "success": False,
+                        "message": "Validation failed",
+                        "errors": {
+                            "phone_number": ["This field is required."]
+                        }
+                    }
+                )
+            ]
+        ),
+        429: OpenApiResponse(
+            description="Too many OTP attempts",
+            response=OpenApiTypes.OBJECT,
+            examples=[
+                OpenApiExample(
+                    "OTP Locked",
+                    value={
+                        "success": False,
+                        "message": "Too many attempts. Please try again later.",
+                        "error_code": "OTP_LOCKED"
+                    }
+                )
+            ]
+        ),
+        500: OpenApiResponse(
+            description="Internal error or SMS sending failed",
+            response=OpenApiTypes.OBJECT,
+            examples=[
+                OpenApiExample(
+                    "SMS Failed",
+                    value={
+                        "success": False,
+                        "message": "Failed to send OTP: <error_message>",
+                        "error_code": "SMS_FAILED"
+                    }
+                ),
+                OpenApiExample(
+                    "Internal Error",
+                    value={
+                        "success": False,
+                        "message": "An error occurred. Please try again later.",
+                        "error_code": "INTERNAL_ERROR"
+                    }
+                )
+            ]
+        )
+    }
     )
     def post(self, request):
         try:
@@ -106,12 +164,55 @@ class ProfileDetailView(APIView):
             return Response({'success': False,'message': 'An error occurred. Please try again later.','error_code': 'INTERNAL_ERROR'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
     
     @extend_schema(
-        summary="Get Profile Details",
-        description="Retrieve the authenticated user's complete profile information.",
-        responses={
-            200: OpenApiResponse(description="Profile retrieved successfully"),
-            404: OpenApiResponse(description="Profile not found")
-        }
+    summary="Get Profile Details",
+    description="Retrieve the authenticated user's complete profile information.",
+    responses={
+        200: OpenApiResponse(
+            description="Profile retrieved successfully",
+            response=OpenApiTypes.OBJECT,
+            examples=[
+                OpenApiExample(
+                    "Success Example",
+                    value={
+                        "success": True,
+                        "data": {
+                            "profile": {
+                                "fname": "John",
+                                "lname": "Doe",
+                                "phone_number": "+1234567890",
+                                "date": "1998-05-15",
+                                "gender": "male",
+                                "bio": "Software Developer",
+                                "profile_pic": "https://cdn.example.com/profile_pic.jpg",
+                                "bgroup": "O+",
+                                "allergies": "Peanuts, Dust",
+                                "medical": "Asthma, takes inhaler",
+                                "ename": "Jane Doe",
+                                "enumber": "+1987654321",
+                                "erelation": "Spouse",
+                                "prefrence": "Adventure",
+                                "is_phone_verified": False
+                            }
+                        }
+                    }
+                )
+            ]
+        ),
+        404: OpenApiResponse(
+            description="Profile not found",
+            response=OpenApiTypes.OBJECT,
+            examples=[
+                OpenApiExample(
+                    "Not Found Example",
+                    value={
+                        "success": False,
+                        "message": "Profile not found",
+                        "error_code": "PROFILE_NOT_FOUND"
+                    }
+                )
+            ]
+        )
+    }
     )
     def get(self, request):
         try:
@@ -122,30 +223,90 @@ class ProfileDetailView(APIView):
             return Response({'success': False,'message': 'Profile not found','error_code': 'PROFILE_NOT_FOUND'}, status=status.HTTP_404_NOT_FOUND)
     
     @extend_schema(
-        summary="Update Profile",
-        description="Update profile details. Phone verification required.",
-        request={'multipart/form-data': {
+    summary="Update Profile",
+    description="Update profile details. Phone verification required.",
+    request={
+        'multipart/form-data': {
             'type': 'object',
             'properties': {
-                'fname': {'type': 'string'},
-                'lname': {'type': 'string'},
-                'date': {'type': 'string', 'format': 'date'},
-                'gender': {'type': 'string'},
-                'bio': {'type': 'string'},
-                'profile_pic': {'type': 'string', 'format': 'binary'},
-                'bgroup': {'type': 'string'},
-                'allergies': {'type': 'string'},
-                'medical': {'type': 'string'},
-                'ename': {'type': 'string'},
-                'enumber': {'type': 'string'},
-                'erelation': {'type': 'string'},
-                'prefrence': {'type': 'string'}
+                'fname': {'type': 'string', 'example': 'John'},
+                'lname': {'type': 'string', 'example': 'Doe'},
+                'date': {'type': 'string', 'format': 'date', 'example': '1998-05-15'},
+                'gender': {'type': 'string', 'example': 'male'},
+                'bio': {'type': 'string', 'example': 'Software Developer'},
+                'profile_pic': {'type': 'string', 'format': 'binary', 'description': 'Optional photo (max 5MB)'},
+                'bgroup': {'type': 'string', 'example': 'O+'},
+                'allergies': {'type': 'string', 'example': 'Peanuts, Dust'},
+                'medical': {'type': 'string', 'example': 'Asthma, takes inhaler'},
+                'ename': {'type': 'string', 'example': 'Jane Doe'},
+                'enumber': {'type': 'string', 'example': '+1987654321'},
+                'erelation': {'type': 'string', 'example': 'Spouse'},
+                'prefrence': {'type': 'string', 'example': 'Adventure'}
             }
-        }},
-        responses={
-            200: OpenApiResponse(description="Profile updated successfully"),
-            403: OpenApiResponse(description="Phone not verified")
         }
+    },
+    responses={
+        200: OpenApiResponse(
+            description="Profile updated successfully",
+            response=OpenApiTypes.OBJECT,
+            examples=[
+                OpenApiExample(
+                    "Success Example",
+                    value={
+                        "success": True,
+                        "message": "Profile updated successfully",
+                        "data": {
+                            "profile": {
+                                "fname": "John",
+                                "lname": "Doe",
+                                "phone_number": "+1234567890",
+                                "date": "1998-05-15",
+                                "gender": "male",
+                                "bio": "Software Developer",
+                                "profile_pic": "https://cdn.example.com/profile_pic.jpg",
+                                "bgroup": "O+",
+                                "allergies": "Peanuts, Dust",
+                                "medical": "Asthma, takes inhaler",
+                                "ename": "Jane Doe",
+                                "enumber": "+1987654321",
+                                "erelation": "Spouse",
+                                "prefrence": "Adventure",
+                                "is_phone_verified": True
+                            }
+                        }
+                    }
+                )
+            ]
+        ),
+        403: OpenApiResponse(
+            description="Phone not verified",
+            response=OpenApiTypes.OBJECT,
+            examples=[
+                OpenApiExample(
+                    "Phone Not Verified",
+                    value={
+                        "success": False,
+                        "message": "Please verify your phone number first",
+                        "error_code": "PHONE_NOT_VERIFIED"
+                    }
+                )
+            ]
+        ),
+        404: OpenApiResponse(
+            description="Profile not found",
+            response=OpenApiTypes.OBJECT,
+            examples=[
+                OpenApiExample(
+                    "Profile Not Found",
+                    value={
+                        "success": False,
+                        "message": "Profile not found",
+                        "error_code": "PROFILE_NOT_FOUND"
+                    }
+                )
+            ]
+        )
+    }
     )
     def patch(self, request):
         try:
@@ -162,23 +323,171 @@ class ProfileDetailView(APIView):
         
         except Profile.DoesNotExist:
             return Response({'success': False,'message': 'Profile not found','error_code': 'PROFILE_NOT_FOUND'}, status=status.HTTP_404_NOT_FOUND)
+        
+    @extend_schema(
+    summary="Delete Profile & User Account",
+    description="Permanently delete the user's profile and associated user account.",
+    responses={
+        200: OpenApiResponse(
+            description="Profile and user account deleted successfully",
+            response=OpenApiTypes.OBJECT,
+            examples=[
+                OpenApiExample(
+                    "Success",
+                    value={
+                        "success": True,
+                        "message": "Profile and user account deleted successfully"
+                    }
+                )
+            ]
+        ),
+        404: OpenApiResponse(
+            description="Profile not found",
+            response=OpenApiTypes.OBJECT,
+            examples=[
+                OpenApiExample(
+                    "Profile Not Found",
+                    value={
+                        "success": False,
+                        "message": "Profile not found",
+                        "error_code": "PROFILE_NOT_FOUND"
+                    }
+                )
+            ]
+        ),
+        500: OpenApiResponse(
+            description="Internal server error",
+            response=OpenApiTypes.OBJECT,
+            examples=[
+                OpenApiExample(
+                    "Internal Error",
+                    value={
+                        "success": False,
+                        "message": "An error occurred while deleting the profile. Please try again later.",
+                        "error_code": "INTERNAL_ERROR"
+                    }
+                )
+            ]
+        )
+    }
+    )
+    def delete(self, request):
+        try:
+            try:
+                profile = request.user.profile
+            except Profile.DoesNotExist:
+                return Response({'success': False,'message': 'Profile not found','error_code': 'PROFILE_NOT_FOUND'}, status=status.HTTP_404_NOT_FOUND)
+            user_id = request.user.id
+            user_email = request.user.email
+            request.user.delete()
+            logger.info(f"User account {user_id} ({user_email}) and associated profile deleted successfully")
+            return Response({'success': True,'message': 'Profile and user account deleted successfully'}, status=status.HTTP_200_OK)
+        except Exception as e:
+            logger.error(f"Error in ProfileDetailView DELETE: {str(e)}")
+            return Response({'success': False,'message': 'An error occurred. Please try again later.','error_code': 'INTERNAL_ERROR'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-
-@extend_schema(tags=['OTP'])
 class VerifyOTPView(APIView):
     permission_classes = [IsAuthenticated]
     parser_classes = [JSONParser] 
     @extend_schema(
-        summary="Verify OTP",
-        description="Verify the OTP sent to your phone number",
-        request=inline_serializer(
-            name="VerifyOTPRequest",
-            fields={"otp_code": OpenApiTypes.STR}
+    tags=['Profile'],
+    summary="Verify OTP",
+    description="Verify the OTP sent to your phone number.",
+    request=inline_serializer(name="VerifyOTPRequest",fields={"otp_code": OpenApiTypes.STR}),
+    responses={
+        200: OpenApiResponse(
+            description="OTP verified successfully",
+            response=OpenApiTypes.OBJECT,
+            examples=[
+                OpenApiExample(
+                    "Success Example",
+                    value={
+                        "success": True,
+                        "message": "Phone number verified successfully!",
+                        "data": {
+                            "profile": {
+                                "fname": "John",
+                                "lname": "Doe",
+                                "phone_number": "+1234567890",
+                                "date": "1998-05-15",
+                                "gender": "male",
+                                "bio": "Software Developer",
+                                "profile_pic": "https://cdn.example.com/profile_pic.jpg",
+                                "bgroup": "O+",
+                                "allergies": "Peanuts, Dust",
+                                "medical": "Asthma, takes inhaler",
+                                "ename": "Jane Doe",
+                                "enumber": "+1987654321",
+                                "erelation": "Spouse",
+                                "prefrence": "Adventure",
+                                "is_phone_verified": True
+                            }
+                        }
+                    }
+                )
+            ]
         ),
-        responses={
-            200: OpenApiResponse(description="OTP verified successfully"),
-            400: OpenApiResponse(description="Invalid or expired OTP")
-        }
+        400: OpenApiResponse(
+            description="Invalid or expired OTP",
+            response=OpenApiTypes.OBJECT,
+            examples=[
+                OpenApiExample(
+                    "OTP Missing",
+                    value={
+                        "success": False,
+                        "message": "OTP code is required",
+                        "errors": {"otp_code": ["This field is required"]},
+                        "error_code": "OTP_VERIFICATION_FAILED"
+                    }
+                ),
+                OpenApiExample(
+                    "OTP Incorrect",
+                    value={
+                        "success": False,
+                        "message": "Incorrect OTP code",
+                        "data": {"attempts_remaining": 2},
+                        "error_code": "OTP_VERIFICATION_FAILED"
+                    }
+                ),
+                OpenApiExample(
+                    "Already Verified",
+                    value={
+                        "success": False,
+                        "message": "Phone number already verified.",
+                        "error_code": "ALREADY_VERIFIED"
+                    }
+                )
+            ]
+        ),
+        404: OpenApiResponse(
+            description="Profile not found",
+            response=OpenApiTypes.OBJECT,
+            examples=[
+                OpenApiExample(
+                    "Profile Not Found",
+                    value={
+                        "success": False,
+                        "message": "Profile not found. Please create your profile first.",
+                        "error_code": "PROFILE_NOT_FOUND"
+                    }
+                )
+            ]
+        ),
+        500: OpenApiResponse(
+            description="Internal server error",
+            response=OpenApiTypes.OBJECT,
+            examples=[
+                OpenApiExample(
+                    "Internal Error",
+                    value={
+                        "success": False,
+                        "message": "An error occurred. Please try again later.",
+                        "error_code": "INTERNAL_ERROR"
+                    }
+                )
+            ]
+        )
+    }
     )
     def post(self, request):
         try:
@@ -210,18 +519,88 @@ class VerifyOTPView(APIView):
             logger.error(f"Error in VerifyOTPView: {str(e)}")
             return Response({'success': False,'message': 'An error occurred. Please try again later.','error_code': 'INTERNAL_ERROR'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-@extend_schema(tags=['OTP'])
 class ResendOTPView(APIView):
     permission_classes = [IsAuthenticated]
     parser_classes = [JSONParser]
-    
     @extend_schema(
-        summary="Resend OTP",
-        description="Send a new OTP to your registered phone number.",
-        responses={
-            200: OpenApiResponse(description="OTP resent successfully"),
-            429: OpenApiResponse(description="Too many OTP requests")
-        }
+    tags=['Profile'],
+    summary="Resend OTP",
+    description="Send a new OTP to your registered phone number.",
+    responses={
+        200: OpenApiResponse(
+            description="OTP resent successfully",
+            response=OpenApiTypes.OBJECT,
+            examples=[
+                OpenApiExample(
+                    "Success Example",
+                    value={
+                        "success": True,
+                        "message": "OTP resent successfully",
+                        "data": {
+                            "otp_expiry_minutes": 5,
+                            "max_attempts": 3
+                        }
+                    }
+                )
+            ]
+        ),
+        400: OpenApiResponse(
+            description="Phone number already verified",
+            response=OpenApiTypes.OBJECT,
+            examples=[
+                OpenApiExample(
+                    "Already Verified",
+                    value={
+                        "success": False,
+                        "message": "Phone number already verified.",
+                        "error_code": "ALREADY_VERIFIED"
+                    }
+                )
+            ]
+        ),
+        404: OpenApiResponse(
+            description="Profile not found",
+            response=OpenApiTypes.OBJECT,
+            examples=[
+                OpenApiExample(
+                    "Profile Not Found",
+                    value={
+                        "success": False,
+                        "message": "Profile not found.",
+                        "error_code": "PROFILE_NOT_FOUND"
+                    }
+                )
+            ]
+        ),
+        429: OpenApiResponse(
+            description="Too many OTP requests",
+            response=OpenApiTypes.OBJECT,
+            examples=[
+                OpenApiExample(
+                    "OTP Locked",
+                    value={
+                        "success": False,
+                        "message": "Too many attempts. Please try again later.",
+                        "error_code": "OTP_LOCKED"
+                    }
+                )
+            ]
+        ),
+        500: OpenApiResponse(
+            description="Internal server error",
+            response=OpenApiTypes.OBJECT,
+            examples=[
+                OpenApiExample(
+                    "Internal Error",
+                    value={
+                        "success": False,
+                        "message": "An error occurred. Please try again later.",
+                        "error_code": "INTERNAL_ERROR"
+                    }
+                )
+            ]
+        )
+    }
     )
     def post(self, request):
         try:
@@ -253,56 +632,120 @@ class ResendOTPView(APIView):
 class EmergencySOSView(APIView):
     permission_classes = [IsAuthenticated]
     parser_classes = [JSONParser]
-    
     @extend_schema(
-        summary="Send Emergency SOS",
-        description="Send emergency alert message to your registered emergency contact number.",
-        request=EmergencySOSSerializer,
-        responses={
-            200: OpenApiResponse(
-                description="Emergency message sent successfully",
-                examples=[OpenApiExample("Success", value={
-                    "success": True,
-                    "message": "Emergency alert sent successfully",
-                    "data": {
-                        "sent_to": "+1987654321",
-                        "contact_name": "Jane Doe",
-                        "relation": "Spouse"
+    summary="Send Emergency SOS",
+    description="Send emergency alert message to your registered emergency contact number.",
+    request=EmergencySOSSerializer,
+    responses={
+        200: OpenApiResponse(
+            description="Emergency message sent successfully",
+            response=OpenApiTypes.OBJECT,
+            examples=[
+                OpenApiExample(
+                    "Success",
+                    value={
+                        "success": True,
+                        "message": "Emergency alert sent successfully",
+                        "data": {
+                            "sent_to": "+1987654321",
+                            "contact_name": "Jane Doe",
+                            "relation": "Spouse"
+                        }
                     }
-                })]
-            ),
-            400: OpenApiResponse(
-                description="No emergency contact configured",
-                examples=[OpenApiExample("No Contact", value={
-                    "success": False,
-                    "message": "No emergency contact configured. Please add emergency contact in your profile.",
-                    "error_code": "NO_EMERGENCY_CONTACT"
-                })]
-            ),
-            403: OpenApiResponse(
-                description="Phone not verified",
-                examples=[OpenApiExample("Not Verified", value={
-                    "success": False,
-                    "message": "Please verify your phone number first",
-                    "error_code": "PHONE_NOT_VERIFIED"
-                })]
-            )
-        },
-        examples=[
-            OpenApiExample(
-                "With Custom Message",
-                value={
-                    "message": "I need help! Please check on me.",
-                    "location": "Near Central Park, New York"
-                },
-                request_only=True
-            ),
-            OpenApiExample(
-                "Default Message",
-                value={},
-                request_only=True
-            )
-        ]
+                )
+            ]
+        ),
+        400: OpenApiResponse(
+            description="No emergency contact configured or validation error",
+            response=OpenApiTypes.OBJECT,
+            examples=[
+                OpenApiExample(
+                    "No Contact",
+                    value={
+                        "success": False,
+                        "message": "No emergency contact configured. Please add emergency contact in your profile.",
+                        "error_code": "NO_EMERGENCY_CONTACT"
+                    }
+                ),
+                OpenApiExample(
+                    "Validation Failed",
+                    value={
+                        "success": False,
+                        "message": "Validation failed",
+                        "errors": {
+                            "message": ["This field may not be blank."],
+                            "location": ["This field may not be blank."]
+                        }
+                    }
+                )
+            ]
+        ),
+        403: OpenApiResponse(
+            description="Phone not verified",
+            response=OpenApiTypes.OBJECT,
+            examples=[
+                OpenApiExample(
+                    "Not Verified",
+                    value={
+                        "success": False,
+                        "message": "Please verify your phone number first",
+                        "error_code": "PHONE_NOT_VERIFIED"
+                    }
+                )
+            ]
+        ),
+        404: OpenApiResponse(
+            description="Profile not found",
+            response=OpenApiTypes.OBJECT,
+            examples=[
+                OpenApiExample(
+                    "Profile Not Found",
+                    value={
+                        "success": False,
+                        "message": "Profile not found. Please create your profile first.",
+                        "error_code": "PROFILE_NOT_FOUND"
+                    }
+                )
+            ]
+        ),
+        500: OpenApiResponse(
+            description="Internal server error",
+            response=OpenApiTypes.OBJECT,
+            examples=[
+                OpenApiExample(
+                    "Internal Error",
+                    value={
+                        "success": False,
+                        "message": "An error occurred. Please try again later.",
+                        "error_code": "INTERNAL_ERROR"
+                    }
+                ),
+                OpenApiExample(
+                    "SMS Failed",
+                    value={
+                        "success": False,
+                        "message": "Failed to send emergency alert: SMS service error",
+                        "error_code": "SMS_FAILED"
+                    }
+                )
+            ]
+        )
+    },
+    examples=[
+        OpenApiExample(
+            "With Custom Message",
+            value={
+                "message": "I need help! Please check on me.",
+                "location": "Near Central Park, New York"
+            },
+            request_only=True
+        ),
+        OpenApiExample(
+            "Default Message",
+            value={},
+            request_only=True
+        )
+    ]
     )
     def post(self, request):
         try:
@@ -334,17 +777,19 @@ class EmergencySOSView(APIView):
             logger.error(f"Error in EmergencySOSView: {str(e)}")
             return Response({'success': False,'message': 'An error occurred. Please try again later.','error_code': 'INTERNAL_ERROR'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
         
-@extend_schema(tags=['Users'])
 class UserListView(APIView):
     permission_classes = [IsAuthenticated]
     parser_classes = [JSONParser]   
     @extend_schema(
-        summary="List All Verified Users",
-        description="Returns a list of all users who have completed phone verification.",
-        responses={
-            200: OpenApiResponse(
-                description="List of verified users retrieved successfully",
-                examples=[OpenApiExample(
+    tags=['Profile'],
+    summary="List All Verified Users",
+    description="Returns a list of all users who have completed phone verification.",
+    responses={
+        200: OpenApiResponse(
+            description="List of verified users retrieved successfully",
+            response=OpenApiTypes.OBJECT,
+            examples=[
+                OpenApiExample(
                     "Success",
                     value={
                         "success": True,
@@ -357,20 +802,52 @@ class UserListView(APIView):
                             "count": 2
                         }
                     }
-                )]
-            ),
-            403: OpenApiResponse(
-                description="User's own phone not verified",
-                examples=[OpenApiExample(
+                )
+            ]
+        ),
+        403: OpenApiResponse(
+            description="User's own phone not verified",
+            response=OpenApiTypes.OBJECT,
+            examples=[
+                OpenApiExample(
                     "Not Verified",
                     value={
                         "success": False,
                         "message": "Please verify your phone number first",
                         "error_code": "PHONE_NOT_VERIFIED"
                     }
-                )]
-            )
-        }
+                )
+            ]
+        ),
+        404: OpenApiResponse(
+            description="Profile not found",
+            response=OpenApiTypes.OBJECT,
+            examples=[
+                OpenApiExample(
+                    "Profile Not Found",
+                    value={
+                        "success": False,
+                        "message": "Profile not found. Please create your profile first.",
+                        "error_code": "PROFILE_NOT_FOUND"
+                    }
+                )
+            ]
+        ),
+        500: OpenApiResponse(
+            description="Internal server error",
+            response=OpenApiTypes.OBJECT,
+            examples=[
+                OpenApiExample(
+                    "Internal Error",
+                    value={
+                        "success": False,
+                        "message": "An error occurred. Please try again later.",
+                        "error_code": "INTERNAL_ERROR"
+                    }
+                )
+            ]
+        )
+    }
     )
     def get(self, request):
         try:
@@ -380,9 +857,7 @@ class UserListView(APIView):
                     return Response({'success': False,'message': 'Please verify your phone number first','error_code': 'PHONE_NOT_VERIFIED'}, status=status.HTTP_403_FORBIDDEN)
             except Profile.DoesNotExist:
                 return Response({'success': False,'message': 'Profile not found. Please create your profile first.','error_code': 'PROFILE_NOT_FOUND'}, status=status.HTTP_404_NOT_FOUND)
-            verified_users = Profile.objects.filter(
-                is_phone_verified=True
-            ).select_related('user').order_by('fname', 'lname')
+            verified_users = Profile.objects.filter(is_phone_verified=True).select_related('user').order_by('fname', 'lname')
             
             serializer = UserListSerializer(verified_users, many=True)
             return Response({'success': True,'message': 'Users retrieved successfully','data': {'users': serializer.data,'count': verified_users.count()}}, status=status.HTTP_200_OK)
@@ -391,11 +866,11 @@ class UserListView(APIView):
             logger.error(f"Error in UserListView: {str(e)}")
             return Response({'success': False,'message': 'An error occurred. Please try again later.','error_code': 'INTERNAL_ERROR'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-@extend_schema(tags=['Users'])
 class UserProfileByNameView(APIView):
     permission_classes = [IsAuthenticated]
     parser_classes = [JSONParser]   
     @extend_schema(
+        tags=['Profile'],
         summary="Get User Profiles by Name",
         description="Search for verified users by their first and last name.",
         request=UserProfileSearchSerializer,
