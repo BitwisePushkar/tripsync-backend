@@ -12,6 +12,8 @@ from .models import FriendRequest, TripMember, Tripmate
 from .serializers import AddTripMemberSerializer,FriendRequestSerializer,RespondFriendRequestSerializer,SendFriendRequestSerializer,TripMemberSerializer,TripmateSerializer,UpdateTripMemberSerializer,UserSearchSerializer
 
 User = get_user_model()
+
+
 class SearchUser(generics.ListAPIView):
     permission_classes = [IsAuthenticated]
     serializer_class = UserSearchSerializer
