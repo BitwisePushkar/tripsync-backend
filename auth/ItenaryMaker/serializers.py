@@ -4,7 +4,7 @@ from .models import Trip, Itinerary, DayPlan, Activity
 class DayPlanSerializer(serializers.ModelSerializer):
     class Meta:
         model = DayPlan
-        fields = ['id', 'day_number', 'title', 'activities', 'created_at', 'updated_at']
+        fields = ['id', 'day_number', 'title','Activity', 'created_at', 'updated_at']
         read_only_fields = ['id', 'created_at', 'updated_at']
 
 class ItinerarySerializer(serializers.ModelSerializer):

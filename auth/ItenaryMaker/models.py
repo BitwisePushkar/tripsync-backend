@@ -48,7 +48,7 @@ class DayPlan(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
     
     class Meta:
-        ordering = ['day_number']
+        ordering = ['-created_at']
         unique_together = ['itinerary', 'day_number']
     
     def __str__(self):
@@ -60,8 +60,8 @@ class Activity(models.Model):
     title = models.CharField(max_length=200)
     description = models.CharField(max_length=500)
     location = models.CharField(max_length=200)
-    time = models.IntegerField(max_length=10,choices=[(1, 'Morning'), (2, 'Afternoon'), (3, 'Evening'),],blank=False,default='morning')
-    timings = models.TimeField()
+    time = models.CharField(max_length=10,choices=[('morning', 'Morning'), ('afternoon', 'Afternoon'), ('evening', 'Evening'),],blank=False,default='morning')
+    timings = models.CharField(max_length=50) 
     budget_alloted = models.FloatField(validators=[MinValueValidator(0)])
     category = models.CharField(max_length=400)
     created_at = models.DateTimeField(auto_now_add=True)

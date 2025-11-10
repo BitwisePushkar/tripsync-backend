@@ -3,21 +3,20 @@ from django.conf import settings
 import logging
 import json
 import re
-import os 
+import os
 
 logger = logging.getLogger(__name__)
 
 class ItineraryGenerator:
     def __init__(self):
-      logger.debug("API key (from settings): %s", settings.GOOGLE_API_KEY)
-      logger.debug("API key (from env): %s", os.getenv("GOOGLE_API_KEY"))
-      self.llm = ChatGoogleGenerativeAI(
-          model="gemini-2.0-flash-exp",
-          google_api_key=settings.GOOGLE_API_KEY,
-          temperature=0.7,
-          max_output_tokens=8192,
-      )
-
+        logger.debug("API key (from settings): %s", settings.GOOGLE_API_KEY)
+        logger.debug("API key (from env): %s", os.getenv("GOOGLE_API_KEY"))
+        self.llm = ChatGoogleGenerativeAI(
+            model="gemini-2.0-flash-lite",
+            google_api_key=settings.GOOGLE_API_KEY,
+            temperature=0.7,
+            max_output_tokens=20000,
+        )
 
     def generate_itinerary(self, trip_data):
         prompt = f"""You are an expert travel planner. Create detailed itineraries in JSON format only.
@@ -126,23 +125,24 @@ Return ONLY valid JSON (no markdown, no code blocks, no explanations):
 
 IMPORTANT RULES:
 1. Create exactly {trip_data['days']} day plans
-2. Each day should have 4-6 activities
+2. Each day should have 3-4 activities
 3. Activities must have: time (Morning/Afternoon/Evening/Night), title, description, location, timings, cost, category
 4. Categories: sightseeing, dining, shopping, transportation, adventure, relaxation
-5. Make sure activities are alwways within budget and are realistic
+5. Make sure activities are always within budget and realistic
 6. Return ONLY the JSON, no other text
-7. Make descriptions detailed and helpful
-8. Add timings throughout the day to make it convinient for the user to plan
+7. Make descriptions detailed and helpful and keep them under 80 characters
 """
-        
+
         try:
             response = self.llm.invoke(prompt)
             response_text = response.content.strip()
+            response_text = response_text.replace('\n', ' ')
+            response_text = re.sub(r',\s*]', ']', response_text)
             response_text = re.sub(r'^```json\s*', '', response_text)
             response_text = re.sub(r'^```\s*', '', response_text)
             response_text = re.sub(r'\s*```$', '', response_text)
             response_text = response_text.strip()
-            
+
             try:
                 itinerary_data = json.loads(response_text)
                 return {
@@ -156,7 +156,7 @@ IMPORTANT RULES:
                     'success': False,
                     'error': f"Invalid JSON from AI: {str(je)}"
                 }
-                
+
         except Exception as e:
             logger.error(f"Error generating itinerary: {str(e)}")
             return {
