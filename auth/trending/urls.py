@@ -1,6 +1,8 @@
 from django.urls import path
 from .views import (PlaceListCreateView,PlaceDetailView,FunFactListCreateView,FunFactDetailView)
 
+app_name = 'trending'
+
 urlpatterns = [
     path('places/', PlaceListCreateView.as_view(), name='place-list-create'),
     path('places/<int:place_id>/', PlaceDetailView.as_view(), name='place-detail'),

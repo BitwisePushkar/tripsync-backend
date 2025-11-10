@@ -3,6 +3,8 @@ from django.conf.urls.static import static
 from django.urls import path
 from .views import (PostListView,PostCreateView,PostDetailView,PostUpdateView,PostDeleteView,PostSearchView,MyPostsView,CommentCreateView,CommentUpdateView,CommentDeleteView,PostLikeView)
 
+app_name = 'community'
+
 urlpatterns = [
     path('posts/', PostListView.as_view(), name='post-list'),
     path('posts/create/', PostCreateView.as_view(), name='post-create'),

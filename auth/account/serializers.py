@@ -4,9 +4,7 @@ from django.contrib.auth.password_validation import validate_password
 from django.core.validators import RegexValidator
 import re
 
-email_regex = RegexValidator(
-    regex=r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$',
-    message="Enter a valid email address")
+email_regex = RegexValidator(regex=r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$',message="Enter a valid email address")
 
 class UserRegistrationSerializer(serializers.Serializer):
     email = serializers.EmailField(required=True, validators=[email_regex])

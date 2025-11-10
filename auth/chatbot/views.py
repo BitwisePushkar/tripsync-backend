@@ -61,6 +61,20 @@ from .serializers import (ChatRequestSerializer, ChatResponseSerializer,ChatHist
                 )
             ]
         ),
+        503: OpenApiResponse(
+            response=OpenApiTypes.OBJECT,
+            description="Service unavailable or network issue",
+            examples=[
+                OpenApiExample(
+                    name="Service Unavailable",
+                    value={
+                        'success': False,
+                        'error': 'Service unavailable',
+                        'message': 'Gemini service is temporarily unreachable.'
+                    }
+                )
+            ]
+        ),
         504: OpenApiResponse(
             response=OpenApiTypes.OBJECT,
             description="Request timed out",
@@ -174,7 +188,7 @@ def chatbot(request):
     except requests.exceptions.Timeout:
         return Response({'success': False,'error': 'Request timed out','message': 'The chatbot took too long to respond'}, status=status.HTTP_504_GATEWAY_TIMEOUT)
     except requests.exceptions.RequestException as e:
-        return Response({'success': False,'error': 'Request failed','message': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        return Response({'success': False,'error': 'Request failed','message': str(e)}, status=status.HTTP_503_SERVICE_UNAVAILABLE)
     except Exception as e:
         return Response({'success': False,'error': 'Internal server error','message': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
