@@ -1,7 +1,7 @@
 from django.conf import settings
 from django.conf.urls.static import static
 from django.urls import path
-from .views import (PostListView,PostCreateView,PostDetailView,PostUpdateView,PostDeleteView,PostSearchView,MyPostsView,CommentCreateView,CommentUpdateView,CommentDeleteView,PostLikeView)
+from .views import PostListView,PostCreateView,PostDetailView,PostUpdateView,PostDeleteView,PostSearchView,MyPostsView,CommentCreateView,CommentUpdateView,CommentDeleteView,PostLikeView
 
 urlpatterns = [
     path('posts/', PostListView.as_view(), name='post-list'),

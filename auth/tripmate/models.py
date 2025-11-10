@@ -1,7 +1,7 @@
 from django.db import models
 from django.conf import settings
 from django.core.exceptions import ValidationError
-from Itinerary.models import Trip
+from ItenaryMaker.models import Trip
 
 class Tripmate(models.Model):
     user = models.OneToOneField(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='tripmate_profile')
@@ -49,29 +49,24 @@ class FriendRequest(models.Model):
             raise ValidationError("Already tripmates")
 
 
-class TripShare(models.Model):  
-    itenary = models.ForeignKey(Trip, on_delete=models.CASCADE, related_name='shared_with')
-    shared_with = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='shared_trips')
-    shared_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='my_shared_trips')
-    status = models.CharField(max_length=10, choices=[('pending', 'Pending'),('accepted', 'Accepted'),('declined', 'Declined'),], default='pending')
-    role = models.CharField(max_length=10, choices= [('viewer', 'Viewer'),('editor', 'Editor'),], default='viewer')
-    invitation_message = models.TextField(max_length=500, blank=True)
+class TripMember(models.Model):  
+    trip = models.ForeignKey(Trip, on_delete=models.CASCADE, related_name='members')
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='trip_memberships')
+    added_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='added_members')
+    permission = models.CharField(max_length=10, choices=[('view', 'View'),('edit', 'Edit'),], default='view')
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     
     class Meta:
-        unique_together = ['itenary', 'shared_with']
+        unique_together = ['trip', 'user']
         ordering = ['-created_at']
-        indexes = [models.Index(fields=['shared_with', 'status']),
-                   models.Index(fields=['itenary', 'status']),
-                   models.Index(fields=['shared_by']),]
+        indexes = [models.Index(fields=['user']),
+                   models.Index(fields=['trip']),
+                   models.Index(fields=['added_by']),]
     
     def __str__(self):
-        return f"{self.itenary.tripname} shared with {self.shared_with.email} ({self.status})"
+        return f"{self.trip.tripname} - {self.user.email} ({self.permission})"
     
     def clean(self):
-        if self.shared_with == self.itenary.user:
-            raise ValidationError("Cannot share trip with yourself")
-        
-        if self.shared_by != self.itenary.user:
-            raise ValidationError("Only trip owner can share the trip")
+        if self.user == self.trip.user:
+            raise ValidationError("Cannot add trip owner as member")

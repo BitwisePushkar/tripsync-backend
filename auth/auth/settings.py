@@ -12,8 +12,8 @@ DEBUG = config('DEBUG', default=False, cast=bool)
 
 ALLOWED_HOSTS = os.environ.get("ALLOWED_HOSTS", "localhost,127.0.0.1,51.20.254.52").split(',')
 
-INSTALLED_APPS = ['channels',
-                  'daphne',
+INSTALLED_APPS = [#'channels',
+                  #'daphne',
                   'storages',
                   'django_extensions',
                   'django.contrib.admin',
@@ -35,7 +35,6 @@ INSTALLED_APPS = ['channels',
                   'personal.apps.PersonalConfig',
                   'HomePage.apps.HomepageConfig',
                   'expense.apps.ExpenseConfig',
-                  'Itinerary.apps.ItineraryConfig',
                   'tripmate.apps.TripmateConfig',
                   'trending.apps.TrendingConfig',
                 ]
@@ -70,7 +69,13 @@ if database_url:
 else:
     DATABASES = {'default': {'ENGINE': 'django.db.backends.sqlite3', 'NAME': BASE_DIR / 'db.sqlite3'}}
 
-REST_FRAMEWORK = {'DEFAULT_AUTHENTICATION_CLASSES': ('rest_framework_simplejwt.authentication.JWTAuthentication',), 'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema', 'DEFAULT_RENDERER_CLASSES': ['rest_framework.renderers.JSONRenderer', 'rest_framework.renderers.BrowsableAPIRenderer']}
+REST_FRAMEWORK = {
+    'DEFAULT_AUTHENTICATION_CLASSES': ('rest_framework_simplejwt.authentication.JWTAuthentication',),
+    'DEFAULT_SCHEMA_CLASS':'drf_spectacular.openapi.AutoSchema',
+    'DEFAULT_RENDERER_CLASSES': ['rest_framework.renderers.JSONRenderer', 'rest_framework.renderers.BrowsableAPIRenderer'],
+    'DEFAULT_THROTTLE_CLASSES': ['rest_framework.throttling.AnonRateThrottle','rest_framework.throttling.UserRateThrottle',],
+    'DEFAULT_THROTTLE_RATES': {'anon': '20/minute','user': '40/minute',}
+    }
 
 SPECTACULAR_SETTINGS = {'TITLE': 'TripSync API','DESCRIPTION': 'TripSync - API Documentation','VERSION': '1.0.0','SERVE_INCLUDE_SCHEMA': False,'CONTACT': {'name': 'TripSync Support','email': 'support@tripsync.com'},'LICENSE': {'name': 'MIT License'},'SERVERS': [{'url': 'http://127.0.0.1:8000', 'description': 'Development server'},{'url': 'http://127.0.0.1:8000', 'description': 'Production server'}],'COMPONENT_SPLIT_REQUEST': True,'SWAGGER_UI_SETTINGS': {'deepLinking': True,'persistAuthorization': True,'displayOperationId': False,'filter': True}}
 
@@ -167,7 +172,6 @@ else:
             "BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage" if not DEBUG else "django.contrib.staticfiles.storage.StaticFilesStorage",
         },
     }
-    
     STATIC_URL = '/static/'
     STATIC_ROOT = BASE_DIR / 'staticfiles'
     MEDIA_URL = '/media/'
