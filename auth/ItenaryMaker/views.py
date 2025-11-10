@@ -3,34 +3,27 @@ from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
 from drf_spectacular.utils import extend_schema
-from .models import Trip, Itinerary, DayPlan
+from .models import Trip, Itinerary, DayPlan, Activity
 from .serializers import TripSerializer, TripCreateUpdateSerializer, RegenerateItinerarySerializer,ActivitySerializer, ActivityUpdateSerializer, DayPlanSerializer, ManualItinerarySerializer
 from .ai_services import ItineraryGenerator
 from expense.models import Budget
 from tripmate.models import TripMember
 import logging
-
 logger = logging.getLogger(__name__)
 
 class TripCreateView(APIView):
     permission_classes = [IsAuthenticated]
-    
-    @extend_schema(
-        summary="Create trip with AI itinerary",
-        request=TripCreateUpdateSerializer,
-        responses={201: TripSerializer},
-        tags=['Trip Management']
-    )
+    @extend_schema(summary="Create trip with AI itinerary",
+                   request=TripCreateUpdateSerializer,
+                   responses={201: TripSerializer},
+                   tags=['Trip Management'])
 
     def post(self, request):
         serializer = TripCreateUpdateSerializer(data=request.data)
-        
         if not serializer.is_valid():
-            return Response({
-                'success': False,
-                'message': 'Validation failed',
-                'errors': serializer.errors
-            }, status=status.HTTP_400_BAD_REQUEST)
+            return Response({'success': False,
+                             'message': 'Validation failed',
+                             'errors': serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
         
         try:
             budget_obj = Budget.objects.get(user=request.user)
@@ -44,8 +37,7 @@ class TripCreateView(APIView):
         trip = Trip.objects.create(
             user=request.user,
             budget=budget_amount,
-            **serializer.validated_data
-        )
+            **serializer.validated_data)
         
         try:
             generator = ItineraryGenerator()
@@ -63,17 +55,25 @@ class TripCreateView(APIView):
             
             if result['success']:
                 data = result['data']
-                
                 itinerary = Itinerary.objects.create(trip=trip)
-                
                 for day_data in data.get('day_plans', []):
                     DayPlan.objects.create(
                         itinerary=itinerary,
                         day_number=day_data['day_number'],
-                        title=day_data['title'],
-                        activities=day_data['activities']
+                        title=day_data['title'])
+                    
+                day_plans = day_plans.objects.create(day_plans=day_plans)
+                for activity_data in day_data.get('activities',[]):
+                    Activity.objects.create(
+                        day_plan=day_plans,
+                        title=activity_data['title'],
+                        time = activity_data['time'],
+                        description = activity_data['description'],
+                        location =  activity_data['locations'],
+                        timing = activity_data['timings'],
+                        budget_alloted = activity_data['cost'],
+                        category = activity_data['category']
                     )
-                
                 response_serializer = TripSerializer(trip)
                 return Response({
                     'success': True,

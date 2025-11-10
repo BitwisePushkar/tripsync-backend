@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Trip, Itinerary, DayPlan
+from .models import Trip, Itinerary, DayPlan, Activity
 
 class DayPlanSerializer(serializers.ModelSerializer):
     class Meta:
@@ -20,11 +20,13 @@ class TripSerializer(serializers.ModelSerializer):
     
     class Meta:
         model = Trip
-        fields = [
-            'id', 'tripname', 'current_loc', 'destination', 'trending',
-            'start_date', 'end_date', 'days', 'trip_type', 'trip_preferences',
-            'budget', 'itinerary', 'created_at', 'updated_at'
-        ]
+        fields = ['id', 'tripname', 'current_loc', 'destination', 'trending','start_date', 'end_date', 'days', 'trip_type', 'trip_preferences','budget', 'itinerary', 'created_at', 'updated_at']
+        read_only_fields = ['id', 'created_at', 'updated_at']
+
+class ActivitySerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Activity
+        fields = ['id','title','time','timings','budget_alloted','category','location','description','created_at', 'updated_at']
         read_only_fields = ['id', 'created_at', 'updated_at']
 
 class TripCreateUpdateSerializer(serializers.ModelSerializer):
@@ -35,7 +37,7 @@ class TripCreateUpdateSerializer(serializers.ModelSerializer):
     def validate(self, data):
         if data.get('start_date') and data.get('end_date'):
             if data['start_date'] > data['end_date']:
-                raise serializers.ValidationError("End date must be after start date")
+                raise serializers.ValidationError("End Can't be Before Start Date")
         return data
     
 class RegenerateItinerarySerializer(serializers.Serializer):

@@ -2,6 +2,7 @@ from django.db import models
 from django.core.validators import MinValueValidator, MaxValueValidator
 from django.conf import settings
 
+
 class Trip(models.Model):
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='itinerary_trips')
     tripname = models.CharField(max_length=100)
@@ -43,13 +44,32 @@ class DayPlan(models.Model):
     itinerary = models.ForeignKey(Itinerary, on_delete=models.CASCADE, related_name='day_plans')
     day_number = models.IntegerField()
     title = models.CharField(max_length=200)
-    activities = models.JSONField(default=list)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     
     class Meta:
         ordering = ['day_number']
         unique_together = ['itinerary', 'day_number']
+    
+    def __str__(self):
+        return f"Day {self.day_number}: {self.title}"
+    
+
+class Activity(models.Model):
+    day_plans = models.ForeignKey(DayPlan, on_delete=models.CASCADE, related_name='Activity')   
+    title = models.CharField(max_length=200)
+    description = models.CharField(max_length=500)
+    location = models.CharField(max_length=200)
+    time = models.IntegerField(max_length=10,choices=[(1, 'Morning'), (2, 'Afternoon'), (3, 'Evening'),],blank=False,default='morning')
+    timings = models.TimeField()
+    budget_alloted = models.FloatField(validators=[MinValueValidator(0)])
+    category = models.CharField(max_length=400)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        ordering = ['time']
+        unique_together = ['day_plans', 'title']
     
     def __str__(self):
         return f"Day {self.day_number}: {self.title}"

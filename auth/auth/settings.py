@@ -12,8 +12,8 @@ DEBUG = config('DEBUG', default=False, cast=bool)
 
 ALLOWED_HOSTS = os.environ.get("ALLOWED_HOSTS", "localhost,127.0.0.1,51.20.254.52").split(',')
 
-INSTALLED_APPS = ['channels',
-                  'daphne',
+INSTALLED_APPS = [#'channels',
+                  #'daphne',
                   'storages',
                   'django_extensions',
                   'django.contrib.admin',
@@ -35,7 +35,6 @@ INSTALLED_APPS = ['channels',
                   'personal.apps.PersonalConfig',
                   'HomePage.apps.HomepageConfig',
                   'expense.apps.ExpenseConfig',
-                  'Itinerary.apps.ItineraryConfig',
                   'tripmate.apps.TripmateConfig',
                   'trending.apps.TrendingConfig',
                 ]
@@ -173,7 +172,6 @@ else:
             "BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage" if not DEBUG else "django.contrib.staticfiles.storage.StaticFilesStorage",
         },
     }
-    
     STATIC_URL = '/static/'
     STATIC_ROOT = BASE_DIR / 'staticfiles'
     MEDIA_URL = '/media/'
