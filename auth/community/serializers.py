@@ -107,7 +107,6 @@ class UserMiniSerializer(serializers.ModelSerializer):
             return obj.profile_pic.url
         return None
 
-
 class CommentSerializer(serializers.ModelSerializer):
     user = serializers.SerializerMethodField()
     owner = serializers.SerializerMethodField()

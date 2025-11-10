@@ -269,7 +269,7 @@ class PlaceDetailView(APIView):
     summary="Delete Place",
     description="Delete a place by its ID, along with all its associated fun facts.",
     responses={
-        204: OpenApiResponse(
+        200: OpenApiResponse(
             description="Place deleted successfully",
             response=OpenApiTypes.OBJECT,
             examples=[
@@ -305,7 +305,7 @@ class PlaceDetailView(APIView):
         if not place:
             return Response({"error": "Place not found"}, status=status.HTTP_404_NOT_FOUND)
         place.delete()
-        return Response(status=status.HTTP_204_NO_CONTENT)
+        return Response(status=status.HTTP_200_OK)
 
 class FunFactListCreateView(APIView):
     @extend_schema(
@@ -570,7 +570,7 @@ class FunFactDetailView(APIView):
     summary="Delete Fun Fact",
     description="Delete a specific fun fact by its ID.",
     responses={
-        204: OpenApiResponse(
+        200: OpenApiResponse(
             description="Fun fact deleted successfully",
             response=OpenApiTypes.OBJECT,
             examples=[
@@ -606,4 +606,4 @@ class FunFactDetailView(APIView):
         if not fun_fact:
             return Response({"error": "Fun fact not found"}, status=status.HTTP_404_NOT_FOUND)
         fun_fact.delete()
-        return Response(status=status.HTTP_204_NO_CONTENT)
+        return Response(status=status.HTTP_200_OK)

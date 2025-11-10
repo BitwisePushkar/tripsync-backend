@@ -99,7 +99,7 @@ class ProfileDetailView(APIView):
                 )
             ]
         ),
-        500: OpenApiResponse(
+        503: OpenApiResponse(
             description="Internal error or SMS sending failed",
             response=OpenApiTypes.OBJECT,
             examples=[
@@ -154,14 +154,14 @@ class ProfileDetailView(APIView):
             
             if not sms_success:
                 profile.delete()
-                return Response({'success': False,'message': f'Failed to send OTP: {sms_message}','error_code': 'SMS_FAILED'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+                return Response({'success': False,'message': f'Failed to send OTP: {sms_message}','error_code': 'SMS_FAILED'}, status=status.HTTP_503_SERVICE_UNAVAILABLE)
             
             logger.info(f"Complete profile created and OTP sent to {phone_number} for user {request.user.id}")
             return Response({'success': True,'message': 'Profile created successfully. OTP sent for verification.','data': {'phone_number': phone_number,'otp_expiry_minutes': 5,'max_attempts': 3,'profile_pic_uploaded': profile_pic_uploaded}}, status=status.HTTP_201_CREATED)
         
         except Exception as e:
             logger.error(f"Error in ProfileDetailView POST: {str(e)}")
-            return Response({'success': False,'message': 'An error occurred. Please try again later.','error_code': 'INTERNAL_ERROR'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            return Response({'success': False,'message': 'An error occurred. Please try again later.','error_code': 'INTERNAL_ERROR'}, status=status.HTTP_503_SERVICE_UNAVAILABLE)
     
     @extend_schema(
     summary="Get Profile Details",
@@ -952,7 +952,16 @@ class UserProfileByNameView(APIView):
                 )]
             ),
             403: OpenApiResponse(
-                description="User's own phone not verified"
+                description="User's own phone not verified",
+                examples=[
+                    OpenApiExample(
+                        "Forbidden",
+                        value={
+                            "success": False,
+                            "message": "Your phone number is not verified. Please verify it to proceed.",
+                            "error_code": "PHONE_NOT_VERIFIED"
+                        }
+            )]
             ),
             404: OpenApiResponse(
                 description="User not found",

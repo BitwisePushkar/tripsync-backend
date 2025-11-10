@@ -17,9 +17,7 @@ class Conversation(models.Model):
     objects = ConversationManager()
     class Meta:
         ordering = ['-updated_at'] 
-        indexes = [
-            models.Index(fields=['-updated_at']),
-        ]
+        indexes = [models.Index(fields=['-updated_at']),]
 
     def __str__(self):
         if self.name:
@@ -42,11 +40,7 @@ class Conversation(models.Model):
 
 
 class Message(models.Model):
-    conversation = models.ForeignKey(
-        Conversation, 
-        on_delete=models.CASCADE, 
-        related_name='messages'
-    )
+    conversation = models.ForeignKey(Conversation, on_delete=models.CASCADE,related_name='messages')
     sender = models.ForeignKey(User, on_delete=models.CASCADE, related_name='sent_messages')
     content = models.TextField()
     timestamp = models.DateTimeField(auto_now_add=True)

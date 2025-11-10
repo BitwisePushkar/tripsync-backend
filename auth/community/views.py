@@ -626,7 +626,7 @@ class CommentDeleteView(APIView):
     @extend_schema(
         tags=['Posts'],
         summary='Delete a comment',
-        description='Delete your own comment from a post. Only the comment author can delete it.',
+        description='Delete your own comment from a post.',
         responses={
             200: OpenApiResponse(
                 description="Comment deleted successfully",
@@ -679,14 +679,14 @@ class CommentDeleteView(APIView):
         if c.user != req.user:
             return Response({'status': 'error','message': 'Permission denied','errors': {'permission': ['You can only delete your own comments']}}, status=status.HTTP_403_FORBIDDEN)       
         c.delete()
-        return Response({'status': 'success','message': 'Comment deleted successfully'})
+        return Response({'status': 'success','message': 'Comment deleted successfully'}, status=status.HTTP_200_OK)
 
 class PostLikeView(APIView):
     permission_classes = [IsAuthenticated]   
     @extend_schema(
         tags=['Posts'],
         summary='Like or dislike a post',
-        description='Authenticated users can like or dislike a post. Sending the same action again removes it.',
+        description='Authenticated users can like or dislike a post.',
         request={'application/json': {'type': 'object','properties': {'like': {'type': 'boolean'}},'example': {'like': True}}},
         responses={
             201: OpenApiResponse(

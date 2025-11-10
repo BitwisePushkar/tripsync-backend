@@ -77,7 +77,7 @@ REST_FRAMEWORK = {
     'DEFAULT_THROTTLE_RATES': {'anon': '20/minute','user': '40/minute',}
     }
 
-SPECTACULAR_SETTINGS = {'TITLE': 'TripSync API', 'DESCRIPTION': 'TripSync - API Documentation', 'VERSION': '1.0.0', 'SERVE_INCLUDE_SCHEMA': False, 'CONTACT': {'name': 'TripSync Support', 'email': 'support@tripsync.com'}, 'LICENSE': {'name': 'MIT License'}, 'SERVERS': [{'url': 'http://127.0.0.1:8000', 'description': 'Development server'}, {'url': 'http://127.0.0.1:8000', 'description': 'Production server'}], 'COMPONENT_SPLIT_REQUEST': True, 'SWAGGER_UI_SETTINGS': {'deepLinking': True, 'persistAuthorization': True, 'displayOperationId': False, 'filter': True}}
+SPECTACULAR_SETTINGS = {'TITLE': 'TripSync API', 'DESCRIPTION': 'TripSync - API Documentation', 'VERSION': '1.0.0', 'SERVE_INCLUDE_SCHEMA': False, 'CONTACT': {'name': 'TripSync Support', 'email': 'support@tripsync.com'}, 'LICENSE': {'name': 'MIT License'}, 'SERVERS': [{'url': 'http://127.0.0.1:8000', 'description': 'Development server'}, {'url': 'http://51.20.254.52', 'description': 'Production server'}], 'COMPONENT_SPLIT_REQUEST': True, 'SWAGGER_UI_SETTINGS': {'deepLinking': True, 'persistAuthorization': True, 'displayOperationId': False, 'filter': True}}
 
 AUTH_PASSWORD_VALIDATORS = [{'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator'}, {'NAME': 'django.contrib.auth.password_validation.MinimumLengthValidator', 'OPTIONS': {'min_length': 8}}, {'NAME': 'django.contrib.auth.password_validation.CommonPasswordValidator'}, {'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator'}]
 
@@ -87,6 +87,9 @@ USE_I18N = True
 USE_TZ = True
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+DATA_UPLOAD_MAX_MEMORY_SIZE = 1048576000
+FILE_UPLOAD_MAX_MEMORY_SIZE = 1048576000
 
 AUTH_USER_MODEL = 'account.User'
 
@@ -122,10 +125,6 @@ EMAIL_USE_TLS = True
 EMAIL_HOST_USER = 'apikey'
 EMAIL_HOST_PASSWORD = config('SENDGRID_API_KEY', default='')
 EMAIL_TIMEOUT = 10
-
-ADMIN_SITE_HEADER = "TripSync Administration"
-ADMIN_SITE_TITLE = "TripSync Admin"
-ADMIN_INDEX_TITLE = "Welcome to TripSync Admin Portal"
 
 OTP_EXPIRY_MINUTES = 10
 MAX_OTP_ATTEMPTS = 5

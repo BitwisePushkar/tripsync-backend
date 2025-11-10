@@ -1,7 +1,6 @@
 from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.views import APIView
-from rest_framework.generics import ListAPIView
 from rest_framework.permissions import IsAuthenticated, IsAdminUser
 from account.serializers import (UserRegistrationSerializer, VerifyOTPSerializer, UserLoginSerializer,UserProfileSerializer, PasswordResetRequestSerializer, PasswordResetVerifySerializer)
 from account.models import User
@@ -10,7 +9,6 @@ from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.exceptions import AuthenticationFailed
 from drf_spectacular.utils import extend_schema, OpenApiResponse, OpenApiExample
 from drf_spectacular.types import OpenApiTypes
-from account.pagination import StandardResultsSetPagination
 from django.db import models
 from django.utils import timezone
 from account.utils import send_otp_email
@@ -83,7 +81,7 @@ class UserRegistrationView(APIView):
                     )
                 ]
             ),
-            500: OpenApiResponse(
+            503: OpenApiResponse(
                 description="Email service failure",
                 examples=[
                     OpenApiExample(
@@ -126,7 +124,7 @@ class UserRegistrationView(APIView):
                 if not email_sent:
                     if not existing_user:
                         user.delete()
-                    return Response({'status': 'error','message': 'Failed to send verification email. Please try again.','errors': {'email': ['Email service unavailable']}},status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+                    return Response({'status': 'error','message': 'Failed to send verification email. Please try again.','errors': {'email': ['Email service unavailable']}},status=status.HTTP_503_SERVICE_UNAVAILABLE)
                 return Response({'status': 'success','message': 'OTP sent to your email. Please verify to complete registration.','data': {'email': user.email, 'otp_expires_in': '10 minutes'}},status=status.HTTP_200_OK)
         except Exception as e:
             return Response({'status': 'error', 'message': 'Registration failed', 'errors': str(e)},status=status.HTTP_400_BAD_REQUEST)
@@ -294,9 +292,9 @@ class ResendRegistrationOTPView(APIView):
                     )
                 ]
             ),
-            500: OpenApiResponse(
+            503: OpenApiResponse(
                 response=OpenApiTypes.OBJECT,
-                description="Email sending failed due to server error",
+                description="Email sending failed",
                 examples=[
                     OpenApiExample(
                         name="Email Service Unavailable",
@@ -333,7 +331,7 @@ class ResendRegistrationOTPView(APIView):
             otp = user.generate_otp('registration')
             email_sent = send_otp_email(email, otp, purpose="verification")
             if not email_sent:
-                return Response({'status': 'error', 'message': 'Failed to send OTP','errors': {'email': ['Email service unavailable']}},status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+                return Response({'status': 'error', 'message': 'Failed to send OTP','errors': {'email': ['Email service unavailable']}},status=status.HTTP_503_SERVICE_UNAVAILABLE)
             return Response({'status': 'success','message': 'OTP has been resent to your email.','data': {'email': email, 'otp_expires_in': '10 minutes'}},status=status.HTTP_200_OK)
         except Exception as e:
             return Response({'status': 'error', 'message': 'Failed to resend OTP', 'errors': str(e)},status=status.HTTP_400_BAD_REQUEST)
@@ -569,7 +567,7 @@ class PasswordResetRequestView(APIView):
                     )
                 ]
             ),
-            500: OpenApiResponse(
+            503: OpenApiResponse(
                 response=OpenApiTypes.OBJECT,
                 description="Email service unavailable",
                 examples=[
@@ -608,7 +606,7 @@ class PasswordResetRequestView(APIView):
                 otp = user.generate_otp('password_reset')
                 email_sent = send_otp_email(email, otp, purpose="password_reset")
                 if not email_sent:
-                    return Response({'status': 'error', 'message': 'Failed to send OTP. Please try again.','errors': {'email': ['Email service unavailable']}},status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+                    return Response({'status': 'error', 'message': 'Failed to send OTP. Please try again.','errors': {'email': ['Email service unavailable']}},status=status.HTTP_503_SERVICE_UNAVAILABLE)
                 return Response({'status': 'success','message': 'Password reset OTP sent to your email.','data': {'email': email, 'otp_expires_in': '10 minutes'}},status=status.HTTP_200_OK)  
         except Exception as e:
             return Response({'status': 'error', 'message': 'Failed to send password reset OTP', 'errors': str(e)},status=status.HTTP_400_BAD_REQUEST)
