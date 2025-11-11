@@ -1,5 +1,6 @@
 from django.urls import path
-from .views import (ProfileDetailView,  VerifyOTPView,ResendOTPView,EmergencySOSView,UserListView,UserProfileByNameView)
+from .views import (ProfileDetailView,VerifyOTPView,ResendOTPView,EmergencySOSView,UserListView,UserProfileByNameView,
+                    AccountDeactivateView,AccountReactivateView, )
 
 app_name = 'personal'
 
@@ -10,4 +11,6 @@ urlpatterns = [
     path('emergency/sos/', EmergencySOSView.as_view(), name='emergency-sos'),
     path('users/', UserListView.as_view(), name='user-list'),
     path('users/search/', UserProfileByNameView.as_view(), name='user-profile-by-name'),
+    path('profile/deactivate/', AccountDeactivateView.as_view(), name='account-deactivate'),
+    path('profile/reactivate/', AccountReactivateView.as_view(), name='account-reactivate'),
 ]

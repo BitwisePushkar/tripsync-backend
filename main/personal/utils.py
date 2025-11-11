@@ -1,8 +1,92 @@
 from django.conf import settings
 import requests
 import logging
+import boto3
+from botocore.exceptions import ClientError, BotoCoreError
 
 logger = logging.getLogger(__name__)
+
+def upload_image_to_s3(file_obj, upload_path, max_size_mb=5):
+    max_bytes = max_size_mb * 1024 * 1024
+    file_size = file_obj.size if hasattr(file_obj, 'size') else len(file_obj.read())
+    if file_size > max_bytes:
+        return False, f"File size {file_size / (1024*1024):.1f}MB exceeds the {max_size_mb}MB limit"
+    allowed_extensions = ['jpg', 'jpeg', 'png', 'webp']
+    file_name = getattr(file_obj, 'name', '') or ''
+    ext = file_name.rsplit('.', 1)[-1].lower() if '.' in file_name else ''
+    if ext not in allowed_extensions:
+        return False, f"Unsupported format '{ext}'. Allowed: {', '.join(allowed_extensions)}"
+    content_type_map = {'jpg':  'image/jpeg','jpeg': 'image/jpeg','png':  'image/png','webp': 'image/webp',}
+    content_type = content_type_map.get(ext, 'image/jpeg')
+    if hasattr(file_obj, 'seek'):
+        file_obj.seek(0)
+    file_bytes = file_obj.read()
+    bucket_name = getattr(settings, 'AWS_STORAGE_BUCKET_NAME', None)
+    region = getattr(settings, 'AWS_S3_REGION_NAME', 'ap-south-1')
+    access_key = getattr(settings, 'AWS_ACCESS_KEY_ID', None)
+    secret_key = getattr(settings, 'AWS_SECRET_ACCESS_KEY', None)
+
+    if not all([bucket_name, access_key, secret_key]):
+        logger.error("S3 credentials not fully configured in settings")
+        return False, "S3 storage not configured"
+    try:
+        s3_client = boto3.client(
+            's3',
+            region_name=region,
+            aws_access_key_id=access_key,
+            aws_secret_access_key=secret_key,
+        )
+
+        s3_client.put_object(
+            Bucket=bucket_name,
+            Key=upload_path,
+            Body=file_bytes,
+            ContentType=content_type,
+            ContentDisposition='inline',        
+            CacheControl='max-age=86400',     
+        )
+        s3_url = f"https://{bucket_name}.s3.{region}.amazonaws.com/{upload_path}"
+        logger.info(f"Image uploaded successfully to S3: {upload_path}")
+        return True, s3_url
+    except ClientError as e:
+        error_code = e.response['Error']['Code']
+        error_msg  = e.response['Error']['Message']
+        logger.error(f"S3 ClientError uploading {upload_path}: [{error_code}] {error_msg}")
+        return False, f"S3 upload failed: {error_msg}"
+    except BotoCoreError as e:
+        logger.error(f"S3 BotoCoreError uploading {upload_path}: {str(e)}")
+        return False, "S3 connection error. Please try again."
+    except Exception as e:
+        logger.error(f"Unexpected error uploading to S3: {str(e)}")
+        return False, "Failed to upload image. Please try again later."
+
+
+def delete_image_from_s3(upload_path):
+    bucket_name = getattr(settings, 'AWS_STORAGE_BUCKET_NAME', None)
+    region = getattr(settings, 'AWS_S3_REGION_NAME', 'ap-south-1')
+    access_key = getattr(settings, 'AWS_ACCESS_KEY_ID', None)
+    secret_key = getattr(settings, 'AWS_SECRET_ACCESS_KEY', None)
+
+    if not all([bucket_name, access_key, secret_key]):
+        return False, "S3 storage not configured"
+
+    try:
+        s3_client = boto3.client(
+            's3',
+            region_name=region,
+            aws_access_key_id=access_key,
+            aws_secret_access_key=secret_key,
+        )
+        s3_client.delete_object(Bucket=bucket_name, Key=upload_path)
+        logger.info(f"Deleted S3 object: {upload_path}")
+        return True, f"Deleted {upload_path}"
+    except ClientError as e:
+        error_msg = e.response['Error']['Message']
+        logger.error(f"S3 delete error for {upload_path}: {error_msg}")
+        return False, f"S3 delete failed: {error_msg}"
+    except Exception as e:
+        logger.error(f"Unexpected S3 delete error: {str(e)}")
+        return False, "Failed to delete file from S3"
 
 class SMSService:
     def __init__(self):

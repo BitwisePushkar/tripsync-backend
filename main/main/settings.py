@@ -27,6 +27,7 @@ INSTALLED_APPS = [
     'drf_spectacular',
     'django_extensions',
     'account',
+    'personal',
 ]
 
 MIDDLEWARE = [
@@ -85,24 +86,6 @@ DATABASES = {
     }
 }
 
-REST_FRAMEWORK = {
-    'DEFAULT_AUTHENTICATION_CLASSES': ('rest_framework_simplejwt.authentication.JWTAuthentication',),
-    'DEFAULT_PERMISSION_CLASSES': ('rest_framework.permissions.AllowAny',),
-    'DEFAULT_SCHEMA_CLASS':'drf_spectacular.openapi.AutoSchema',
-    'DEFAULT_RENDERER_CLASSES': ['rest_framework.renderers.JSONRenderer', 'rest_framework.renderers.BrowsableAPIRenderer'],
-    'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',
-    'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination', 
-    'PAGE_SIZE': 20,
-    'DEFAULT_THROTTLE_CLASSES': [
-        'rest_framework.throttling.AnonRateThrottle',
-        'rest_framework.throttling.UserRateThrottle',
-    ],
-    'DEFAULT_THROTTLE_RATES': {
-        'anon': '100/hour', 
-        'user': '1000/hour',
-    },
-}
-
 SPECTACULAR_SETTINGS = {
     'TITLE': 'TripSync API',
     'DESCRIPTION': 'TripSync - API Documentation',
@@ -112,16 +95,41 @@ SPECTACULAR_SETTINGS = {
         'name': 'TripSync Support',
         'email': 'support@tripsync.com',
     },
-    'LICENSE': {'name': 'MIT License',},
-    'SERVERS': [{'url': 'http://127.0.0.1:8000','description': 'Development server',},
-                {'url': 'http://127.0.0.1:8000','description': 'Production server',},
-                ],
+    'LICENSE': {'name': 'MIT License'},
+    'SERVERS': [
+        {'url': 'http://127.0.0.1:8000', 'description': 'Development server'},
+        {'url': 'http://127.0.0.1:8000', 'description': 'Production server'},
+    ],
     'COMPONENT_SPLIT_REQUEST': True,
     'SWAGGER_UI_SETTINGS': {
         'deepLinking': True,
         'persistAuthorization': True,
         'displayOperationId': False,
         'filter': True,
+    },
+}
+
+REST_FRAMEWORK = {
+    'DEFAULT_AUTHENTICATION_CLASSES': (
+        'rest_framework_simplejwt.authentication.JWTAuthentication',
+    ),
+    'DEFAULT_PERMISSION_CLASSES': (
+        'rest_framework.permissions.AllowAny',
+    ),
+    'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',
+    'DEFAULT_RENDERER_CLASSES': [
+        'rest_framework.renderers.JSONRenderer',
+        'rest_framework.renderers.BrowsableAPIRenderer',
+    ],
+    'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
+    'PAGE_SIZE': 20,
+    'DEFAULT_THROTTLE_CLASSES': [
+        'rest_framework.throttling.AnonRateThrottle',
+        'rest_framework.throttling.UserRateThrottle',
+    ],
+    'DEFAULT_THROTTLE_RATES': {
+        'anon': '100/hour',
+        'user': '1000/hour',
     },
 }
 
@@ -188,6 +196,7 @@ EMAIL_HOST_USER = config('EMAIL_HOST_USER', default='')
 EMAIL_HOST_PASSWORD = config('SMTP2GO_PASSWORD', default='')       
 DEFAULT_FROM_EMAIL = config('SMTP2GO_FROM_EMAIL', default='')  
 EMAIL_TIMEOUT = 10
+
 OTP_EXPIRY_MINUTES = 10
 MAX_OTP_ATTEMPTS = 5
 OTP_LOCKOUT_HOURS = 1
@@ -236,7 +245,11 @@ AWS_SECRET_ACCESS_KEY = config('AWS_SECRET_ACCESS_KEY')
 AWS_STORAGE_BUCKET_NAME = config('AWS_STORAGE_BUCKET_NAME')
 AWS_S3_REGION_NAME = config('AWS_S3_REGION_NAME', default='ap-south-1')
 AWS_S3_FILE_OVERWRITE = False
-AWS_QUERYSTRING_AUTH = True
+AWS_QUERYSTRING_AUTH = False
 AWS_S3_VERIFY = True
+AWS_S3_CUSTOM_DOMAIN = f"{config('AWS_STORAGE_BUCKET_NAME')}.s3.{config('AWS_S3_REGION_NAME', default='ap-south-1')}.amazonaws.com"
+MEDIA_URL = f"https://{AWS_S3_CUSTOM_DOMAIN}/"
+AWS_S3_OBJECT_PARAMETERS = {'CacheControl': 'max-age=86400','ContentDisposition': 'inline',       }
 
 STATIC_URL = 'static/'
+MEDIA_ROOT = BASE_DIR / 'media'
