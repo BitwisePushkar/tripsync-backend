@@ -56,12 +56,12 @@ class DayPlan(models.Model):
     
 
 class Activity(models.Model):
-    day_plans = models.ForeignKey(DayPlan, on_delete=models.CASCADE, related_name='Activity')   
+    day_plans = models.ForeignKey(DayPlan, on_delete=models.CASCADE, related_name='activities')   
     title = models.CharField(max_length=200)
     description = models.CharField(max_length=500)
     location = models.CharField(max_length=200)
-    time = models.IntegerField(max_length=10,choices=[(1, 'Morning'), (2, 'Afternoon'), (3, 'Evening'),],blank=False,default='morning')
-    timings = models.TimeField()
+    time = models.CharField(max_length=10,choices=[('morning', 'Morning'), ('afternoon', 'Afternoon'), ('evening', 'Evening'),],blank=False,default='morning')
+    timings = models.CharField()
     budget_alloted = models.FloatField(validators=[MinValueValidator(0)])
     category = models.CharField(max_length=400)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -72,4 +72,4 @@ class Activity(models.Model):
         unique_together = ['day_plans', 'title']
     
     def __str__(self):
-        return f"Day {self.day_number}: {self.title}"
+        return f"Activity {self.time}: {self.title}"

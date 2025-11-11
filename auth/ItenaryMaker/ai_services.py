@@ -12,10 +12,10 @@ class ItineraryGenerator:
       logger.debug("API key (from settings): %s", settings.GOOGLE_API_KEY)
       logger.debug("API key (from env): %s", os.getenv("GOOGLE_API_KEY"))
       self.llm = ChatGoogleGenerativeAI(
-          model="gemini-2.0-flash-exp",
+          model="gemini-2.5-flash-lite",
           google_api_key=settings.GOOGLE_API_KEY,
           temperature=0.7,
-          max_output_tokens=8192,
+          max_output_tokens=20000,
       )
 
 

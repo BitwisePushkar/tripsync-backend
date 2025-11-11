@@ -57,25 +57,23 @@ class TripCreateView(APIView):
                 data = result['data']
                 itinerary = Itinerary.objects.create(trip=trip)
                 for day_data in data.get('day_plans', []):
-                    DayPlan.objects.create(
+                    day_plan=DayPlan.objects.create(
                         itinerary=itinerary,
                         day_number=day_data['day_number'],
                         title=day_data['title'])
-                    
-                day_plans = day_plans.objects.create(day_plans=day_plans)
-                for activity_data in day_data.get('activities',[]):
-                    Activity.objects.create(
-                        day_plan=day_plans,
-                        title=activity_data['title'],
-                        time = activity_data['time'],
-                        description = activity_data['description'],
-                        location =  activity_data['locations'],
-                        timing = activity_data['timings'],
-                        budget_alloted = activity_data['cost'],
-                        category = activity_data['category']
-                    )
+                        
+                    for activity_data in day_data.get('activities',[]):
+                        Activity.objects.create(
+                            day_plans=day_plan,
+                            title=activity_data['title'],
+                            time = activity_data['time'],
+                            description = activity_data['description'],
+                            location =  activity_data['location'],
+                            timings = activity_data['timings'],
+                            budget_alloted = activity_data['cost'],
+                            category = activity_data['category'])
                 response_serializer = TripSerializer(trip)
-                return Response({
+                return Response({                       
                     'success': True,
                     'message': 'Trip and itinerary created successfully',
                     'data': response_serializer.data
