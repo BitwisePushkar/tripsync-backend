@@ -63,15 +63,16 @@ class TripCreateView(APIView):
                         title=day_data['title'])
                         
                     for activity_data in day_data.get('activities',[]):
-                        Activity.objects.create(
+                        activity = Activity.objects.create(
                             day_plans=day_plan,
                             title=activity_data['title'],
                             time = activity_data['time'],
                             description = activity_data['description'],
                             location =  activity_data['location'],
                             timings = activity_data['timings'],
-                            budget_alloted = activity_data['cost'],
+                            cost = activity_data['cost'],
                             category = activity_data['category'])
+                        print(f"Created activity ID: {activity.id}, Title: {activity.title}")
                 response_serializer = TripSerializer(trip)
                 return Response({                       
                     'success': True,

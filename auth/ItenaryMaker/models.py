@@ -62,7 +62,7 @@ class Activity(models.Model):
     location = models.CharField(max_length=200)
     time = models.CharField(max_length=10,choices=[('morning', 'Morning'), ('afternoon', 'Afternoon'), ('evening', 'Evening'),],blank=False,default='morning')
     timings = models.CharField()
-    budget_alloted = models.FloatField(validators=[MinValueValidator(0)])
+    cost = models.FloatField(validators=[MinValueValidator(0)])
     category = models.CharField(max_length=400)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
