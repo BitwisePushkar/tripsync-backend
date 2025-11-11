@@ -4,9 +4,7 @@ from django.contrib.auth.password_validation import validate_password
 from django.core.validators import RegexValidator
 import re
 
-email_regex = RegexValidator(
-    regex=r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$',
-    message="Enter a valid email address")
+email_regex = RegexValidator(regex=r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$',message="Enter a valid email address")
 
 class UserRegistrationSerializer(serializers.Serializer):
     email = serializers.EmailField(required=True, validators=[email_regex])
@@ -37,14 +35,12 @@ class UserRegistrationSerializer(serializers.Serializer):
             raise serializers.ValidationError({"password2": "Passwords don't match"})
         return data
 
-
 class VerifyOTPSerializer(serializers.Serializer):
     email = serializers.EmailField(required=True, validators=[email_regex])
     otp = serializers.CharField(max_length=6, min_length=6, required=True)
 
     def validate_email(self, value):
         return value.lower()
-
 
 class UserLoginSerializer(serializers.Serializer):
     email = serializers.EmailField(max_length=255, required=True, validators=[email_regex])
@@ -53,20 +49,17 @@ class UserLoginSerializer(serializers.Serializer):
     def validate_email(self, value):
         return value.lower()
 
-
 class UserProfileSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
         fields = ["id", "email", "is_email_verified", "created_at"]
         read_only_fields = ["id", "email", "is_email_verified", "created_at"]
 
-
 class PasswordResetRequestSerializer(serializers.Serializer):
     email = serializers.EmailField(required=True, validators=[email_regex])
     
     def validate_email(self, value):
         return value.lower()
-
 
 class PasswordResetVerifySerializer(serializers.Serializer):
     email = serializers.EmailField(required=True, validators=[email_regex])

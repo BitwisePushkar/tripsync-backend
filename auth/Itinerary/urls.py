@@ -1,9 +1,7 @@
 from django.urls import path
-from .views import (
-    TripCreateView, TripListView, TripDetailView,
-    ItineraryRegenerateView, ItineraryDetailView, DayPlanDetailView,
-    ActivityManagementView, ActivityDetailView, ManualItineraryCreateView
-)
+from .views import (TripCreateView, TripListView, TripDetailView,ItineraryRegenerateView, ItineraryDetailView, DayPlanDetailView,ActivityManagementView, ActivityDetailView, ManualItineraryCreateView)
+
+app_name = 'Itinerary'
 
 urlpatterns = [
     path('trip/create/', TripCreateView.as_view(), name='create-trip'),

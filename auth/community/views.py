@@ -7,10 +7,6 @@ from drf_spectacular.utils import extend_schema, OpenApiParameter, OpenApiExampl
 from drf_spectacular.types import OpenApiTypes
 from .models import Post, Comment, PostLike
 from .serializers import PostSerializer, PostDetailSerializer, CommentSerializer
-from rest_framework.decorators import api_view
-from django.conf import settings
-import logging
-logger = logging.getLogger(__name__)
 
 class PostListView(APIView):
     permission_classes = [AllowAny]    
@@ -66,11 +62,10 @@ class PostListView(APIView):
             posts = posts.filter(title__icontains=q.strip())        
         s = PostSerializer(posts, many=True, context={'request': req})
         return Response({'status': 'success','count': posts.count(),'data': s.data})
-
+    
 class PostCreateView(APIView):
     permission_classes = [IsAuthenticated]
     parser_classes = [parsers.MultiPartParser, parsers.FormParser, parsers.JSONParser]    
-
     @extend_schema(
         tags=["Posts"],
         summary="Create a new post",
@@ -133,13 +128,9 @@ class PostCreateView(APIView):
     def post(self, req):
         s = PostSerializer(data=req.data, context={'request': req})
         s.is_valid(raise_exception=True)
-        s.save(user=req.user)
-        return Response({
-            'status': 'success',
-            'message': 'Post created successfully',
-            'data': s.data
-        }, status=status.HTTP_201_CREATED)
-    
+        s.save(user=req.user)        
+        return Response({'status': 'success','message': 'Post created successfully','data': s.data}, status=status.HTTP_201_CREATED)
+
 class PostDetailView(APIView):
     permission_classes = [AllowAny]   
     @extend_schema(
@@ -192,7 +183,6 @@ class PostDetailView(APIView):
         p = get_object_or_404(Post.objects.select_related('user__profile').prefetch_related('comments__user__profile'),pk=pk)
         s = PostDetailSerializer(p, context={'request': req})
         return Response({'status': 'success','data': s.data})
-
 
 class PostUpdateView(APIView):
     permission_classes = [IsAuthenticated]
@@ -636,7 +626,7 @@ class CommentDeleteView(APIView):
     @extend_schema(
         tags=['Posts'],
         summary='Delete a comment',
-        description='Delete your own comment from a post. Only the comment author can delete it.',
+        description='Delete your own comment from a post.',
         responses={
             200: OpenApiResponse(
                 description="Comment deleted successfully",
@@ -689,14 +679,14 @@ class CommentDeleteView(APIView):
         if c.user != req.user:
             return Response({'status': 'error','message': 'Permission denied','errors': {'permission': ['You can only delete your own comments']}}, status=status.HTTP_403_FORBIDDEN)       
         c.delete()
-        return Response({'status': 'success','message': 'Comment deleted successfully'})
+        return Response({'status': 'success','message': 'Comment deleted successfully'}, status=status.HTTP_200_OK)
 
 class PostLikeView(APIView):
     permission_classes = [IsAuthenticated]   
     @extend_schema(
         tags=['Posts'],
         summary='Like or dislike a post',
-        description='Authenticated users can like or dislike a post. Sending the same action again removes it.',
+        description='Authenticated users can like or dislike a post.',
         request={'application/json': {'type': 'object','properties': {'like': {'type': 'boolean'}},'example': {'like': True}}},
         responses={
             201: OpenApiResponse(
@@ -797,6 +787,3 @@ class PostLikeView(APIView):
         else:
             PostLike.objects.create(post=p, user=req.user, like=like)
             return Response({'status': 'success','message': f'Post {"liked" if like else "disliked"}','data': {'action': 'created','like': like,'likes': p.likes.filter(like=True).count(),'dislikes': p.likes.filter(like=False).count()}}, status=status.HTTP_201_CREATED)
-        
-
-

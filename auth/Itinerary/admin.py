@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import Trip, Itinerary, DayPlan
+from .models import *
 
 @admin.register(Trip)
 class TripAdmin(admin.ModelAdmin):

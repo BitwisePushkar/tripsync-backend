@@ -1,7 +1,9 @@
 from django.urls import path
-from .views import chatbot, chat_history
+from .views import chatbot,chat_history
+
+app_name = 'chatbot'
 
 urlpatterns = [
-    path('', chatbot, name='chatbot'),
+    path('',chatbot, name='chat'),
     path('history/<str:session_id>/', chat_history, name='chat-history'),
 ]

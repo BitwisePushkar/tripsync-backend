@@ -3,7 +3,7 @@ from django.core.validators import MinValueValidator, MaxValueValidator
 from django.conf import settings
 
 class Trip(models.Model):
-    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='itinerary_trips')
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='trips')
     tripname = models.CharField(max_length=100)
     current_loc = models.CharField(max_length=200)
     destination = models.CharField(max_length=200)
@@ -25,7 +25,6 @@ class Trip(models.Model):
     def __str__(self):
         return f"{self.tripname} - {self.destination}"
 
-
 class Itinerary(models.Model):
     trip = models.OneToOneField(Trip, on_delete=models.CASCADE, related_name='itinerary')
     created_at = models.DateTimeField(auto_now_add=True)
@@ -37,7 +36,6 @@ class Itinerary(models.Model):
     
     def __str__(self):
         return f"Itinerary for {self.trip.tripname}"
-
 
 class DayPlan(models.Model):
     itinerary = models.ForeignKey(Itinerary, on_delete=models.CASCADE, related_name='day_plans')
