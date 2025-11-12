@@ -3,7 +3,7 @@ from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
 from drf_spectacular.utils import extend_schema
-from .models import Trip, Itinerary, DayPlan
+from .models import Trip, Itinerary, DayPlan, Activity
 from .serializers import (TripSerializer, TripCreateUpdateSerializer, RegenerateItinerarySerializer,ActivitySerializer, ActivityUpdateSerializer, DayPlanSerializer, ManualItinerarySerializer)
 from .ai_services import ItineraryGenerator
 import logging
@@ -28,10 +28,7 @@ class TripCreateView(APIView):
             budget_obj = Budget.objects.get(user=request.user)
             budget_amount = float(budget_obj.total)
         except Budget.DoesNotExist:
-            return Response({
-                'success': False,
-                'message': 'Please create a budget in expense tracker first'
-            }, status=status.HTTP_400_BAD_REQUEST)
+            return Response({'success': False,'message': 'Please create a budget in expense tracker first'}, status=status.HTTP_400_BAD_REQUEST)
         
         trip = Trip.objects.create(user=request.user,budget=budget_amount,**serializer.validated_data)
         try:
@@ -67,7 +64,6 @@ class TripCreateView(APIView):
             logger.error(f"Error: {str(e)}")
             return Response({'success': False,'message': 'Trip created but itinerary generation failed','trip_id': trip.id,'error': str(e)}, status=status.HTTP_201_CREATED)
 
-
 class TripListView(APIView):
     permission_classes = [IsAuthenticated]
     
@@ -77,9 +73,7 @@ class TripListView(APIView):
         tags=['Trip Management']
     )
     def get(self, request):
-        trips = Trip.objects.filter(user=request.user).prefetch_related(
-            'itinerary__day_plans'
-        ).order_by('-created_at')
+        trips = Trip.objects.filter(user=request.user).prefetch_related('itinerary__day_plans').order_by('-created_at')
         serializer = TripSerializer(trips, many=True)
         return Response({'success': True,'count': trips.count(),'data': serializer.data}, status=status.HTTP_200_OK)
 
@@ -93,9 +87,7 @@ class TripDetailView(APIView):
     )
     def get(self, request, pk):
         try:
-            trip = Trip.objects.prefetch_related(
-                'itinerary__day_plans'
-            ).get(pk=pk, user=request.user)
+            trip = Trip.objects.prefetch_related('itinerary__day_plans').get(pk=pk, user=request.user)
             serializer = TripSerializer(trip)
             return Response({'success': True,'data': serializer.data}, status=status.HTTP_200_OK)
         except Trip.DoesNotExist:
@@ -211,9 +203,7 @@ class ItineraryDetailView(APIView):
     )
     def get(self, request, trip_id):
         try:
-            trip = Trip.objects.prefetch_related(
-                'itinerary__day_plans'
-            ).get(pk=trip_id, user=request.user)
+            trip = Trip.objects.prefetch_related('itinerary__day_plans').get(pk=trip_id, user=request.user)
             
             if not hasattr(trip, 'itinerary'):
                 return Response({'success': False,'message': 'No itinerary found for this trip'}, status=status.HTTP_404_NOT_FOUND)
@@ -260,7 +250,6 @@ class DayPlanDetailView(APIView):
             return Response({'success': False,'message': 'Trip not found'}, status=status.HTTP_404_NOT_FOUND)
         except DayPlan.DoesNotExist:
             return Response({'success': False,'message': 'Day plan not found'}, status=status.HTTP_404_NOT_FOUND)
-
 
 class ActivityManagementView(APIView):
     permission_classes = [IsAuthenticated]
@@ -316,10 +305,7 @@ class ActivityDetailView(APIView):
             from tripmate.models import TripMember
             member = TripMember.objects.filter(trip_id=trip_id, user=request.user, permission='edit').first()
             if not member:
-                return Response({
-                    'success': False,
-                    'message': 'Trip not found or you do not have edit permission'
-                }, status=status.HTTP_404_NOT_FOUND)
+                return Response({'success': False,'message': 'Trip not found or you do not have edit permission'}, status=status.HTTP_404_NOT_FOUND)
             trip = member.trip
         
         try:
@@ -359,10 +345,7 @@ class ActivityDetailView(APIView):
             from tripmate.models import TripMember
             member = TripMember.objects.filter(trip_id=trip_id, user=request.user, permission='edit').first()
             if not member:
-                return Response({
-                    'success': False,
-                    'message': 'Trip not found or you do not have edit permission'
-                }, status=status.HTTP_404_NOT_FOUND)
+                return Response({'success': False,'message': 'Trip not found or you do not have edit permission'}, status=status.HTTP_404_NOT_FOUND)
             trip = member.trip
         
         try:
@@ -386,38 +369,50 @@ class ManualItineraryCreateView(APIView):
     permission_classes = [IsAuthenticated]
     
     @extend_schema(
-        summary="Create itinerary manually without AI",
+        summary="Create trip and itinerary manually without AI",
         request=ManualItinerarySerializer,
         responses={201: TripSerializer},
         tags=['Itinerary Management']
     )
-    def post(self, request, trip_id):
-        try:
-            trip = Trip.objects.get(pk=trip_id, user=request.user)
-        except Trip.DoesNotExist:
-            return Response({'success': False,'message': 'Trip not found'}, status=status.HTTP_404_NOT_FOUND)
-        
-        if hasattr(trip, 'itinerary'):
-            return Response({'success': False,'message': 'Itinerary already exists for this trip. Delete it first or use regenerate endpoint.'}, status=status.HTTP_400_BAD_REQUEST)
-        
+    def post(self, request):
         serializer = ManualItinerarySerializer(data=request.data)
         
         if not serializer.is_valid():
             return Response({'success': False,'message': 'Validation failed','errors': serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
         
         try:
+            try:
+                budget_obj = Budget.objects.get(user=request.user)
+                budget_amount = float(budget_obj.total)
+            except Budget.DoesNotExist:
+                return Response({'success': False,'message': 'Please create a budget in expense tracker first'}, status=status.HTTP_400_BAD_REQUEST)
+            
+            validated_data = serializer.validated_data
+            day_plans_data = validated_data.pop('day_plans')
+            
+            trip = Trip.objects.create(user=request.user,budget=budget_amount,**validated_data)
+            
             itinerary = Itinerary.objects.create(trip=trip)
-            for day_plan_data in serializer.validated_data['day_plans']:
-                DayPlan.objects.create(
+            for day_plan_data in day_plans_data:
+                activities_data = day_plan_data.pop('activities', [])
+                
+                day_plan = DayPlan.objects.create(
                     itinerary=itinerary,
                     day_number=day_plan_data['day_number'],
-                    title=day_plan_data['title'],
-                    activities=day_plan_data['activities']
+                    title=day_plan_data['title']
                 )
+                
+                for activity_data in activities_data:
+                    Activity.objects.create(
+                        day_plans=day_plan,
+                        **activity_data
+                    )
+            
             response_serializer = TripSerializer(trip)
-            return Response({'success': True,'message': 'Manual itinerary created successfully','data': response_serializer.data}, status=status.HTTP_201_CREATED) 
+            return Response({'success': True,'message': 'Trip and manual itinerary created successfully','data': response_serializer.data}, status=status.HTTP_201_CREATED)
+            
         except Exception as e:
-            logger.error(f"Error creating manual itinerary: {str(e)}")
-            if hasattr(trip, 'itinerary'):
-                trip.itinerary.delete()
-            return Response({'success': False,'message': 'Failed to create manual itinerary','error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            logger.error(f"Error creating manual trip and itinerary: {str(e)}")
+            if 'trip' in locals():
+                trip.delete()
+            return Response({'success': False,'message': 'Failed to create manual trip and itinerary','error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)

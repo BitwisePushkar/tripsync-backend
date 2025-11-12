@@ -3,17 +3,19 @@ from django.conf import settings
 import logging
 import json
 import re
+import os 
 
 logger = logging.getLogger(__name__)
 
 class ItineraryGenerator:
     def __init__(self):
-        self.llm = ChatGoogleGenerativeAI(
-            model="gemini-2.0-flash-exp",
-            google_api_key=settings.GOOGLE_API_KEY,
-            temperature=0.7,
-            max_output_tokens=8192,
-        )
+      logger.debug("API key (from settings): %s", settings.GOOGLE_API_KEY)
+      logger.debug("API key (from env): %s", os.getenv("GOOGLE_API_KEY"))
+      self.llm = ChatGoogleGenerativeAI(
+          model="gemini-2.5-flash-lite",
+          google_api_key=settings.GOOGLE_API_KEY,
+          temperature=0.7,
+          max_output_tokens=20000,)
 
     def generate_itinerary(self, trip_data):
         prompt = f"""You are an expert travel planner. Create detailed itineraries in JSON format only.
@@ -24,7 +26,7 @@ Trip Details:
 - Trip Name: {trip_data['tripname']}
 - Destination: {trip_data['destination']}
 - From: {trip_data['current_loc']}
-- Duration: {trip_data['days']} days
+- timings: {trip_data['days']} days
 - Budget: ${trip_data['budget']}
 - Type: {trip_data['trip_type']}
 - Preferences: {trip_data['trip_preferences']}
@@ -42,7 +44,7 @@ Return ONLY valid JSON (no markdown, no code blocks, no explanations):
           "title": "Arrival at Delhi Airport",
           "description": "Arrive at Indira Gandhi International Airport and transfer to hotel. Check-in and freshen up.",
           "location": "IGI Airport to Hotel",
-          "duration": "2 hours",
+          "timings": "6:00-8:00",
           "cost": 20,
           "category": "transportation"
         }},
@@ -51,7 +53,7 @@ Return ONLY valid JSON (no markdown, no code blocks, no explanations):
           "title": "Visit India Gate",
           "description": "Explore the iconic India Gate monument, a war memorial dedicated to Indian soldiers. Perfect for photos and understanding Delhi's history.",
           "location": "India Gate, Rajpath",
-          "duration": "1.5 hours",
+          "timings": "12:00-1:00",
           "cost": 0,
           "category": "sightseeing"
         }},
@@ -60,7 +62,7 @@ Return ONLY valid JSON (no markdown, no code blocks, no explanations):
           "title": "Lunch at Karim's",
           "description": "Experience authentic Mughlai cuisine at the famous Karim's restaurant. Try their signature kebabs and curries.",
           "location": "Jama Masjid, Old Delhi",
-          "duration": "1 hour",
+          "timings": "1:00-2:00",
           "cost": 25,
           "category": "dining"
         }},
@@ -69,7 +71,7 @@ Return ONLY valid JSON (no markdown, no code blocks, no explanations):
           "title": "Connaught Place Shopping",
           "description": "Visit the heart of Delhi for shopping, dining, and experiencing the local culture. Browse through shops and enjoy street food.",
           "location": "Connaught Place",
-          "duration": "2 hours",
+          "timings": "5:30-6:30",
           "cost": 30,
           "category": "shopping"
         }},
@@ -78,7 +80,7 @@ Return ONLY valid JSON (no markdown, no code blocks, no explanations):
           "title": "Dinner at Indian Accent",
           "description": "Fine dining experience with modern Indian cuisine. Book in advance for the best tables.",
           "location": "Lodhi Road",
-          "duration": "1.5 hours",
+          "timings": "1.5 hours",
           "cost": 50,
           "category": "dining"
         }}
@@ -93,7 +95,7 @@ Return ONLY valid JSON (no markdown, no code blocks, no explanations):
           "title": "Red Fort Visit",
           "description": "Explore the magnificent Red Fort, a UNESCO World Heritage site and symbol of India's rich history.",
           "location": "Netaji Subhash Marg, Old Delhi",
-          "duration": "2 hours",
+          "timings": "2 hours",
           "cost": 10,
           "category": "sightseeing"
         }},
@@ -102,7 +104,7 @@ Return ONLY valid JSON (no markdown, no code blocks, no explanations):
           "title": "Jama Masjid",
           "description": "Visit one of India's largest mosques with stunning Mughal architecture.",
           "location": "Chandni Chowk",
-          "duration": "1 hour",
+          "timings": "1 hour",
           "cost": 0,
           "category": "sightseeing"
         }},
@@ -111,7 +113,7 @@ Return ONLY valid JSON (no markdown, no code blocks, no explanations):
           "title": "Lunch at Paranthe Wali Gali",
           "description": "Try the famous stuffed parathas in the narrow lanes of Old Delhi.",
           "location": "Chandni Chowk",
-          "duration": "1 hour",
+          "timings": "1 hour",
           "cost": 15,
           "category": "dining"
         }}
@@ -123,11 +125,12 @@ Return ONLY valid JSON (no markdown, no code blocks, no explanations):
 IMPORTANT RULES:
 1. Create exactly {trip_data['days']} day plans
 2. Each day should have 4-6 activities
-3. Activities must have: time (Morning/Afternoon/Evening/Night), title, description, location, duration, cost, category
+3. Activities must have: time (Morning/Afternoon/Evening), title, description, location, timings, cost, category
 4. Categories: sightseeing, dining, shopping, transportation, adventure, relaxation
-5. Keep activities realistic and within budget
+5. Make sure activities are alwways within budget and are  realistic The total some of all cost should never go above budget set for the trip
 6. Return ONLY the JSON, no other text
-7. Make descriptions detailed and helpful
+7. Make descriptions Short and concise 
+8. Add timings throughout the day to make it convinient for the user to plan
 """
         
         try:

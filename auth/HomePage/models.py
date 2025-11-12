@@ -1,5 +1,6 @@
 from django.db import models
 from django.utils import timezone
+from datetime import timedelta
 
 class WeatherCache(models.Model):
     location = models.CharField(max_length=100, unique=True)
@@ -18,6 +19,4 @@ class WeatherCache(models.Model):
         return f"{self.location} - {self.temperature}°C (Updated: {self.updated_at.strftime('%Y-%m-%d %H:%M')})"
    
     def is_expired(self, minutes=30):
-        from django.utils import timezone
-        from datetime import timedelta
         return self.updated_at < timezone.now() - timedelta(minutes=minutes)
