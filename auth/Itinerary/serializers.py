@@ -1,10 +1,18 @@
 from rest_framework import serializers
-from .models import Trip, Itinerary, DayPlan
+from .models import Trip, Itinerary, DayPlan, Activity
+
+class ActivitySerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Activity
+        fields = ['id','title','time','timings','cost','category','location','description','created_at', 'updated_at']
+        read_only_fields = ['id', 'created_at', 'updated_at']
 
 class DayPlanSerializer(serializers.ModelSerializer):
+    activities = ActivitySerializer(many=True, read_only=True)
+    
     class Meta:
         model = DayPlan
-        fields = ['id', 'day_number', 'title', 'activities', 'created_at', 'updated_at']
+        fields = ['id', 'day_number','activities', 'title', 'created_at', 'updated_at']
         read_only_fields = ['id', 'created_at', 'updated_at']
 
 class ItinerarySerializer(serializers.ModelSerializer):
@@ -20,11 +28,7 @@ class TripSerializer(serializers.ModelSerializer):
     
     class Meta:
         model = Trip
-        fields = [
-            'id', 'tripname', 'current_loc', 'destination', 'trending',
-            'start_date', 'end_date', 'days', 'trip_type', 'trip_preferences',
-            'budget', 'itinerary', 'created_at', 'updated_at'
-        ]
+        fields = ['id', 'tripname', 'current_loc', 'destination', 'trending','start_date', 'end_date', 'days', 'trip_type', 'trip_preferences','budget', 'itinerary', 'created_at', 'updated_at']
         read_only_fields = ['id', 'created_at', 'updated_at']
 
 class TripCreateUpdateSerializer(serializers.ModelSerializer):
@@ -35,7 +39,7 @@ class TripCreateUpdateSerializer(serializers.ModelSerializer):
     def validate(self, data):
         if data.get('start_date') and data.get('end_date'):
             if data['start_date'] > data['end_date']:
-                raise serializers.ValidationError("End date must be after start date")
+                raise serializers.ValidationError("End Can't be Before Start Date")
         return data
 
 class RegenerateItinerarySerializer(serializers.Serializer):
@@ -49,15 +53,14 @@ class RegenerateItinerarySerializer(serializers.Serializer):
     trip_preferences = serializers.CharField(max_length=200, required=False)
     budget = serializers.FloatField(required=False)
 
-class ActivitySerializer(serializers.Serializer):
+class ActivityInputSerializer(serializers.Serializer):
     time = serializers.CharField(max_length=50)
     title = serializers.CharField(max_length=200)
     description = serializers.CharField()
     location = serializers.CharField(max_length=300)
-    duration = serializers.CharField(max_length=50)
     cost = serializers.FloatField()
     category = serializers.CharField(max_length=50)
-    
+  
     def validate_category(self, value):
         valid_categories = ['sightseeing', 'dining', 'shopping', 'transportation', 'adventure', 'relaxation']
         if value.lower() not in valid_categories:
