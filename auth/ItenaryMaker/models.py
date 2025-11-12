@@ -1,5 +1,6 @@
 from django.db import models
 from django.core.validators import MinValueValidator, MaxValueValidator
+from django.db.models import Case, When, Value, IntegerField
 from django.conf import settings
 
 
@@ -54,6 +55,13 @@ class DayPlan(models.Model):
     def __str__(self):
         return f"Day {self.day_number}: {self.title}"
     
+class ActivityQuerySet(models.QuerySet):
+    def ordered(self):
+        return self.annotate(
+            custom_order=Case(When(time='morning', then=Value(1)),
+                              When(time='evening', then=Value(2)),
+                              When(time='afternoon', then=Value(3)),
+                              output_field=IntegerField(),)).order_by('custom_order', 'title')
 
 class Activity(models.Model):
     day_plans = models.ForeignKey(DayPlan, on_delete=models.CASCADE, related_name='activities')   
@@ -68,7 +76,6 @@ class Activity(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
     
     class Meta:
-        ordering = ['time']
         unique_together = ['day_plans', 'title']
     
     def __str__(self):

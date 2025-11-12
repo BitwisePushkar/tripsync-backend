@@ -14,5 +14,5 @@ urlpatterns = [
     path('itinerary/<int:trip_id>/manual/', ManualItineraryCreateView.as_view(), name='manual-itinerary-create'),
     path('itinerary/<int:trip_id>/day/<int:day_number>/', DayPlanDetailView.as_view(), name='day-plan-detail'),
     path('itinerary/<int:trip_id>/day/<int:day_number>/activity/', ActivityManagementView.as_view(), name='activity-create'),
-    path('itinerary/<int:trip_id>/day/<int:day_number>/activity/<int:activity_index>/', ActivityDetailView.as_view(), name='activity-detail'),
+    path('itinerary/<int:trip_id>/day/<int:day_number>/activity/<int:activity_id>/', ActivityDetailView.as_view(), name='activity-detail'),
 ]

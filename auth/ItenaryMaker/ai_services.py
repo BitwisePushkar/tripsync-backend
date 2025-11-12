@@ -15,8 +15,7 @@ class ItineraryGenerator:
           model="gemini-2.5-flash-lite",
           google_api_key=settings.GOOGLE_API_KEY,
           temperature=0.7,
-          max_output_tokens=20000,
-      )
+          max_output_tokens=20000,)
 
 
     def generate_itinerary(self, trip_data):
@@ -55,7 +54,7 @@ Return ONLY valid JSON (no markdown, no code blocks, no explanations):
           "title": "Visit India Gate",
           "description": "Explore the iconic India Gate monument, a war memorial dedicated to Indian soldiers. Perfect for photos and understanding Delhi's history.",
           "location": "India Gate, Rajpath",
-          "timings": "8:00-9:30",
+          "timings": "12:00-1:00",
           "cost": 0,
           "category": "sightseeing"
         }},
@@ -64,7 +63,7 @@ Return ONLY valid JSON (no markdown, no code blocks, no explanations):
           "title": "Lunch at Karim's",
           "description": "Experience authentic Mughlai cuisine at the famous Karim's restaurant. Try their signature kebabs and curries.",
           "location": "Jama Masjid, Old Delhi",
-          "timings": "1 hour",
+          "timings": "1:00-2:00",
           "cost": 25,
           "category": "dining"
         }},
@@ -73,7 +72,7 @@ Return ONLY valid JSON (no markdown, no code blocks, no explanations):
           "title": "Connaught Place Shopping",
           "description": "Visit the heart of Delhi for shopping, dining, and experiencing the local culture. Browse through shops and enjoy street food.",
           "location": "Connaught Place",
-          "timings": "2 hours",
+          "timings": "5:30-6:30",
           "cost": 30,
           "category": "shopping"
         }},
@@ -127,11 +126,11 @@ Return ONLY valid JSON (no markdown, no code blocks, no explanations):
 IMPORTANT RULES:
 1. Create exactly {trip_data['days']} day plans
 2. Each day should have 4-6 activities
-3. Activities must have: time (Morning/Afternoon/Evening/Night), title, description, location, timings, cost, category
+3. Activities must have: time (Morning/Afternoon/Evening), title, description, location, timings, cost, category
 4. Categories: sightseeing, dining, shopping, transportation, adventure, relaxation
-5. Make sure activities are alwways within budget and are realistic
+5. Make sure activities are alwways within budget and are  realistic The total some of all cost should never go above budget set for the trip
 6. Return ONLY the JSON, no other text
-7. Make descriptions detailed and helpful
+7. Make descriptions Short and concise 
 8. Add timings throughout the day to make it convinient for the user to plan
 """
         
