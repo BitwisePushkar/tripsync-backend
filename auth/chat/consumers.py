@@ -6,54 +6,90 @@ from django.conf import settings
 from urllib.parse import parse_qs
 from channels.db import database_sync_to_async
 from django.utils import timezone
+from .models import Message
+from .models import Conversation
+from .serializers import UserListSerializer
+from django.contrib.auth import get_user_model
+import logging
+
+logger = logging.getLogger(__name__)
 
 class ChatConsumer(AsyncWebsocketConsumer):
     async def connect(self):
+        logger.info(f"WebSocket connection attempt from {self.scope.get('client')}")
         query_string = self.scope['query_string'].decode('utf-8')
         params = parse_qs(query_string)
         token = params.get('token', [None])[0]
         if not token:
-            await self.close(code=4002) 
+            logger.warning("Connection rejected: No token provided")
+            await self.close(code=4002)
             return
         try:
             decoded_data = jwt.decode(token, settings.SECRET_KEY, algorithms=['HS256'])
             self.user = await self.get_user(decoded_data['user_id'])
+            if not self.user:
+                logger.warning(f"Connection rejected: User {decoded_data['user_id']} not found")
+                await self.close(code=4003)
+                return
             self.scope['user'] = self.user
+            logger.info(f"User authenticated: {self.user.email}")
+            
         except jwt.ExpiredSignatureError:
-            await self.close(code=4000)  
+            logger.warning("Connection rejected: Token expired")
+            await self.close(code=4000)
             return
-        except jwt.InvalidTokenError:
-            await self.close(code=4001) 
+        except jwt.InvalidTokenError as e:
+            logger.warning(f"Connection rejected: Invalid token - {str(e)}")
+            await self.close(code=4001)
             return
         except Exception as e:
-            print(f"Authentication error: {e}")
-            await self.close(code=4003)  
+            logger.error(f"Authentication error: {e}", exc_info=True)
+            await self.close(code=4003)
             return
+        
         self.conversation_id = self.scope['url_route']['kwargs']['conversation_id']
+        
         is_participant = await self.verify_participant(self.user.id, self.conversation_id)
         if not is_participant:
-            await self.close(code=4004)  
+            logger.warning(
+                f"Connection rejected: User {self.user.email} not participant "
+                f"in conversation {self.conversation_id}"
+            )
+            await self.close(code=4004)
             return
         self.room_group_name = f'chat_{self.conversation_id}'
-        await self.channel_layer.group_add(
-            self.room_group_name,
-            self.channel_name
-        )
+        
+        try:
+            await self.channel_layer.group_add(self.room_group_name,self.channel_name)
+            logger.info(
+                f"User {self.user.email} joined room {self.room_group_name} "
+                f"with channel {self.channel_name}"
+            )
+        except Exception as e:
+            logger.error(f"Failed to join channel layer group: {e}", exc_info=True)
+            await self.close(code=4005)
+            return
+        
         await self.accept()
-        user_data = await self.get_user_data(self.user)
-        await self.channel_layer.group_send(
-            self.room_group_name,
-            {
-                'type': 'user_status',
-                'user': user_data,
-                'status': 'online',
-            }
-        )
+        logger.info(f"WebSocket connection accepted for user {self.user.email}")
+        try:
+            user_data = await self.get_user_data(self.user)
+            await self.channel_layer.group_send(
+                self.room_group_name,
+                {
+                    'type': 'user_status',
+                    'user': user_data,
+                    'status': 'online',
+                }
+            )
+        except Exception as e:
+            logger.error(f"Failed to broadcast online status: {e}", exc_info=True)
 
     async def receive(self, text_data):
         try:
             data = json.loads(text_data)
             event_type = data.get('type')
+            logger.debug(f"Received {event_type} from {self.user.email}: {text_data[:100]}")
 
             if event_type == 'chat_message':
                 await self.handle_chat_message(data)
@@ -65,32 +101,41 @@ class ChatConsumer(AsyncWebsocketConsumer):
                 await self.handle_read_receipt(data)
             
             else:
+                logger.warning(f"Unknown event type: {event_type}")
                 await self.send_error("Unknown event type")
         
-        except json.JSONDecodeError:
+        except json.JSONDecodeError as e:
+            logger.error(f"Invalid JSON received: {e}")
             await self.send_error("Invalid JSON")
         except Exception as e:
-            print(f"Error in receive: {e}")
+            logger.error(f"Error in receive: {e}", exc_info=True)
             await self.send_error("Internal error")
 
     async def disconnect(self, close_code):
+        logger.info(f"WebSocket disconnecting with code {close_code}")
+        
         if hasattr(self, 'room_group_name') and hasattr(self, 'user'):
-            user_data = await self.get_user_data(self.user)
-            await self.channel_layer.group_send(
-                self.room_group_name,
-                {
-                    'type': 'user_status',
-                    'user': user_data,
-                    'status': 'offline',
-                }
-            )
-            await self.channel_layer.group_discard(
-                self.room_group_name,
-                self.channel_name
-            )
+            try:
+                user_data = await self.get_user_data(self.user)
+                await self.channel_layer.group_send(
+                    self.room_group_name,
+                    {
+                        'type': 'user_status',
+                        'user': user_data,
+                        'status': 'offline',
+                    }
+                )
+                
+                await self.channel_layer.group_discard(
+                    self.room_group_name,
+                    self.channel_name
+                )
+                logger.info(f"User {self.user.email} left room {self.room_group_name}")
+            except Exception as e:
+                logger.error(f"Error during disconnect: {e}", exc_info=True)
 
     async def handle_chat_message(self, data):
-        message_content = data.get('message', '').strip()      
+        message_content = data.get('message', '').strip()
         if not message_content:
             await self.send_error("Message cannot be empty")
             return
@@ -120,8 +165,10 @@ class ChatConsumer(AsyncWebsocketConsumer):
                     'timestamp': message.timestamp.isoformat(),
                 }
             )
+            logger.info(f"Message {message.id} sent by {self.user.email}")
+            
         except Exception as e:
-            print(f"Error handling chat message: {e}")
+            logger.error(f"Error handling chat message: {e}", exc_info=True)
             await self.send_error("Failed to send message")
 
     async def handle_typing_indicator(self, data):
@@ -139,7 +186,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
                 }
             )
         except Exception as e:
-            print(f"Error handling typing indicator: {e}")
+            logger.error(f"Error handling typing indicator: {e}", exc_info=True)
 
     async def handle_read_receipt(self, data):
         message_id = data.get('message_id')
@@ -148,17 +195,18 @@ class ChatConsumer(AsyncWebsocketConsumer):
             return
         
         try:
-            await self.mark_message_read(message_id, self.user.id)
-            await self.channel_layer.group_send(
-                self.room_group_name,
-                {
-                    'type': 'read_receipt',
-                    'message_id': message_id,
-                    'user_id': self.user.id,
-                }
-            )
+            success = await self.mark_message_read(message_id, self.user.id)
+            if success:
+                await self.channel_layer.group_send(
+                    self.room_group_name,
+                    {
+                        'type': 'read_receipt',
+                        'message_id': message_id,
+                        'user_id': self.user.id,
+                    }
+                )
         except Exception as e:
-            print(f"Error handling read receipt: {e}")
+            logger.error(f"Error handling read receipt: {e}", exc_info=True)
 
     async def chat_message(self, event):
         await self.send(text_data=json.dumps({
@@ -199,7 +247,6 @@ class ChatConsumer(AsyncWebsocketConsumer):
 
     @database_sync_to_async
     def get_user(self, user_id):
-        from django.contrib.auth import get_user_model
         User = get_user_model()
         try:
             return User.objects.get(id=user_id)
@@ -208,12 +255,10 @@ class ChatConsumer(AsyncWebsocketConsumer):
 
     @database_sync_to_async
     def get_user_data(self, user):
-        from .serializers import UserListSerializer
         return UserListSerializer(user).data
 
     @database_sync_to_async
     def get_conversation(self, conversation_id):
-        from .models import Conversation
         try:
             return Conversation.objects.get(id=conversation_id)
         except Conversation.DoesNotExist:
@@ -221,7 +266,6 @@ class ChatConsumer(AsyncWebsocketConsumer):
 
     @database_sync_to_async
     def verify_participant(self, user_id, conversation_id):
-        from .models import Conversation
         try:
             conversation = Conversation.objects.get(id=conversation_id)
             return conversation.participants.filter(id=user_id).exists()
@@ -230,7 +274,6 @@ class ChatConsumer(AsyncWebsocketConsumer):
 
     @database_sync_to_async
     def save_message(self, conversation, user, content):
-        from .models import Message
         return Message.objects.create(
             conversation=conversation,
             sender=user,
@@ -239,12 +282,12 @@ class ChatConsumer(AsyncWebsocketConsumer):
 
     @database_sync_to_async
     def mark_message_read(self, message_id, user_id):
-        from .models import Message
         try:
             message = Message.objects.get(id=message_id)
             if message.sender.id != user_id:
                 message.is_read = True
-                message.save(update_fields=['is_read'])
+                message.save()
             return True
         except Message.DoesNotExist:
+            logger.warning(f"Message {message_id} not found for read receipt")
             return False
