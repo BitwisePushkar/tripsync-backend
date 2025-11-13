@@ -43,7 +43,7 @@ class TripCreateUpdateSerializer(serializers.ModelSerializer):
             if data['start_date'] > data['end_date']:
                 raise serializers.ValidationError("End Can't be Before Start Date")
         return data
-
+    
 class RegenerateItinerarySerializer(serializers.Serializer):
     tripname = serializers.CharField(max_length=100, required=False)
     current_loc = serializers.CharField(max_length=200, required=False)
