@@ -142,8 +142,8 @@ def chatbot(request):
     session_id = validated_data.get('session_id', str(uuid.uuid4()))
     
     try:
-        gemini_url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key={settings.GOOGLE_API_KEY}"
-        
+        gemini_url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent?key={settings.GOOGLE_API_KEY}"
+               
         payload = {
             "contents": [{
                 "parts": [{"text": f"{system_prompt}\n\nUser: {user_message}"}]

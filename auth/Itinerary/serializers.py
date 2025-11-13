@@ -7,7 +7,6 @@ class ActivitySerializer(serializers.ModelSerializer):
         fields = ['id','title','time','timings','cost','category','location','description','created_at', 'updated_at']
         read_only_fields = ['id', 'created_at', 'updated_at']
 
-
 class DayPlanSerializer(serializers.ModelSerializer):
     activities = ActivitySerializer(many=True, read_only=True)
     
@@ -23,7 +22,6 @@ class ItinerarySerializer(serializers.ModelSerializer):
         model = Itinerary
         fields = ['id', 'day_plans', 'created_at', 'updated_at']
         read_only_fields = ['id', 'created_at', 'updated_at']
-
 
 class TripSerializer(serializers.ModelSerializer):
     itinerary = ItinerarySerializer(read_only=True)
@@ -43,7 +41,7 @@ class TripCreateUpdateSerializer(serializers.ModelSerializer):
             if data['start_date'] > data['end_date']:
                 raise serializers.ValidationError("End Can't be Before Start Date")
         return data
-    
+
 class RegenerateItinerarySerializer(serializers.Serializer):
     tripname = serializers.CharField(max_length=100, required=False)
     current_loc = serializers.CharField(max_length=200, required=False)
@@ -60,6 +58,7 @@ class ActivityInputSerializer(serializers.Serializer):
     title = serializers.CharField(max_length=200)
     description = serializers.CharField()
     location = serializers.CharField(max_length=300)
+    timings = serializers.CharField(max_length=50)  # Added timings
     cost = serializers.FloatField()
     category = serializers.CharField(max_length=50)
   
@@ -75,13 +74,12 @@ class ActivityInputSerializer(serializers.Serializer):
             raise serializers.ValidationError(f"Time must be one of: {', '.join(valid_times)}")
         return value
 
-
 class ActivityUpdateSerializer(serializers.Serializer):
     time = serializers.CharField(max_length=50, required=False)
     title = serializers.CharField(max_length=200, required=False)
     description = serializers.CharField(required=False)
     location = serializers.CharField(max_length=300, required=False)
-    duration = serializers.CharField(max_length=50, required=False)
+    timings = serializers.CharField(max_length=50, required=False)  # Changed from duration
     cost = serializers.FloatField(required=False)
     category = serializers.CharField(max_length=50, required=False)
     
@@ -102,7 +100,7 @@ class ManualActivitySerializer(serializers.Serializer):
     title = serializers.CharField(max_length=200)
     description = serializers.CharField()
     location = serializers.CharField(max_length=300)
-    duration = serializers.CharField(max_length=50)
+    timings = serializers.CharField(max_length=50)  # Changed from duration
     cost = serializers.FloatField()
     category = serializers.CharField(max_length=50)
     
@@ -129,12 +127,25 @@ class ManualDayPlanSerializer(serializers.Serializer):
         return value
 
 class ManualItinerarySerializer(serializers.Serializer):
+    tripname = serializers.CharField(max_length=100)
+    current_loc = serializers.CharField(max_length=200)
+    destination = serializers.CharField(max_length=200)
+    start_date = serializers.DateField()
+    end_date = serializers.DateField()
+    days = serializers.IntegerField()
+    trip_type = serializers.CharField(max_length=50)
+    trip_preferences = serializers.CharField(max_length=200)
     day_plans = ManualDayPlanSerializer(many=True)
+    
+    def validate(self, data):
+        if data.get('start_date') and data.get('end_date'):
+            if data['start_date'] > data['end_date']:
+                raise serializers.ValidationError("End date can't be before start date")
+        return data
     
     def validate_day_plans(self, value):
         if not value:
             raise serializers.ValidationError("At least one day plan is required")
-        
         day_numbers = [dp['day_number'] for dp in value]
         if len(day_numbers) != len(set(day_numbers)):
             raise serializers.ValidationError("Duplicate day numbers are not allowed")

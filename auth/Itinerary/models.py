@@ -3,7 +3,6 @@ from django.core.validators import MinValueValidator, MaxValueValidator
 from django.db.models import Case, When, Value, IntegerField
 from django.conf import settings
 
-
 class Trip(models.Model):
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='itinerary_trips')
     tripname = models.CharField(max_length=100)
@@ -27,7 +26,6 @@ class Trip(models.Model):
     def __str__(self):
         return f"{self.tripname} - {self.destination}"
 
-
 class Itinerary(models.Model):
     trip = models.OneToOneField(Trip, on_delete=models.CASCADE, related_name='itinerary')
     created_at = models.DateTimeField(auto_now_add=True)
@@ -39,7 +37,6 @@ class Itinerary(models.Model):
     
     def __str__(self):
         return f"Itinerary for {self.trip.tripname}"
-
 
 class DayPlan(models.Model):
     itinerary = models.ForeignKey(Itinerary, on_delete=models.CASCADE, related_name='day_plans')
@@ -58,23 +55,29 @@ class DayPlan(models.Model):
 class ActivityQuerySet(models.QuerySet):
     def ordered(self):
         return self.annotate(
-            custom_order=Case(When(time='morning', then=Value(1)),
-                              When(time='evening', then=Value(2)),
-                              When(time='afternoon', then=Value(3)),
-                              output_field=IntegerField(),)).order_by('custom_order', 'title')
+            custom_order=Case(
+                When(time='Morning', then=Value(1)),     
+                When(time='Afternoon', then=Value(2)),  
+                When(time='Evening', then=Value(3)),    
+                When(time='Night', then=Value(4)),     
+                output_field=IntegerField(),
+            )
+        ).order_by('custom_order', 'title')
 
 class Activity(models.Model):
     day_plans = models.ForeignKey(DayPlan, on_delete=models.CASCADE, related_name='activities')   
     title = models.CharField(max_length=200)
     description = models.CharField(max_length=500)
     location = models.CharField(max_length=200)
-    time = models.CharField(max_length=10,choices=[('morning', 'Morning'), ('afternoon', 'Afternoon'), ('evening', 'Evening'),],blank=False,default='morning')
-    timings = models.CharField()
+    time = models.CharField(
+        max_length=10,
+        choices=[('Morning', 'Morning'),('Afternoon', 'Afternoon'),('Evening', 'Evening'),('Night', 'Night'),],blank=False,default='Morning')
+    timings = models.CharField(max_length=50)  
     cost = models.FloatField(validators=[MinValueValidator(0)])
     category = models.CharField(max_length=400)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
-    
+    objects = ActivityQuerySet.as_manager()  
     class Meta:
         unique_together = ['day_plans', 'title']
     
