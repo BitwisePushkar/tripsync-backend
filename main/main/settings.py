@@ -28,6 +28,7 @@ INSTALLED_APPS = [
     'django_extensions',
     'account',
     'personal',
+    'community',
 ]
 
 MIDDLEWARE = [
