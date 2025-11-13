@@ -15,169 +15,65 @@ import logging
 logger = logging.getLogger(__name__)
 
 class ChatConsumer(AsyncWebsocketConsumer):
-    # async def connect(self):
-    #     logger.info(f"WebSocket connection attempt from {self.scope.get('client')}")
-    #     query_string = self.scope['query_string'].decode('utf-8')
-    #     params = parse_qs(query_string)
-    #     token = params.get('token', [None])[0]
-    #     if not token:
-    #         logger.warning("Connection rejected: No token provided")
-    #         await self.close(code=4002)
-    #         return
-    #     try:
-    #         decoded_data = jwt.decode(token, settings.SECRET_KEY, algorithms=['HS256'])
-    #         self.user = await self.get_user(decoded_data['user_id'])
-    #         if not self.user:
-    #             logger.warning(f"Connection rejected: User {decoded_data['user_id']} not found")
-    #             await self.close(code=4003)
-    #             return
-    #         self.scope['user'] = self.user
-    #         logger.info(f"User authenticated: {self.user.email}")
-            
-    #     except jwt.ExpiredSignatureError:
-    #         logger.warning("Connection rejected: Token expired")
-    #         await self.close(code=4000)
-    #         return
-    #     except jwt.InvalidTokenError as e:
-    #         logger.warning(f"Connection rejected: Invalid token - {str(e)}")
-    #         await self.close(code=4001)
-    #         return
-    #     except Exception as e:
-    #         logger.error(f"Authentication error: {e}", exc_info=True)
-    #         await self.close(code=4003)
-    #         return
-        
-    #     self.conversation_id = self.scope['url_route']['kwargs']['conversation_id']
-        
-    #     is_participant = await self.verify_participant(self.user.id, self.conversation_id)
-    #     if not is_participant:
-    #         logger.warning(
-    #             f"Connection rejected: User {self.user.email} not participant "
-    #             f"in conversation {self.conversation_id}"
-    #         )
-    #         await self.close(code=4004)
-    #         return
-    #     self.room_group_name = f'chat_{self.conversation_id}'
-        
-    #     try:
-    #         await self.channel_layer.group_add(self.room_group_name,self.channel_name)
-    #         logger.info(
-    #             f"User {self.user.email} joined room {self.room_group_name} "
-    #             f"with channel {self.channel_name}"
-    #         )
-    #     except Exception as e:
-    #         logger.error(f"Failed to join channel layer group: {e}", exc_info=True)
-    #         await self.close(code=4005)
-    #         return
-        
-    #     await self.accept()
-    #     logger.info(f"WebSocket connection accepted for user {self.user.email}")
-    #     try:
-    #         user_data = await self.get_user_data(self.user)
-    #         await self.channel_layer.group_send(
-    #             self.room_group_name,
-    #             {
-    #                 'type': 'user_status',
-    #                 'user': user_data,
-    #                 'status': 'online',
-    #             }
-    #         )
-    #     except Exception as e:
-    #         logger.error(f"Failed to broadcast online status: {e}", exc_info=True)
-
     async def connect(self):
-        print("🟢 [CONNECT] WebSocket connection attempt")
         logger.info(f"WebSocket connection attempt from {self.scope.get('client')}")
-
-        try:
-            query_string = self.scope['query_string'].decode('utf-8')
-            print(f"🔍 Query string: {query_string}")
-            params = parse_qs(query_string)
-            token = params.get('token', [None])[0]
-            print(f"🔑 Token extracted: {token}")
-        except Exception as e:
-            print(f"❌ Error parsing token: {e}")
-            await self.close(code=4006)
-            return
-
+        query_string = self.scope['query_string'].decode('utf-8')
+        params = parse_qs(query_string)
+        token = params.get('token', [None])[0]
         if not token:
-            print("❌ No token provided, closing connection")
             logger.warning("Connection rejected: No token provided")
             await self.close(code=4002)
             return
-
         try:
             decoded_data = jwt.decode(token, settings.SECRET_KEY, algorithms=['HS256'])
-            print(f"✅ JWT decoded: {decoded_data}")
             self.user = await self.get_user(decoded_data['user_id'])
-            print(f"👤 User fetched: {self.user}")
             if not self.user:
-                print("❌ User not found for decoded ID")
                 logger.warning(f"Connection rejected: User {decoded_data['user_id']} not found")
                 await self.close(code=4003)
                 return
             self.scope['user'] = self.user
             logger.info(f"User authenticated: {self.user.email}")
-            print(f"✅ Authenticated user: {self.user.email}")
             
         except jwt.ExpiredSignatureError:
-            print("❌ Token expired")
             logger.warning("Connection rejected: Token expired")
             await self.close(code=4000)
             return
         except jwt.InvalidTokenError as e:
-            print(f"❌ Invalid token: {e}")
             logger.warning(f"Connection rejected: Invalid token - {str(e)}")
             await self.close(code=4001)
             return
         except Exception as e:
-            print(f"❌ Unexpected error during token decoding: {e}")
             logger.error(f"Authentication error: {e}", exc_info=True)
             await self.close(code=4003)
             return
-
-        try:
-            self.conversation_id = self.scope['url_route']['kwargs']['conversation_id']
-            print(f"💬 Conversation ID: {self.conversation_id}")
-        except Exception as e:
-            print(f"❌ Missing or invalid conversation_id: {e}")
-            await self.close(code=4007)
-            return
-
+        
+        self.conversation_id = self.scope['url_route']['kwargs']['conversation_id']
+        
         is_participant = await self.verify_participant(self.user.id, self.conversation_id)
-        print(f"👥 Is participant: {is_participant}")
         if not is_participant:
-            print("❌ User not a participant, closing connection")
             logger.warning(
                 f"Connection rejected: User {self.user.email} not participant "
                 f"in conversation {self.conversation_id}"
             )
             await self.close(code=4004)
             return
-
         self.room_group_name = f'chat_{self.conversation_id}'
-        print(f"🏠 Room group name: {self.room_group_name}")
-
+        
         try:
-            await self.channel_layer.group_add(self.room_group_name, self.channel_name)
-            print(f"✅ Joined channel layer group: {self.channel_name}")
+            await self.channel_layer.group_add(self.room_group_name,self.channel_name)
             logger.info(
                 f"User {self.user.email} joined room {self.room_group_name} "
                 f"with channel {self.channel_name}"
             )
         except Exception as e:
-            print(f"❌ Failed to join channel group: {e}")
             logger.error(f"Failed to join channel layer group: {e}", exc_info=True)
             await self.close(code=4005)
             return
-
+        
         await self.accept()
-        print("✅ WebSocket connection accepted")
         logger.info(f"WebSocket connection accepted for user {self.user.email}")
-
         try:
             user_data = await self.get_user_data(self.user)
-            print(f"📡 Broadcasting online status for {self.user.email}")
             await self.channel_layer.group_send(
                 self.room_group_name,
                 {
@@ -187,7 +83,6 @@ class ChatConsumer(AsyncWebsocketConsumer):
                 }
             )
         except Exception as e:
-            print(f"⚠️ Failed to broadcast online status: {e}")
             logger.error(f"Failed to broadcast online status: {e}", exc_info=True)
 
     async def receive(self, text_data):
