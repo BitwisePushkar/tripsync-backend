@@ -14,13 +14,15 @@ RUN apt-get update \
        gcc \
     && rm -rf /var/lib/apt/lists/*
 
-RUN pip install --no-cache-dir poetry
+RUN pip install --no-cache-dir uv
 
-COPY pyproject.toml poetry.lock* /app/
+COPY pyproject.toml uv.lock* /app/
 
 WORKDIR /app
-RUN poetry config virtualenvs.create false \
-    && poetry install --only main --no-interaction --no-ansi --no-root
+
+RUN uv sync --no-dev --frozen --no-install-project
+
+ENV PATH="/app/.venv/bin:$PATH"
 
 COPY . /app/
 
