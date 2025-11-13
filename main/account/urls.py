@@ -9,7 +9,6 @@ urlpatterns = [
     path("resend-otp/", views.ResendOTPView.as_view(), name="resend-otp"),
     path("login/", views.UserLoginView.as_view(), name="login"),
     path("logout/", views.UserLogoutView.as_view(), name="logout"),
-    path("auth/google/", views.GoogleAuthView.as_view(), name="google-auth"),
     path("password/reset/request/", views.PasswordResetRequestView.as_view(), name="password-reset-request"),
     path("password/reset/verify-otp/", views.PasswordResetVerifyOTPView.as_view(), name="password-reset-verify-otp"),
     path("password/reset/confirm/", views.PasswordResetConfirmView.as_view(), name="password-reset-confirm"),
