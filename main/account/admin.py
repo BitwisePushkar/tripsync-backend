@@ -1,6 +1,6 @@
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
-from account.models import User
+from account.models import User, UserSocialAccount
 
 @admin.register(User)
 class UserModelAdmin(BaseUserAdmin):
@@ -27,6 +27,21 @@ class UserModelAdmin(BaseUserAdmin):
         if obj:
             return self.readonly_fields + ["email"]
         return self.readonly_fields
+    
+@admin.register(UserSocialAccount)
+class UserSocialAccountAdmin(admin.ModelAdmin):
+    list_display = ["id", "user", "provider", "provider_uid", "created_at"]
+    list_filter = ["provider", "created_at"]
+    search_fields  = ["user__email", "user__username", "provider_uid"]
+    ordering = ["-created_at"]
+    raw_id_fields  = ["user"]
+    readonly_fields = ["user", "provider", "provider_uid", "created_at"]
+ 
+    def has_add_permission(self, request):
+        return False
+ 
+    def has_change_permission(self, request, obj=None):
+        return False
 
 admin.site.site_header = "TripSync Admin"
 admin.site.site_title = "TripSync Admin Portal"

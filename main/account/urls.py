@@ -14,4 +14,5 @@ urlpatterns = [
     path("password/reset/confirm/", views.PasswordResetConfirmView.as_view(), name="password-reset-confirm"),
     path("deactivate/", views.DeactivateAccountView.as_view(), name="deactivate"),
     path("delete/", views.DeleteAccountView.as_view(), name="delete"),
+    path("auth/google/", views.GoogleAuthView.as_view(), name="auth-google"),
 ]
