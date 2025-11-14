@@ -38,8 +38,7 @@ class SearchUser(generics.ListAPIView):
                 type=OpenApiTypes.STR,
                 location=OpenApiParameter.QUERY,
                 description='Search query',
-                required=True
-            )
+                required=True)
         ],
         responses={200: UserSearchSerializer(many=True)}
     )
@@ -348,9 +347,10 @@ class UpdateTripMemberView(APIView):
     )
     def put(self, request, trip_id, member_id):
         trip = get_object_or_404(Trip, id=trip_id)
-        
         if trip.user != request.user:
-            return Response({'success': False,'message': 'Only trip owner can update member permissions'}, status=status.HTTP_403_FORBIDDEN)
+            current_member = TripMember.objects.filter(trip=trip, user=request.user, permission='edit').first()
+            if not current_member:
+                return Response({'success': False,'message': 'Only trip owner or members with edit permission can update member permissions'}, status=status.HTTP_403_FORBIDDEN)
         
         trip_member = get_object_or_404(TripMember, id=member_id, trip=trip)
         

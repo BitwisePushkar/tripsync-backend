@@ -27,11 +27,29 @@ class ItinerarySerializer(serializers.ModelSerializer):
 
 class TripSerializer(serializers.ModelSerializer):
     itinerary = ItinerarySerializer(read_only=True)
+    is_owner = serializers.SerializerMethodField()
+    user_permission = serializers.SerializerMethodField()
     
     class Meta:
         model = Trip
-        fields = ['id', 'tripname', 'current_loc', 'destination', 'trending','start_date', 'end_date', 'days', 'trip_type', 'trip_preferences','budget', 'itinerary', 'created_at', 'updated_at']
+        fields = ['id', 'tripname', 'current_loc', 'destination', 'trending', 'start_date', 'end_date', 'days', 'trip_type', 'trip_preferences', 'budget', 'itinerary', 'is_owner', 'user_permission', 'created_at', 'updated_at']
         read_only_fields = ['id', 'created_at', 'updated_at']
+    
+    def get_is_owner(self, obj):
+        request = self.context.get('request')
+        if request:
+            return obj.user == request.user
+        return False
+    
+    def get_user_permission(self, obj):
+        request = self.context.get('request')
+        if request:
+            if obj.user == request.user:
+                return 'owner'
+            member = TripMember.objects.filter(trip=obj, user=request.user).first()
+            if member:
+                return member.permission
+        return None
 
 class TripCreateUpdateSerializer(serializers.ModelSerializer):
     class Meta:
@@ -60,6 +78,7 @@ class ActivityInputSerializer(serializers.Serializer):
     title = serializers.CharField(max_length=200)
     description = serializers.CharField()
     location = serializers.CharField(max_length=300)
+    timings = serializers.CharField(max_length=50)
     cost = serializers.FloatField()
     category = serializers.CharField(max_length=50)
   
@@ -81,7 +100,7 @@ class ActivityUpdateSerializer(serializers.Serializer):
     title = serializers.CharField(max_length=200, required=False)
     description = serializers.CharField(required=False)
     location = serializers.CharField(max_length=300, required=False)
-    duration = serializers.CharField(max_length=50, required=False)
+    timings = serializers.CharField(max_length=50, required=False)
     cost = serializers.FloatField(required=False)
     category = serializers.CharField(max_length=50, required=False)
     
@@ -102,7 +121,7 @@ class ManualActivitySerializer(serializers.Serializer):
     title = serializers.CharField(max_length=200)
     description = serializers.CharField()
     location = serializers.CharField(max_length=300)
-    duration = serializers.CharField(max_length=50)
+    timings = serializers.CharField(max_length=50)
     cost = serializers.FloatField()
     category = serializers.CharField(max_length=50)
     

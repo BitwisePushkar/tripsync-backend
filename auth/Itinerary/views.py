@@ -69,7 +69,7 @@ class TripCreateView(APIView):
                             timings = activity_data['timings'],
                             cost = activity_data['cost'],
                             category = activity_data['category'])
-                response_serializer = TripSerializer(trip)
+                response_serializer = TripSerializer(trip, context={'request': request})
                 return Response({                       
                     'success': True,
                     'message': 'Trip and itinerary created successfully',
@@ -101,11 +101,16 @@ class TripListView(APIView):
         responses={200: TripSerializer(many=True)},
         tags=['Trip Management'])
     def get(self, request):
-        trips = Trip.objects.filter(user=request.user).prefetch_related('itinerary__day_plans').order_by('-created_at')
-        serializer = TripSerializer(trips, many=True)
+        owned_trips = Trip.objects.filter(user=request.user)
+        member_trip_ids = TripMember.objects.filter(user=request.user).values_list('trip_id', flat=True)
+        member_trips = Trip.objects.filter(id__in=member_trip_ids)
+        
+        all_trips = (owned_trips | member_trips).distinct().prefetch_related('itinerary__day_plans').order_by('-created_at')
+        
+        serializer = TripSerializer(all_trips, many=True, context={'request': request})
         return Response({
             'success': True,
-            'count': trips.count(),
+            'count': all_trips.count(),
             'data': serializer.data
         }, status=status.HTTP_200_OK)
 
@@ -119,20 +124,25 @@ class TripDetailView(APIView):
         tags=['Trip Management']
     )
     def get(self, request, pk):
+        trip = None
         try:
-            trip = Trip.objects.prefetch_related(
-                'itinerary__day_plans'
-            ).get(pk=pk, user=request.user)
-            serializer = TripSerializer(trip)
-            return Response({
-                'success': True,
-                'data': serializer.data
-            }, status=status.HTTP_200_OK)
+            trip = Trip.objects.prefetch_related('itinerary__day_plans__activities').get(pk=pk, user=request.user)
         except Trip.DoesNotExist:
+            member = TripMember.objects.filter(trip_id=pk, user=request.user).first()
+            if member:
+                trip = Trip.objects.prefetch_related('itinerary__day_plans__activities').get(pk=pk)
+        
+        if not trip:
             return Response({
                 'success': False,
-                'message': 'Trip not found'
+                'message': 'Trip not found or you do not have access'
             }, status=status.HTTP_404_NOT_FOUND)
+        
+        serializer = TripSerializer(trip, context={'request': request})
+        return Response({
+            'success': True,
+            'data': serializer.data
+        }, status=status.HTTP_200_OK)
     
     @extend_schema(
         summary="Update trip details",
@@ -141,16 +151,19 @@ class TripDetailView(APIView):
         tags=['Trip Management']
     )
     def put(self, request, pk):
+        trip = None
         try:
             trip = Trip.objects.get(pk=pk, user=request.user)
         except Trip.DoesNotExist:
             member = TripMember.objects.filter(trip_id=pk, user=request.user, permission='edit').first()
-            if not member:
-                return Response({
-                    'success': False,
-                    'message': 'Trip not found or you do not have edit permission'
-                }, status=status.HTTP_404_NOT_FOUND)
-            trip = member.trip
+            if member:
+                trip = member.trip
+        
+        if not trip:
+            return Response({
+                'success': False,
+                'message': 'Trip not found or you do not have edit permission'
+            }, status=status.HTTP_404_NOT_FOUND)
         
         serializer = TripCreateUpdateSerializer(trip, data=request.data)
         
@@ -163,7 +176,7 @@ class TripDetailView(APIView):
         
         serializer.save()
         
-        response_serializer = TripSerializer(trip)
+        response_serializer = TripSerializer(trip, context={'request': request})
         return Response({
             'success': True,
             'message': 'Trip updated successfully',
@@ -183,8 +196,9 @@ class TripDetailView(APIView):
         except Trip.DoesNotExist:
             return Response({
                 'success': False,
-                'message': 'Trip not found'
+                'message': 'Trip not found or only owner can delete'
             }, status=status.HTTP_404_NOT_FOUND)
+
 
 class ItineraryRegenerateView(APIView):
     permission_classes = [IsAuthenticated]
@@ -196,12 +210,18 @@ class ItineraryRegenerateView(APIView):
         tags=['Itinerary Management']
     )
     def post(self, request, trip_id):
+        trip = None
         try:
             trip = Trip.objects.get(pk=trip_id, user=request.user)
         except Trip.DoesNotExist:
+            member = TripMember.objects.filter(trip_id=trip_id, user=request.user, permission='edit').first()
+            if member:
+                trip = member.trip
+        
+        if not trip:
             return Response({
                 'success': False,
-                'message': 'Trip not found'
+                'message': 'Trip not found or you do not have edit permission'
             }, status=status.HTTP_404_NOT_FOUND)
         
         serializer = RegenerateItinerarySerializer(data=request.data)
@@ -257,7 +277,7 @@ class ItineraryRegenerateView(APIView):
                             cost = activity_data['cost'],
                             category = activity_data['category'])
                 
-                response_serializer = TripSerializer(trip)
+                response_serializer = TripSerializer(trip, context={'request': request})
                 return Response({
                     'success': True,
                     'message': 'Itinerary regenerated successfully',
@@ -288,25 +308,31 @@ class ItineraryDetailView(APIView):
         tags=['Itinerary Management']
     )
     def get(self, request, trip_id):
+        trip = None
         try:
-            trip = Trip.objects.prefetch_related('itinerary__day_plans').get(pk=trip_id, user=request.user)
-            
-            if not hasattr(trip, 'itinerary'):
-                return Response({
-                    'success': False,
-                    'message': 'No itinerary found for this trip'
-                }, status=status.HTTP_404_NOT_FOUND)
-            
-            serializer = TripSerializer(trip)
-            return Response({
-                'success': True,
-                'data': serializer.data
-            }, status=status.HTTP_200_OK)
+            trip = Trip.objects.prefetch_related('itinerary__day_plans__activities').get(pk=trip_id, user=request.user)
         except Trip.DoesNotExist:
+            member = TripMember.objects.filter(trip_id=trip_id, user=request.user).first()
+            if member:
+                trip = Trip.objects.prefetch_related('itinerary__day_plans__activities').get(pk=trip_id)
+        
+        if not trip:
             return Response({
                 'success': False,
-                'message': 'Trip not found'
+                'message': 'Trip not found or you do not have access'
             }, status=status.HTTP_404_NOT_FOUND)
+        
+        if not hasattr(trip, 'itinerary'):
+            return Response({
+                'success': False,
+                'message': 'No itinerary found for this trip'
+            }, status=status.HTTP_404_NOT_FOUND)
+        
+        serializer = TripSerializer(trip, context={'request': request})
+        return Response({
+            'success': True,
+            'data': serializer.data
+        }, status=status.HTTP_200_OK)
     
     @extend_schema(
         summary="Delete itinerary",
@@ -328,8 +354,9 @@ class ItineraryDetailView(APIView):
         except Trip.DoesNotExist:
             return Response({
                 'success': False,
-                'message': 'Trip not found'
+                'message': 'Trip not found or only owner can delete itinerary'
             }, status=status.HTTP_404_NOT_FOUND)
+
 
 class DayPlanDetailView(APIView):
     permission_classes = [IsAuthenticated]
@@ -340,19 +367,27 @@ class DayPlanDetailView(APIView):
         tags=['Itinerary Management']
     )
     def get(self, request, trip_id, day_number):
+        trip = None
         try:
             trip = Trip.objects.get(pk=trip_id, user=request.user)
-            day_plan = DayPlan.objects.get(itinerary__trip=trip,day_number=day_number)
+        except Trip.DoesNotExist:
+            member = TripMember.objects.filter(trip_id=trip_id, user=request.user).first()
+            if member:
+                trip = member.trip
+        
+        if not trip:
+            return Response({
+                'success': False,
+                'message': 'Trip not found or you do not have access'
+            }, status=status.HTTP_404_NOT_FOUND)
+            
+        try:
+            day_plan = DayPlan.objects.prefetch_related('activities').get(itinerary__trip=trip,day_number=day_number)
             serializer = DayPlanSerializer(day_plan)
             return Response({
                 'success': True,
                 'data': serializer.data
             }, status=status.HTTP_200_OK)
-        except Trip.DoesNotExist:
-            return Response({
-                'success': False,
-                'message': 'Trip not found'
-            }, status=status.HTTP_404_NOT_FOUND)
         except DayPlan.DoesNotExist:
             return Response({
                 'success': False,
@@ -368,16 +403,19 @@ class ActivityManagementView(APIView):
                    responses={201: DayPlanSerializer},
                    tags=['Activity Management'])
     def post(self, request, trip_id, day_number):
+        trip = None
         try:
             trip = Trip.objects.get(pk=trip_id, user=request.user)
         except Trip.DoesNotExist:
             member = TripMember.objects.filter(trip_id=trip_id, user=request.user, permission='edit').first()
-            if not member:
-                return Response({
-                    'success': False,
-                    'message': 'Trip not found or you do not have edit permission'
-                }, status=status.HTTP_404_NOT_FOUND)
-            trip = member.trip
+            if member:
+                trip = member.trip
+        
+        if not trip:
+            return Response({
+                'success': False,
+                'message': 'Trip not found or you do not have edit permission'
+            }, status=status.HTTP_404_NOT_FOUND)
         
         try:
             day_plan = DayPlan.objects.get(itinerary__trip=trip,day_number=day_number)
@@ -412,17 +450,20 @@ class ActivityDetailView(APIView):
                    request=ActivityUpdateSerializer,
                    responses={200: DayPlanSerializer},
                    tags=['Activity Management'])
-    def put(self, request, trip_id, day_number, activity_index):
+    def put(self, request, trip_id, day_number, activity_id):
+        trip = None
         try:
             trip = Trip.objects.get(pk=trip_id, user=request.user)
         except Trip.DoesNotExist:
             member = TripMember.objects.filter(trip_id=trip_id, user=request.user, permission='edit').first()
-            if not member:
-                return Response({
-                    'success': False,
-                    'message': 'Trip not found or you do not have edit permission'
-                }, status=status.HTTP_404_NOT_FOUND)
-            trip = member.trip
+            if member:
+                trip = member.trip
+        
+        if not trip:
+            return Response({
+                'success': False,
+                'message': 'Trip not found or you do not have edit permission'
+            }, status=status.HTTP_404_NOT_FOUND)
         
         try:
             day_plan = DayPlan.objects.get(
@@ -435,12 +476,12 @@ class ActivityDetailView(APIView):
                 'message': 'Day plan not found'
             }, status=status.HTTP_404_NOT_FOUND)
         
-        activities = day_plan.activities if day_plan.activities else []
-        
-        if activity_index < 0 or activity_index >= len(activities):
+        try:
+            activity = Activity.objects.get(day_plans=day_plan, id=activity_id)
+        except Activity.DoesNotExist:
             return Response({
                 'success': False,
-                'message': 'Activity index out of range'
+                'message': 'Activity not found'
             }, status=status.HTTP_404_NOT_FOUND)
         
         serializer = ActivityUpdateSerializer(data=request.data)
@@ -453,10 +494,9 @@ class ActivityDetailView(APIView):
             }, status=status.HTTP_400_BAD_REQUEST)
         
         for field, value in serializer.validated_data.items():
-            activities[activity_index][field] = value
+            setattr(activity, field, value)
         
-        day_plan.activities = activities
-        day_plan.save()
+        activity.save()
         
         response_serializer = DayPlanSerializer(day_plan)
         return Response({
@@ -466,16 +506,19 @@ class ActivityDetailView(APIView):
         }, status=status.HTTP_200_OK)
 
     def delete(self, request, trip_id, day_number,activity_id):
+        trip = None
         try:
             trip = Trip.objects.get(pk=trip_id, user=request.user)
         except Trip.DoesNotExist:
             member = TripMember.objects.filter(trip_id=trip_id, user=request.user, permission='edit').first()
-            if not member:
-                return Response({
-                    'success': False,
-                    'message': 'Trip not found or you do not have edit permission'
-                }, status=status.HTTP_401_UNAUTHORIZED)
-            trip = member.trip
+            if member:
+                trip = member.trip
+        
+        if not trip:
+            return Response({
+                'success': False,
+                'message': 'Trip not found or you do not have edit permission'
+            }, status=status.HTTP_401_UNAUTHORIZED)
         
         try:
             day_plan = DayPlan.objects.get(itinerary__trip=trip,day_number=day_number)
@@ -501,12 +544,26 @@ class ManualItineraryCreateView(APIView):
     permission_classes = [IsAuthenticated]
     
     @extend_schema(
-        summary="Create trip and itinerary manually without AI",
+        summary="Create manual itinerary for existing trip",
         request=ManualItinerarySerializer,
         responses={201: TripSerializer},
         tags=['Itinerary Management']
     )
-    def post(self, request):
+    def post(self, request, trip_id):
+        trip = None
+        try:
+            trip = Trip.objects.get(pk=trip_id, user=request.user)
+        except Trip.DoesNotExist:
+            member = TripMember.objects.filter(trip_id=trip_id, user=request.user, permission='edit').first()
+            if member:
+                trip = member.trip
+        
+        if not trip:
+            return Response({
+                'success': False,
+                'message': 'Trip not found or you do not have edit permission'
+            }, status=status.HTTP_404_NOT_FOUND)
+        
         serializer = ManualItinerarySerializer(data=request.data)
         
         if not serializer.is_valid():
@@ -517,19 +574,12 @@ class ManualItineraryCreateView(APIView):
             }, status=status.HTTP_400_BAD_REQUEST)
         
         try:
-            try:
-                budget_obj = Budget.objects.get(user=request.user)
-                budget_amount = float(budget_obj.total)
-            except Budget.DoesNotExist:
-                return Response({
-                    'success': False,
-                    'message': 'Please create a budget in expense tracker first'
-                }, status=status.HTTP_400_BAD_REQUEST)
+            if hasattr(trip, 'itinerary'):
+                trip.itinerary.day_plans.all().delete()
+                trip.itinerary.delete()
             
             validated_data = serializer.validated_data
             day_plans_data = validated_data.pop('day_plans')
-            
-            trip = Trip.objects.create(user=request.user,budget=budget_amount,**validated_data)
             
             itinerary = Itinerary.objects.create(trip=trip)
             for day_plan_data in day_plans_data:
@@ -547,19 +597,17 @@ class ManualItineraryCreateView(APIView):
                         **activity_data
                     )
             
-            response_serializer = TripSerializer(trip)
+            response_serializer = TripSerializer(trip, context={'request': request})
             return Response({
                 'success': True,
-                'message': 'Trip and manual itinerary created successfully',
+                'message': 'Manual itinerary created successfully',
                 'data': response_serializer.data
             }, status=status.HTTP_201_CREATED)
             
         except Exception as e:
-            logger.error(f"Error creating manual trip and itinerary: {str(e)}")
-            if 'trip' in locals():
-                trip.delete()
+            logger.error(f"Error creating manual itinerary: {str(e)}")
             return Response({
                 'success': False,
-                'message': 'Failed to create manual trip and itinerary',
+                'message': 'Failed to create manual itinerary',
                 'error': str(e)
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)

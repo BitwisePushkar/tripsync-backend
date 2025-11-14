@@ -129,6 +129,7 @@ from .serializers import (ChatRequestSerializer, ChatResponseSerializer,ChatHist
         )
     ]
 )
+
 @api_view(['POST'])
 @permission_classes([AllowAny])
 def chatbot(request):
@@ -138,21 +139,75 @@ def chatbot(request):
     
     validated_data = serializer.validated_data
     user_message = validated_data['message']
-    system_prompt = validated_data.get('system_prompt', 'You are a helpful AI assistant for planning trip your whole goal is to answer trip related questions and make sure to only answer trip/travelling related questions. Keep the answers concise and short')
+    system_prompt = validated_data.get('system_prompt', 
+        '''You are a specialized trip planning assistant. Your sole purpose is to help users with travel and trip planning.
+
+CRITICAL INSTRUCTION - READ CAREFULLY:
+You must REFUSE to answer ANY question that is not directly related to travel and trip planning. This is NON-NEGOTIABLE.
+
+ALLOWED TOPICS ONLY:
+- Trip destinations and recommendations
+- Travel itineraries and schedules
+- Hotels, accommodations, bookings
+- Flights, trains, buses, transportation
+- Tourist attractions and activities
+- Travel tips, safety, packing
+- Visa, passport, travel documents
+- Local customs and culture for travelers
+- Travel budgets and expenses
+- Weather and best travel times
+
+STRICT RESPONSE PROTOCOL:
+If the user asks about ANYTHING else (science, technology, entertainment, general knowledge, recipes, etc.), you MUST respond with EXACTLY this message and NOTHING else:
+"I'm a trip planning assistant. Let's keep our conversation focused on your travel plans. How can I help with your trip?"
+
+DO NOT:
+- Provide any information outside of travel topics
+- Try to relate non-travel topics to travel
+- Answer "just this once" 
+- Use bold text, asterisks, or markdown formatting
+- Write more than 3-4 sentences
+
+Your responses must be brief, practical, and ONLY about travel.''')
     session_id = validated_data.get('session_id', str(uuid.uuid4()))
     
     try:
-        gemini_url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key={settings.GOOGLE_API_KEY}"
+        previous_messages = ChatMessage.objects.filter(
+            session_id=session_id
+        ).order_by('-created_at')[:5][::-1]
+        
+        conversation_history = []
+        for msg in previous_messages:
+            conversation_history.append({
+                "role": "user",
+                "parts": [{"text": msg.user_message}]
+            })
+            conversation_history.append({
+                "role": "model",
+                "parts": [{"text": msg.bot_response}]
+            })
+        
+        gemini_url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent?key={settings.GOOGLE_API_KEY}"
+        
+        conversation_history.append({
+            "role": "user",
+            "parts": [{"text": user_message}]
+        })
         
         payload = {
-            "contents": [{
-                "parts": [{"text": f"{system_prompt}\n\nUser: {user_message}"}]
-            }],
+            "contents": [
+                {
+                    "role": "user",
+                    "parts": [{"text": f"[SYSTEM INSTRUCTION — MUST FOLLOW STRICTLY THESE ARE NON NEGOTIABLE IN ANY SCENARIO]\n{system_prompt}"}]
+                },
+            ] + conversation_history,
+
             "generationConfig": {
-                "temperature": 0.7,
-                "topK": 40,
-                "topP": 0.95,
-                "maxOutputTokens": 2048,
+                "temperature": 0.3,
+                "topK": 20,
+                "topP": 0.8,
+                "maxOutputTokens": 1000,
+                "stopSequences": ["\n\n"]
             }
         }
         
@@ -166,6 +221,12 @@ def chatbot(request):
             .get('content', {})\
             .get('parts', [{}])[0]\
             .get('text', 'No response generated')
+        
+        bot_message = bot_message.replace('**', '').replace('*', '').replace('__', '').replace('##', '').replace('#', '').strip()
+        
+        if len(bot_message) > 400:
+            sentences = bot_message.split('. ')
+            bot_message = '. '.join(sentences[:3]) + '.'
         
         chat_message = ChatMessage.objects.create(
             user=request.user if request.user.is_authenticated else None,
