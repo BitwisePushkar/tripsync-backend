@@ -29,6 +29,7 @@ INSTALLED_APPS = [
     'account',
     'personal',
     'community',
+    'trending',
 ]
 
 MIDDLEWARE = [
@@ -238,7 +239,6 @@ LOGGING = {
 
 TWOFACTOR_API_KEY = config('TWOFACTOR_API_KEY', '')
 GOOGLE_API_KEY=config('GOOGLE_API_KEY')
-WEATHER_API_KEY = config('WEATHER_API_KEY')
 
 DEFAULT_FILE_STORAGE = "storages.backends.s3boto3.S3Boto3Storage"
 AWS_ACCESS_KEY_ID = config('AWS_ACCESS_KEY_ID')
