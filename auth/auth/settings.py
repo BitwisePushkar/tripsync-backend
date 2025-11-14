@@ -15,7 +15,6 @@ ALLOWED_HOSTS = os.environ.get("ALLOWED_HOSTS", "localhost,127.0.0.1,51.20.254.5
 INSTALLED_APPS = [#'channels',
                   #'daphne',
                   'storages',
-                  'django_extensions',
                   'django.contrib.admin',
                   'django.contrib.auth',
                   'django.contrib.contenttypes',
@@ -23,9 +22,9 @@ INSTALLED_APPS = [#'channels',
                   'django.contrib.messages',
                   'django.contrib.staticfiles',
                   'account.apps.AccountConfig',
+                  'django_extensions',
                   'community.apps.CommunityConfig',
                   'chatbot.apps.ChatbotConfig',
-                  'ItenaryMaker',
                   'rest_framework',
                   'rest_framework_simplejwt',
                   'rest_framework_simplejwt.token_blacklist',
@@ -77,7 +76,7 @@ REST_FRAMEWORK = {
     'DEFAULT_THROTTLE_RATES': {'anon': '20/minute','user': '40/minute',}
     }
 
-SPECTACULAR_SETTINGS = {'TITLE': 'TripSync API','DESCRIPTION': 'TripSync - API Documentation','VERSION': '1.0.0','SERVE_INCLUDE_SCHEMA': False,'CONTACT': {'name': 'TripSync Support','email': 'support@tripsync.com'},'LICENSE': {'name': 'MIT License'},'SERVERS': [{'url': 'http://127.0.0.1:8000', 'description': 'Development server'},{'url': 'http://127.0.0.1:8000', 'description': 'Production server'}],'COMPONENT_SPLIT_REQUEST': True,'SWAGGER_UI_SETTINGS': {'deepLinking': True,'persistAuthorization': True,'displayOperationId': False,'filter': True}}
+SPECTACULAR_SETTINGS = {'TITLE': 'TripSync API', 'DESCRIPTION': 'TripSync - API Documentation', 'VERSION': '1.0.0', 'SERVE_INCLUDE_SCHEMA': False, 'CONTACT': {'name': 'TripSync Support', 'email': 'support@tripsync.com'}, 'LICENSE': {'name': 'MIT License'}, 'SERVERS': [{'url': 'http://127.0.0.1:8000', 'description': 'Development server'}, {'url': 'http://51.20.254.52', 'description': 'Production server'}], 'COMPONENT_SPLIT_REQUEST': True, 'SWAGGER_UI_SETTINGS': {'deepLinking': True, 'persistAuthorization': True, 'displayOperationId': False, 'filter': True}}
 
 AUTH_PASSWORD_VALIDATORS = [{'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator'}, {'NAME': 'django.contrib.auth.password_validation.MinimumLengthValidator', 'OPTIONS': {'min_length': 8}}, {'NAME': 'django.contrib.auth.password_validation.CommonPasswordValidator'}, {'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator'}]
 
@@ -88,6 +87,9 @@ USE_TZ = True
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
+DATA_UPLOAD_MAX_MEMORY_SIZE = 1048576000
+FILE_UPLOAD_MAX_MEMORY_SIZE = 1048576000
+
 AUTH_USER_MODEL = 'account.User'
 
 SIMPLE_JWT = {'ACCESS_TOKEN_LIFETIME': timedelta(days=30), 'REFRESH_TOKEN_LIFETIME': timedelta(days=60), 'ROTATE_REFRESH_TOKENS': True, 'BLACKLIST_AFTER_ROTATION': True, 'UPDATE_LAST_LOGIN': True, 'ALGORITHM': 'HS256', 'SIGNING_KEY': SECRET_KEY, 'AUTH_HEADER_TYPES': ('Bearer',), 'USER_ID_FIELD': 'id', 'USER_ID_CLAIM': 'user_id', 'AUTH_TOKEN_CLASSES': ('rest_framework_simplejwt.tokens.AccessToken',), 'TOKEN_TYPE_CLAIM': 'token_type'}
@@ -96,7 +98,7 @@ CORS_ALLOWED_ORIGINS = config('CORS_ALLOWED_ORIGINS', default='http://localhost:
 CORS_ALLOW_ALL_ORIGINS = DEBUG  
 CORS_ALLOW_CREDENTIALS = True
 CORS_ALLOW_METHODS = ['DELETE', 'GET', 'OPTIONS', 'PATCH', 'POST', 'PUT']
-CORS_ALLOW_HEADERS = ['accept', 'accept-encoding', 'authorization', 'content-type', 'dnt', 'origin', 'user-agent', 'x-csrftoken', 'x-requested-with']
+CORS_ALLOW_HEADERS = ['accept', 'accept-encoding', 'authorization', 'content-type', 'dnt', 'origin', 'user-agent', 'x-csrftoken', 'x-requested-with','sec-websocket-protocol','sec-websocket-extensions', ]
 
 if not DEBUG:
     SECURE_SSL_REDIRECT = False
@@ -123,10 +125,6 @@ EMAIL_HOST_USER = 'apikey'
 EMAIL_HOST_PASSWORD = config('SENDGRID_API_KEY', default='')
 EMAIL_TIMEOUT = 10
 
-ADMIN_SITE_HEADER = "TripSync Administration"
-ADMIN_SITE_TITLE = "TripSync Admin"
-ADMIN_INDEX_TITLE = "Welcome to TripSync Admin Portal"
-
 OTP_EXPIRY_MINUTES = 10
 MAX_OTP_ATTEMPTS = 5
 OTP_LOCKOUT_HOURS = 1
@@ -135,10 +133,7 @@ OTP_LOCKOUT_MINUTES = 15
 LOGGING = {'version': 1, 'disable_existing_loggers': False, 'formatters': {'verbose': {'format': '{levelname} {asctime} {module} {message}', 'style': '{'}}, 'handlers': {'console': {'class': 'logging.StreamHandler', 'formatter': 'verbose'}}, 'root': {'handlers': ['console'], 'level': 'INFO'}, 'loggers': {'django': {'handlers': ['console'], 'level': 'INFO', 'propagate': False}, 'account': {'handlers': ['console'], 'level': 'DEBUG', 'propagate': False}}}
 TWOFACTOR_API_KEY =  config('TWOFACTOR_API_KEY', '')
 
-
-
-USE_S3 = config('USE_S3', default=True, cast=bool)
-
+USE_S3 = config('USE_S3', default=False, cast=bool)
 if USE_S3:
     AWS_ACCESS_KEY_ID = config('AWS_ACCESS_KEY_ID')
     AWS_SECRET_ACCESS_KEY = config('AWS_SECRET_ACCESS_KEY')
@@ -150,7 +145,6 @@ if USE_S3:
     AWS_S3_FILE_OVERWRITE = False
     AWS_QUERYSTRING_AUTH = False
     AWS_S3_VERIFY = True
-    
     STORAGES = {
         "default": {
             "BACKEND": "auth.storage_backends.MediaStorage",
@@ -159,7 +153,6 @@ if USE_S3:
             "BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage",
         },
     }
-    
     MEDIA_URL = f'https://{AWS_S3_CUSTOM_DOMAIN}/media/'
     STATIC_URL = '/static/'
     STATIC_ROOT = BASE_DIR / 'staticfiles'

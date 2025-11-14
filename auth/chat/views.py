@@ -3,7 +3,7 @@ from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from django.shortcuts import get_object_or_404
 from rest_framework.exceptions import PermissionDenied, ValidationError
-from drf_spectacular.utils import extend_schema, OpenApiParameter, OpenApiExample,OpenApiResponse
+from drf_spectacular.utils import extend_schema,OpenApiExample,OpenApiResponse
 from drf_spectacular.types import OpenApiTypes
 from django.db.models import Count, Q
 from account.models import User
@@ -78,7 +78,7 @@ class ConversationListCreateView(generics.ListCreateAPIView):
     
     @extend_schema(
         summary="Create a conversation",
-        description="Create a new conversation (DM or group). If a DM already exists between two users, the existing conversation is returned.",
+        description="Create a new conversation (DM or group).",
         request=CreateConversationSerializer,
         tags=['Chat - Conversations'],
         examples=[
@@ -152,10 +152,7 @@ class ConversationListCreateView(generics.ListCreateAPIView):
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         conversation = serializer.save()
-        response_serializer = ConversationSerializer(
-            conversation, 
-            context={'request': request}
-        )
+        response_serializer = ConversationSerializer(conversation, context={'request': request})
         return Response(response_serializer.data, status=status.HTTP_201_CREATED)
 
 class ConversationDetailView(generics.RetrieveDestroyAPIView):
@@ -282,8 +279,7 @@ class ConversationDetailView(generics.RetrieveDestroyAPIView):
         conversation.participants.remove(request.user)
         if conversation.participants.count() == 0:
             conversation.delete()
-        return Response(status=status.HTTP_204_NO_CONTENT)
-
+        return Response(status=status.HTTP_200_OK)
 
 class MessageListCreateView(generics.ListCreateAPIView):
     permission_classes = [IsAuthenticated]
@@ -298,7 +294,7 @@ class MessageListCreateView(generics.ListCreateAPIView):
 
     @extend_schema(
     summary="List messages",
-    description="Retrieve all messages from a conversation. Only participants can access messages.",
+    description="Retrieve all messages from a conversation.",
     tags=["Chat - Conversations"],
     responses={
         200: OpenApiResponse(
@@ -570,7 +566,7 @@ class MessageRetrieveUpdateDestroyView(generics.RetrieveUpdateDestroyAPIView):
     description="Delete your own message.",
     tags=["Chat - Conversations"],
     responses={
-        204: OpenApiResponse(
+        200: OpenApiResponse(
             response=OpenApiTypes.OBJECT,
             description="Message deleted successfully",
             examples=[

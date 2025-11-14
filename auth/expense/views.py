@@ -212,7 +212,7 @@ class BudgetView(APIView):
         summary="Delete budget",
         description="Delete the authenticated user's budget.",
         responses={
-            204: OpenApiResponse(
+            200: OpenApiResponse(
                 description="Budget deleted successfully",
                 response=OpenApiTypes.OBJECT,
                 examples=[
@@ -248,7 +248,7 @@ class BudgetView(APIView):
         if budget is None:
             return Response({"error": "No budget found."},status=status.HTTP_404_NOT_FOUND)
         budget.delete()
-        return Response({"message": "Budget deleted successfully"},status=status.HTTP_204_NO_CONTENT)
+        return Response({"message": "Budget deleted successfully"},status=status.HTTP_200_OK)
 
 class ExpenseCategoryListCreateView(APIView):
     permission_classes = [IsAuthenticated]
@@ -484,7 +484,7 @@ class ExpenseCategoryDetailView(APIView):
     summary="Delete category",
     description="Delete a specific expense category for the authenticated user.",
     responses={
-        204: OpenApiResponse(
+        200: OpenApiResponse(
             description="Category deleted successfully",
             response=OpenApiTypes.OBJECT,
             examples=[
@@ -518,7 +518,7 @@ class ExpenseCategoryDetailView(APIView):
     def delete(self, request, pk):
         category = self.get_object(request.user, pk)
         category.delete()
-        return Response({"message": "Category deleted successfully"},status=status.HTTP_204_NO_CONTENT)
+        return Response({"message": "Category deleted successfully"},status=status.HTTP_200_OK)
 
 class BudgetSummaryView(APIView):
     permission_classes = [IsAuthenticated]

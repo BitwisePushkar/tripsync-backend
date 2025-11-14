@@ -1,7 +1,6 @@
 from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.views import APIView
-from rest_framework.generics import ListAPIView
 from rest_framework.permissions import IsAuthenticated, IsAdminUser
 from account.serializers import (UserRegistrationSerializer, VerifyOTPSerializer, UserLoginSerializer,UserProfileSerializer, PasswordResetRequestSerializer, PasswordResetVerifySerializer)
 from account.models import User
@@ -10,7 +9,6 @@ from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.exceptions import AuthenticationFailed
 from drf_spectacular.utils import extend_schema, OpenApiResponse, OpenApiExample
 from drf_spectacular.types import OpenApiTypes
-from account.pagination import StandardResultsSetPagination
 from django.db import models
 from django.utils import timezone
 from account.utils import send_otp_email
@@ -83,7 +81,7 @@ class UserRegistrationView(APIView):
                     )
                 ]
             ),
-            500: OpenApiResponse(
+            503: OpenApiResponse(
                 description="Email service failure",
                 examples=[
                     OpenApiExample(
@@ -152,10 +150,6 @@ class VerifyRegistrationOTPView(APIView):
                                     "id": 1,
                                     "email": "user@example.com",
                                     "is_email_verified": True
-                                },
-                                "tokens": {
-                                    "refresh": "eyJ0eXAiOiJKV1QiLCJhbGc...",
-                                    "access": "eyJ0eXAiOiJKV1QiLCJhbGc..."
                                 }
                             }
                         }
@@ -210,7 +204,7 @@ class VerifyRegistrationOTPView(APIView):
         },
         tags=["Authentication"],
         summary="Verify registration OTP",
-        description="Verifies OTP and completes registration by issuing JWT tokens."
+        description="Verifies OTP."
     )
     def post(self, request):
         try:
@@ -228,8 +222,7 @@ class VerifyRegistrationOTPView(APIView):
                 success, message, attempts_remaining = user.verify_otp(otp_code, 'registration')
                 if success:
                     user.clear_otp()
-                    tokens = get_tokens_for_user(user)
-                    return Response({'status': 'success','message': 'Email verified successfully!','data': {'user': {'id': user.id, 'email': user.email, 'is_email_verified': user.is_email_verified},'tokens': tokens}},status=status.HTTP_200_OK)
+                    return Response({'status': 'success','message': 'Email verified successfully!','data': {'user': {'id': user.id, 'email': user.email, 'is_email_verified': user.is_email_verified}}},status=status.HTTP_200_OK)
                 else:
                     status_code = status.HTTP_429_TOO_MANY_REQUESTS if attempts_remaining == 0 else status.HTTP_400_BAD_REQUEST
                     return Response({'status': 'error', 'message': message,'errors': {'otp': [message]},'attempts_remaining': attempts_remaining},status=status_code)
@@ -302,9 +295,9 @@ class ResendRegistrationOTPView(APIView):
                     )
                 ]
             ),
-            500: OpenApiResponse(
+            503: OpenApiResponse(
                 response=OpenApiTypes.OBJECT,
-                description="Email sending failed due to server error",
+                description="Email sending failed",
                 examples=[
                     OpenApiExample(
                         name="Email Service Unavailable",
@@ -333,14 +326,18 @@ class ResendRegistrationOTPView(APIView):
             if user.is_otp_locked():
                 time_remaining = (user.otp_locked_until - timezone.now()).seconds // 60
                 return Response({'status': 'error','message': f'Too many failed attempts. Try again in {time_remaining} minutes.','errors': {'otp': ['Account temporarily locked']}},status=status.HTTP_429_TOO_MANY_REQUESTS)
+            if user.last_otp_sent_at:
+                time_since_last = (timezone.now() - user.last_otp_sent_at).total_seconds()
+                if time_since_last < 120:
+                    remaining = int(120 - time_since_last)
+                    return Response({'status': 'error','message': f'Please wait {remaining} seconds before requesting another OTP.','errors': {'otp': ['OTP resend cooldown active']}},status=status.HTTP_429_TOO_MANY_REQUESTS)
             otp = user.generate_otp('registration')
             email_sent = send_otp_email(email, otp, purpose="verification")
             if not email_sent:
-                return Response({'status': 'error', 'message': 'Failed to send OTP','errors': {'email': ['Email service unavailable']}},status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+                return Response({'status': 'error', 'message': 'Failed to send OTP','errors': {'email': ['Email service unavailable']}},status=status.HTTP_503_SERVICE_UNAVAILABLE)
             return Response({'status': 'success','message': 'OTP has been resent to your email.','data': {'email': email, 'otp_expires_in': '10 minutes'}},status=status.HTTP_200_OK)
         except Exception as e:
             return Response({'status': 'error', 'message': 'Failed to resend OTP', 'errors': str(e)},status=status.HTTP_400_BAD_REQUEST)
-
 
 class UserLoginView(APIView):
     @extend_schema(
@@ -573,7 +570,7 @@ class PasswordResetRequestView(APIView):
                     )
                 ]
             ),
-            500: OpenApiResponse(
+            503: OpenApiResponse(
                 response=OpenApiTypes.OBJECT,
                 description="Email service unavailable",
                 examples=[
@@ -604,10 +601,15 @@ class PasswordResetRequestView(APIView):
                 if user.is_otp_locked():
                     time_remaining = (user.otp_locked_until - timezone.now()).seconds // 60
                     return Response({'status': 'error','message': f'Too many failed attempts. Try again in {time_remaining} minutes.','errors': {'otp': ['Account temporarily locked']}},status=status.HTTP_429_TOO_MANY_REQUESTS)
+                if user.last_otp_sent_at:
+                    time_since_last = (timezone.now() - user.last_otp_sent_at).total_seconds()
+                    if time_since_last < 120:
+                        remaining = int(120 - time_since_last)
+                        return Response({'status': 'error','message': f'Please wait {remaining} seconds before requesting another OTP.','errors': {'otp': ['OTP resend cooldown active']}},status=status.HTTP_429_TOO_MANY_REQUESTS)
                 otp = user.generate_otp('password_reset')
                 email_sent = send_otp_email(email, otp, purpose="password_reset")
                 if not email_sent:
-                    return Response({'status': 'error', 'message': 'Failed to send OTP. Please try again.','errors': {'email': ['Email service unavailable']}},status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+                    return Response({'status': 'error', 'message': 'Failed to send OTP. Please try again.','errors': {'email': ['Email service unavailable']}},status=status.HTTP_503_SERVICE_UNAVAILABLE)
                 return Response({'status': 'success','message': 'Password reset OTP sent to your email.','data': {'email': email, 'otp_expires_in': '10 minutes'}},status=status.HTTP_200_OK)  
         except Exception as e:
             return Response({'status': 'error', 'message': 'Failed to send password reset OTP', 'errors': str(e)},status=status.HTTP_400_BAD_REQUEST)

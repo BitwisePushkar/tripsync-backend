@@ -1,6 +1,5 @@
 from rest_framework import serializers
 from .models import Post, Comment, PostLike
-from django.conf import settings
 from personal.models import Profile
 
 class PostSerializer(serializers.ModelSerializer):
@@ -25,24 +24,18 @@ class PostSerializer(serializers.ModelSerializer):
 
     def get_img_url(self, obj):
         if obj.img:
-            if hasattr(settings, 'USE_S3') and settings.USE_S3:
-                return obj.img.url  
-            else:
-                req = self.context.get('request')
-                if req:
-                    return req.build_absolute_uri(obj.img.url)
-                return obj.img.url
-            return None
-
+            req = self.context.get('request')
+            if req:
+                return req.build_absolute_uri(obj.img.url)
+            return obj.img.url
+        return None
+    
     def get_vid_url(self, obj):
         if obj.vid:
-            if hasattr(settings, 'USE_S3') and settings.USE_S3:
-                return obj.vid.url  
-            else:
-                req = self.context.get('request')
-                if req:
-                    return req.build_absolute_uri(obj.vid.url)
-                return obj.vid.url
+            req = self.context.get('request')
+            if req:
+                return req.build_absolute_uri(obj.vid.url)
+            return obj.vid.url
         return None
     
     def get_likes(self, obj):
@@ -113,7 +106,6 @@ class UserMiniSerializer(serializers.ModelSerializer):
                 return req.build_absolute_uri(obj.profile_pic.url)
             return obj.profile_pic.url
         return None
-
 
 class CommentSerializer(serializers.ModelSerializer):
     user = serializers.SerializerMethodField()

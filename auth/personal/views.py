@@ -9,6 +9,7 @@ from .models import Profile
 from .serializers import (UserListSerializer, UserProfileSearchSerializer, UserProfileDetailSerializer,ProfileCreateSerializer,OTPVerificationSerializer,ProfileUpdateSerializer,ResendOTPSerializer,ProfileSerializer,EmergencySOSSerializer)
 from .utils import SMSService
 import logging
+from django.utils import timezone
 
 logger = logging.getLogger(__name__)
 
@@ -99,7 +100,7 @@ class ProfileDetailView(APIView):
                 )
             ]
         ),
-        500: OpenApiResponse(
+        503: OpenApiResponse(
             description="Internal error or SMS sending failed",
             response=OpenApiTypes.OBJECT,
             examples=[
@@ -154,14 +155,14 @@ class ProfileDetailView(APIView):
             
             if not sms_success:
                 profile.delete()
-                return Response({'success': False,'message': f'Failed to send OTP: {sms_message}','error_code': 'SMS_FAILED'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+                return Response({'success': False,'message': f'Failed to send OTP: {sms_message}','error_code': 'SMS_FAILED'}, status=status.HTTP_503_SERVICE_UNAVAILABLE)
             
             logger.info(f"Complete profile created and OTP sent to {phone_number} for user {request.user.id}")
             return Response({'success': True,'message': 'Profile created successfully. OTP sent for verification.','data': {'phone_number': phone_number,'otp_expiry_minutes': 5,'max_attempts': 3,'profile_pic_uploaded': profile_pic_uploaded}}, status=status.HTTP_201_CREATED)
         
         except Exception as e:
             logger.error(f"Error in ProfileDetailView POST: {str(e)}")
-            return Response({'success': False,'message': 'An error occurred. Please try again later.','error_code': 'INTERNAL_ERROR'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            return Response({'success': False,'message': 'An error occurred. Please try again later.','error_code': 'INTERNAL_ERROR'}, status=status.HTTP_503_SERVICE_UNAVAILABLE)
     
     @extend_schema(
     summary="Get Profile Details",
@@ -323,7 +324,7 @@ class ProfileDetailView(APIView):
         
         except Profile.DoesNotExist:
             return Response({'success': False,'message': 'Profile not found','error_code': 'PROFILE_NOT_FOUND'}, status=status.HTTP_404_NOT_FOUND)
-        
+    
     @extend_schema(
     summary="Delete Profile & User Account",
     description="Permanently delete the user's profile and associated user account.",
@@ -573,7 +574,7 @@ class ResendOTPView(APIView):
             ]
         ),
         429: OpenApiResponse(
-            description="Too many OTP requests",
+            description="Too many OTP requests or cooldown active",
             response=OpenApiTypes.OBJECT,
             examples=[
                 OpenApiExample(
@@ -583,13 +584,29 @@ class ResendOTPView(APIView):
                         "message": "Too many attempts. Please try again later.",
                         "error_code": "OTP_LOCKED"
                     }
+                ),
+                OpenApiExample(
+                    "Cooldown Active",
+                    value={
+                        "success": False,
+                        "message": "Please wait 45 seconds before requesting another OTP.",
+                        "error_code": "OTP_COOLDOWN_ACTIVE"
+                    }
                 )
             ]
         ),
         500: OpenApiResponse(
-            description="Internal server error",
+            description="Internal server error or SMS sending failed",
             response=OpenApiTypes.OBJECT,
             examples=[
+                OpenApiExample(
+                    "SMS Failed",
+                    value={
+                        "success": False,
+                        "message": "Failed to send OTP: SMS service error",
+                        "error_code": "SMS_FAILED"
+                    }
+                ),
                 OpenApiExample(
                     "Internal Error",
                     value={
@@ -612,7 +629,12 @@ class ResendOTPView(APIView):
                 return Response({'success': False,'message': 'Phone number already verified.','error_code': 'ALREADY_VERIFIED'}, status=status.HTTP_400_BAD_REQUEST)
             if profile.is_otp_locked():
                 return Response({'success': False,'message': 'Too many attempts. Please try again later.','error_code': 'OTP_LOCKED'}, status=status.HTTP_429_TOO_MANY_REQUESTS)
-            
+            if profile.last_otp_sent_at:
+                time_since_last = (timezone.now() - profile.last_otp_sent_at).total_seconds()
+                if time_since_last < 120:
+                    remaining = int(120 - time_since_last)
+                    return Response({'success': False,'message': f'Please wait {remaining} seconds before requesting another OTP.','error_code': 'OTP_COOLDOWN_ACTIVE'}, status=status.HTTP_429_TOO_MANY_REQUESTS)
+
             otp_code = profile.generate_otp()
             sms_service = SMSService()
             sms_success, sms_message = sms_service.send_otp(profile.phone_number, otp_code)
@@ -952,7 +974,16 @@ class UserProfileByNameView(APIView):
                 )]
             ),
             403: OpenApiResponse(
-                description="User's own phone not verified"
+                description="User's own phone not verified",
+                examples=[
+                    OpenApiExample(
+                        "Forbidden",
+                        value={
+                            "success": False,
+                            "message": "Your phone number is not verified. Please verify it to proceed.",
+                            "error_code": "PHONE_NOT_VERIFIED"
+                        }
+            )]
             ),
             404: OpenApiResponse(
                 description="User not found",

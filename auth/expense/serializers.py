@@ -13,7 +13,6 @@ class BudgetSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError("Budget must be between ₹2,000 and ₹10,00,000")
         return value
 
-
 class ExpenseCategorySerializer(serializers.ModelSerializer):
     email = serializers.EmailField(source='user.email', read_only=True)
     user_id = serializers.IntegerField(source='user.id', read_only=True)
