@@ -9,6 +9,7 @@ from .models import Profile
 from .serializers import (UserListSerializer, UserProfileSearchSerializer, UserProfileDetailSerializer,ProfileCreateSerializer,OTPVerificationSerializer,ProfileUpdateSerializer,ResendOTPSerializer,ProfileSerializer,EmergencySOSSerializer)
 from .utils import SMSService
 import logging
+from django.utils import timezone
 
 logger = logging.getLogger(__name__)
 
@@ -573,7 +574,7 @@ class ResendOTPView(APIView):
             ]
         ),
         429: OpenApiResponse(
-            description="Too many OTP requests",
+            description="Too many OTP requests or cooldown active",
             response=OpenApiTypes.OBJECT,
             examples=[
                 OpenApiExample(
@@ -583,13 +584,29 @@ class ResendOTPView(APIView):
                         "message": "Too many attempts. Please try again later.",
                         "error_code": "OTP_LOCKED"
                     }
+                ),
+                OpenApiExample(
+                    "Cooldown Active",
+                    value={
+                        "success": False,
+                        "message": "Please wait 45 seconds before requesting another OTP.",
+                        "error_code": "OTP_COOLDOWN_ACTIVE"
+                    }
                 )
             ]
         ),
         500: OpenApiResponse(
-            description="Internal server error",
+            description="Internal server error or SMS sending failed",
             response=OpenApiTypes.OBJECT,
             examples=[
+                OpenApiExample(
+                    "SMS Failed",
+                    value={
+                        "success": False,
+                        "message": "Failed to send OTP: SMS service error",
+                        "error_code": "SMS_FAILED"
+                    }
+                ),
                 OpenApiExample(
                     "Internal Error",
                     value={
@@ -612,7 +629,12 @@ class ResendOTPView(APIView):
                 return Response({'success': False,'message': 'Phone number already verified.','error_code': 'ALREADY_VERIFIED'}, status=status.HTTP_400_BAD_REQUEST)
             if profile.is_otp_locked():
                 return Response({'success': False,'message': 'Too many attempts. Please try again later.','error_code': 'OTP_LOCKED'}, status=status.HTTP_429_TOO_MANY_REQUESTS)
-            
+            if profile.last_otp_sent_at:
+                time_since_last = (timezone.now() - profile.last_otp_sent_at).total_seconds()
+                if time_since_last < 120:
+                    remaining = int(120 - time_since_last)
+                    return Response({'success': False,'message': f'Please wait {remaining} seconds before requesting another OTP.','error_code': 'OTP_COOLDOWN_ACTIVE'}, status=status.HTTP_429_TOO_MANY_REQUESTS)
+
             otp_code = profile.generate_otp()
             sms_service = SMSService()
             sms_success, sms_message = sms_service.send_otp(profile.phone_number, otp_code)
