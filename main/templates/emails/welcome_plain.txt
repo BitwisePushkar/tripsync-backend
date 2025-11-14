@@ -9,4 +9,4 @@ Get started: {{ app_url }}
 Questions? Reach us at {{ support_email }}
 
 —
-© 2025 TripSync. All rights reserved.
+© TripSync. All rights reserved.

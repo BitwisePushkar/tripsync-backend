@@ -25,6 +25,7 @@ INSTALLED_APPS = [
     "drf_spectacular",                                    
 
     "account",
+    "personal",
 ]
 
 MIDDLEWARE = [
@@ -298,3 +299,16 @@ LOGGING = {
 }
 
 GOOGLE_OAUTH_CLIENT_IDS = config("GOOGLE_OAUTH_CLIENT_IDS", default="", cast=lambda v: [s.strip() for s in v.split(",") if s.strip()],)
+
+AWS_ACCESS_KEY_ID = config("AWS_ACCESS_KEY_ID", default="")
+AWS_SECRET_ACCESS_KEY = config("AWS_SECRET_ACCESS_KEY", default="")
+AWS_STORAGE_BUCKET_NAME = config("AWS_STORAGE_BUCKET_NAME", default="")
+AWS_S3_REGION_NAME = config("AWS_S3_REGION_NAME", default="ap-south-1")
+
+SUPPORTED_LANGUAGES = {
+    "en": "English",
+    "hi": "Hindi",
+    "ar": "Arabic",
+    "fr": "French",
+    "es": "Spanish",
+}

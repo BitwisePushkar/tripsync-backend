@@ -10,4 +10,4 @@ If you did not create a TripSync account, ignore this email.
 
 —
 TripSync Support: {{ support_email }}
-© 2025 TripSync
+© TripSync

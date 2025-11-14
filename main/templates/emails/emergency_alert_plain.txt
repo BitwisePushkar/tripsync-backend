@@ -1,0 +1,30 @@
+EMERGENCY ALERT — TripSync
+==========================
+
+Dear {{ contact_name }},
+
+{{ user_full_name }} has triggered an emergency SOS on TripSync and has listed you as an emergency contact. Please check on them immediately.
+
+{% if custom_message %}
+MESSAGE FROM {{ user_full_name|upper }}:
+{{ custom_message }}
+
+{% endif %}
+LAST KNOWN LOCATION:
+Latitude:  {{ latitude }}
+Longitude: {{ longitude }}
+Google Maps: {{ maps_link }}
+
+PERSON DETAILS:
+Name:  {{ user_full_name }}
+Email: {{ user_email }}
+
+MEDICAL INFORMATION:
+Blood Group:        {{ blood_group }}
+Allergies:          {{ allergies }}
+Medical Conditions: {{ medical }}
+
+—
+This alert was sent automatically by TripSync.
+Questions? Contact {{ support_email }}
+© TripSync

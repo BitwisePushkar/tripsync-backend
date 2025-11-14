@@ -1,0 +1,16 @@
+TripSync — Emergency Contact Notification
+==========================================
+
+Hi {{ contact_name }},
+
+{{ user_full_name }} ({{ user_email }}) has added you as their {{ relation }} emergency contact on TripSync — a travel planning and safety app.
+
+If an emergency occurs while they are travelling, you may receive an automated alert email with their location and medical information so you can coordinate help quickly.
+
+No action is required from you.
+
+If you did not expect this or wish to be removed, please ask {{ user_full_name }} to remove you from their emergency contacts, or contact us at {{ support_email }}.
+
+—
+© TripSync. All rights reserved.
+{{ app_url }}

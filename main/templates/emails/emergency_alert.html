@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Emergency Alert — TripSync</title>
+</head>
+<body style="margin:0;padding:0;background-color:#fff5f5;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color:#fff5f5;padding:40px 0;">
+    <tr><td align="center">
+      <table width="600" cellpadding="0" cellspacing="0" border="0"
+             style="max-width:600px;width:100%;background-color:#ffffff;border-radius:12px;
+                    overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,0.12);">
+        <tr>
+          <td style="background-color:#dc2626;padding:28px 40px;text-align:center;">
+            <p style="margin:0 0 8px;font-size:32px;">🚨</p>
+            <h1 style="margin:0;font-size:24px;font-weight:800;color:#ffffff;letter-spacing:-0.5px;">
+              Emergency Alert
+            </h1>
+            <p style="margin:8px 0 0;font-size:14px;color:#fecaca;">
+              This is an automated emergency alert from TripSync
+            </p>
+          </td>
+        </tr>
+        <tr>
+          <td style="padding:32px 40px;">
+            <p style="margin:0 0 20px;font-size:15px;color:#374151;line-height:1.7;">
+              Dear <strong>{{ contact_name }}</strong>,
+            </p>
+            <p style="margin:0 0 24px;font-size:15px;color:#374151;line-height:1.7;">
+              <strong>{{ user_full_name }}</strong> has triggered an emergency SOS on TripSync
+              and has listed you as an emergency contact. Please check on them immediately.
+            </p>
+            {% if custom_message %}
+            <table width="100%" cellpadding="0" cellspacing="0" border="0"
+                   style="background-color:#fef2f2;border-radius:8px;border-left:4px solid #dc2626;margin-bottom:24px;">
+              <tr>
+                <td style="padding:16px 18px;">
+                  <p style="margin:0 0 4px;font-size:12px;font-weight:700;color:#991b1b;text-transform:uppercase;letter-spacing:0.8px;">
+                    Message from {{ user_full_name }}
+                  </p>
+                  <p style="margin:0;font-size:14px;color:#7f1d1d;line-height:1.6;">
+                    {{ custom_message }}
+                  </p>
+                </td>
+              </tr>
+            </table>
+            {% endif %}
+            <table width="100%" cellpadding="0" cellspacing="0" border="0"
+                   style="background-color:#f0fdf4;border-radius:8px;border-left:4px solid #16a34a;margin-bottom:24px;">
+              <tr>
+                <td style="padding:16px 18px;">
+                  <p style="margin:0 0 8px;font-size:12px;font-weight:700;color:#166534;text-transform:uppercase;letter-spacing:0.8px;">
+                    📍 Last Known Location
+                  </p>
+                  <p style="margin:0 0 8px;font-size:13px;color:#374151;">
+                    Latitude: <strong>{{ latitude }}</strong> &nbsp;|&nbsp; Longitude: <strong>{{ longitude }}</strong>
+                  </p>
+                  <a href="{{ maps_link }}"
+                     style="display:inline-block;background-color:#16a34a;color:#ffffff;
+                            text-decoration:none;font-size:13px;font-weight:600;
+                            padding:8px 20px;border-radius:6px;">
+                    View on Google Maps →
+                  </a>
+                </td>
+              </tr>
+            </table>
+            <p style="margin:0 0 12px;font-size:13px;font-weight:700;color:#111827;text-transform:uppercase;letter-spacing:0.8px;">
+              Person Details
+            </p>
+            <table width="100%" cellpadding="0" cellspacing="0" border="0"
+                   style="border:1px solid #e5e7eb;border-radius:8px;margin-bottom:24px;overflow:hidden;">
+              <tr style="background-color:#f9fafb;">
+                <td style="padding:10px 16px;font-size:13px;font-weight:600;color:#374151;width:40%;">Full Name</td>
+                <td style="padding:10px 16px;font-size:13px;color:#111827;">{{ user_full_name }}</td>
+              </tr>
+              <tr>
+                <td style="padding:10px 16px;font-size:13px;font-weight:600;color:#374151;border-top:1px solid #e5e7eb;">Email</td>
+                <td style="padding:10px 16px;font-size:13px;color:#111827;border-top:1px solid #e5e7eb;">{{ user_email }}</td>
+              </tr>
+              {% if profile_pic_url %}
+              <tr style="background-color:#f9fafb;">
+                <td style="padding:10px 16px;font-size:13px;font-weight:600;color:#374151;border-top:1px solid #e5e7eb;">Photo</td>
+                <td style="padding:10px 16px;border-top:1px solid #e5e7eb;">
+                  <img src="{{ profile_pic_url }}" alt="Profile photo"
+                       style="width:48px;height:48px;border-radius:50%;object-fit:cover;" />
+                </td>
+              </tr>
+              {% endif %}
+            </table>
+            <p style="margin:0 0 12px;font-size:13px;font-weight:700;color:#991b1b;text-transform:uppercase;letter-spacing:0.8px;">
+              ⚕ Medical Information
+            </p>
+            <table width="100%" cellpadding="0" cellspacing="0" border="0"
+                   style="border:1px solid #fecaca;border-radius:8px;margin-bottom:28px;overflow:hidden;background-color:#fff5f5;">
+              <tr>
+                <td style="padding:10px 16px;font-size:13px;font-weight:600;color:#374151;width:40%;">Blood Group</td>
+                <td style="padding:10px 16px;font-size:14px;font-weight:700;color:#dc2626;">{{ blood_group }}</td>
+              </tr>
+              <tr style="background-color:#fef2f2;">
+                <td style="padding:10px 16px;font-size:13px;font-weight:600;color:#374151;border-top:1px solid #fecaca;">Allergies</td>
+                <td style="padding:10px 16px;font-size:13px;color:#111827;border-top:1px solid #fecaca;">{{ allergies }}</td>
+              </tr>
+              <tr>
+                <td style="padding:10px 16px;font-size:13px;font-weight:600;color:#374151;border-top:1px solid #fecaca;">Medical Conditions</td>
+                <td style="padding:10px 16px;font-size:13px;color:#111827;border-top:1px solid #fecaca;">{{ medical }}</td>
+              </tr>
+            </table>
+            <p style="margin:0;font-size:13px;color:#6b7280;line-height:1.6;">
+              This alert was sent automatically by TripSync. If you believe you received
+              this in error, please contact us at
+              <a href="mailto:{{ support_email }}" style="color:#dc2626;">{{ support_email }}</a>.
+            </p>
+          </td>
+        </tr>
+        <tr>
+          <td style="padding:20px 40px 28px;border-top:1px solid #fee2e2;">
+            <p style="margin:0;font-size:12px;color:#9ca3af;">
+              © TripSync. This is an automated emergency notification.
+            </p>
+          </td>
+        </tr>
+      </table>
+    </td></tr>
+  </table>
+</body>
+</html>
