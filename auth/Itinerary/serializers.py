@@ -7,7 +7,6 @@ class ActivitySerializer(serializers.ModelSerializer):
         fields = ['id','title','time','timings','cost','category','location','description','created_at', 'updated_at']
         read_only_fields = ['id', 'created_at', 'updated_at']
 
-
 class DayPlanSerializer(serializers.ModelSerializer):
     activities = ActivitySerializer(many=True, read_only=True)
     
@@ -23,7 +22,6 @@ class ItinerarySerializer(serializers.ModelSerializer):
         model = Itinerary
         fields = ['id', 'day_plans', 'created_at', 'updated_at']
         read_only_fields = ['id', 'created_at', 'updated_at']
-
 
 class TripSerializer(serializers.ModelSerializer):
     itinerary = ItinerarySerializer(read_only=True)
@@ -61,7 +59,7 @@ class TripCreateUpdateSerializer(serializers.ModelSerializer):
             if data['start_date'] > data['end_date']:
                 raise serializers.ValidationError("End Can't be Before Start Date")
         return data
-    
+
 class RegenerateItinerarySerializer(serializers.Serializer):
     tripname = serializers.CharField(max_length=100, required=False)
     current_loc = serializers.CharField(max_length=200, required=False)
@@ -93,7 +91,6 @@ class ActivityInputSerializer(serializers.Serializer):
         if value not in valid_times:
             raise serializers.ValidationError(f"Time must be one of: {', '.join(valid_times)}")
         return value
-
 
 class ActivityUpdateSerializer(serializers.Serializer):
     time = serializers.CharField(max_length=50, required=False)
@@ -148,12 +145,25 @@ class ManualDayPlanSerializer(serializers.Serializer):
         return value
 
 class ManualItinerarySerializer(serializers.Serializer):
+    tripname = serializers.CharField(max_length=100)
+    current_loc = serializers.CharField(max_length=200)
+    destination = serializers.CharField(max_length=200)
+    start_date = serializers.DateField()
+    end_date = serializers.DateField()
+    days = serializers.IntegerField()
+    trip_type = serializers.CharField(max_length=50)
+    trip_preferences = serializers.CharField(max_length=200)
     day_plans = ManualDayPlanSerializer(many=True)
+    
+    def validate(self, data):
+        if data.get('start_date') and data.get('end_date'):
+            if data['start_date'] > data['end_date']:
+                raise serializers.ValidationError("End date can't be before start date")
+        return data
     
     def validate_day_plans(self, value):
         if not value:
             raise serializers.ValidationError("At least one day plan is required")
-        
         day_numbers = [dp['day_number'] for dp in value]
         if len(day_numbers) != len(set(day_numbers)):
             raise serializers.ValidationError("Duplicate day numbers are not allowed")
