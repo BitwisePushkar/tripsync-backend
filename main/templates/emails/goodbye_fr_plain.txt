@@ -1,0 +1,14 @@
+TripSync — Compte supprimé
+===========================
+
+Au revoir, {{ username }}.
+
+Votre compte TripSync a été définitivement supprimé conformément à votre demande.
+Toutes vos données ont été retirées de nos systèmes.
+
+Si vous n'êtes pas à l'origine de cette suppression, contactez-nous immédiatement : {{ support_email }}
+
+Merci d'avoir utilisé TripSync. Bons voyages !
+
+—
+© TripSync

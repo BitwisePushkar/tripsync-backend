@@ -178,14 +178,6 @@ class EmergencySOSSerializer(serializers.Serializer):
             raise serializers.ValidationError( "Longitude must be between -180 and 180.")
         return value
 
-class UserListSerializer(serializers.ModelSerializer):
-    user_id = serializers.IntegerField(source="user.id", read_only=True)
-
-    class Meta:
-        model  = Profile
-        fields = ["user_id", "fname", "lname", "profile_pic"]
-        read_only_fields = fields
-
 class ProfilePicUploadSerializer(serializers.Serializer):
     profile_pic = serializers.ImageField(help_text="Image file. Max 5MB. Formats: jpg, jpeg, png, webp.",)
     def validate_profile_pic(self, value):

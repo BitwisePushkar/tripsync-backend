@@ -687,8 +687,13 @@ class DeleteAccountView(APIView):
             )
         email = user.email
         username = user.username
+        language = "en"
+        try:
+            language = user.profile.language
+        except Exception:
+            pass
         _blacklist_all_user_tokens(user)
-        tasks.send_goodbye_email_task.delay(email, username)
+        tasks.send_goodbye_email_task.delay(email, username, language)
         user.delete()
         logger.info("Account permanently deleted: %s (@%s)", email, username)
         return Response(

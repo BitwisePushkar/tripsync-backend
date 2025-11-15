@@ -1,3 +1,5 @@
+name: tripsync
+
 services:
 
   db:

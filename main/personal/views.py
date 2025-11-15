@@ -10,6 +10,9 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework.exceptions import ValidationError as DRFValidationError
 from drf_spectacular.utils import extend_schema, OpenApiResponse, OpenApiExample, OpenApiTypes
+from django.db.models import Q, Value
+from django.db.models.functions import Concat
+from django.db.models import CharField
 from personal.models import Profile, EmergencyContact
 from personal import serializers
 from personal import utils
@@ -38,8 +41,8 @@ def _success(message: str, data: dict = None, status_code=status.HTTP_200_OK):
 @extend_schema(tags=["Profile"])
 class ProfileDetailView(APIView):
     permission_classes = [IsAuthenticated]
-    parser_classes     = [JSONParser]
-
+    parser_classes = [JSONParser]
+    
     @extend_schema(
         summary="Get my profile",
         responses={
@@ -451,65 +454,60 @@ class EmergencySOSView(APIView):
         )
 
 @extend_schema(tags=["Users"])
-class UserListView(APIView):
-    permission_classes = [IsAuthenticated]
-    parser_classes = [JSONParser]
-    @extend_schema(
-        summary="List all users (paginated)",
-        description=(
-            "Returns a paginated list of all users with profiles.\n\n"
-            "**Pagination:** Use `?page=2` and `?page_size=20` (max 100)."
-        ),
-        responses={200: serializers.UserListSerializer(many=True)},
-    )
-    def get(self, request):
-        if not hasattr(request.user, "profile"):
-            return _error(
-                "Please create your profile before accessing the user list.",
-                status_code=status.HTTP_403_FORBIDDEN,
-            )
-        profiles = Profile.objects.select_related("user").order_by("fname", "lname")
-        paginator = StandardPagination()
-        page = paginator.paginate_queryset(profiles, request)
-        serializer = serializers.UserListSerializer(page, many=True)
-        return paginator.get_paginated_response(serializer.data)
-
-@extend_schema(tags=["Users"])
 class UserSearchView(APIView):
     permission_classes = [IsAuthenticated]
     parser_classes = [JSONParser]
     @extend_schema(
         summary="Search users by name",
-        description=(
-            "Search users by first and last name.\n\n"
-            "Returns public profile info only — no medical or emergency data."
-        ),
-        request={
-            "application/json": {
-                "type": "object",
-                "required": ["fname"],
-                "properties": {
-                    "fname": {"type": "string", "example": "John"},
-                    "lname": {"type": "string", "example": "Doe"},
-                },
+        description=("Search users by name using `?q=<query>`."),
+        parameters=[
+            {
+                "name": "q",
+                "in": "query",
+                "required": True,
+                "schema": {"type": "string"},
+                "description": "Name search query (min 2 characters).",
             }
-        },
+        ],
         responses={
             200: serializers.ProfilePublicSerializer(many=True),
-            400: OpenApiResponse(description="First name required"),
+            400: OpenApiResponse(description="Query param missing or too short"),
+            404: OpenApiResponse(description="No users found"),
         },
     )
-    def post(self, request):
-        fname = request.data.get("fname", "").strip()
-        lname = request.data.get("lname", "").strip()
-        if not fname:
-            return _error("First name is required for search.", errors={"fname": ["This field is required."]},)
-        qs = Profile.objects.select_related("user").filter(fname__icontains=fname)
-        if lname:
-            qs = qs.filter(lname__icontains=lname)
-        qs = qs.order_by("fname", "lname")
+    def get(self, request):
+        q = request.query_params.get("q", "").strip()
+        if not q:
+            return _error(
+                "Search query is required. Use ?q=name",
+                errors={"q": ["This field is required."]},
+            )
+        if len(q) < 2:
+            return _error(
+                "Search query must be at least 2 characters.",
+                errors={"q": ["Minimum 2 characters required."]},
+            )
+        qs = (
+            Profile.objects
+            .select_related("user")
+            .annotate(
+                full_name_combined=Concat(
+                    "fname", Value(" "), "lname",
+                    output_field=CharField(),
+                )
+            )
+            .filter(
+                Q(fname__icontains=q) |
+                Q(lname__icontains=q) |
+                Q(full_name_combined__icontains=q)
+            )
+            .order_by("fname", "lname")
+        )
         if not qs.exists():
-            return _error("No users found matching that name.", status_code=status.HTTP_404_NOT_FOUND,)
+            return _error(
+                f"No users found matching '{q}'.",
+                status_code=status.HTTP_404_NOT_FOUND,
+            )
         count = qs.count()
         return _success(
             f"{count} user{'s' if count != 1 else ''} found.",

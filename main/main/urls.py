@@ -49,7 +49,7 @@ urlpatterns = [
     path("health/", health_check, name="health-check"),
     path("control/", admin.site.urls),
     path("api/account/", include("account.urls", namespace="account")),
-    path("personal/", include("personal.urls", namespace="personal")),
+    path("api/personal/", include("personal.urls", namespace="personal")),
 ]
 
 if settings.DEBUG:

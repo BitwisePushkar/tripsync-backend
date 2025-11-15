@@ -1,0 +1,14 @@
+TripSync — Cuenta eliminada
+============================
+
+Adiós, {{ username }}.
+
+Tu cuenta de TripSync ha sido eliminada permanentemente según tu solicitud.
+Todos tus datos han sido eliminados de nuestros sistemas.
+
+Si no solicitaste esta eliminación, contáctanos inmediatamente: {{ support_email }}
+
+Gracias por usar TripSync. ¡Buen viaje!
+
+—
+© TripSync

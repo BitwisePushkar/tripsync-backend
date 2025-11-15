@@ -23,6 +23,7 @@ dependencies = [
     "google-auth>=2.49.2",
     "requests>=2.33.1",
     "boto3>=1.42.89",
+    "pillow>=12.2.0",
 ]
 
 [build-system]

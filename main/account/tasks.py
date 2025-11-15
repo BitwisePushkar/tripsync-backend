@@ -5,6 +5,7 @@ from django.template.loader import render_to_string
 from django.conf import settings
 
 logger = logging.getLogger("account")
+_SUPPORTED_LANGUAGES = {"en", "hi", "ar", "fr", "es"}
 
 def _send_html_email(to_email: str, subject: str, template_name: str, context: dict,) -> bool:
     try:
@@ -54,11 +55,20 @@ def send_welcome_email_task(self, email: str, username: str):
 
 @shared_task(bind=True, max_retries=3, default_retry_delay=10, autoretry_for=(Exception,), retry_backoff=True,
               retry_jitter=True,)
-def send_goodbye_email_task(self, email: str, username: str):
-    logger.info("Sending goodbye email to %s", email)
+def send_goodbye_email_task(self, email: str, username: str, language: str = "en"):
+    logger.info("Sending goodbye email to %s (language=%s)", email, language)
+    lang = language if language in _SUPPORTED_LANGUAGES else "en"
+    template = f"goodbye_{lang}.html"
+    subjects = {
+        "en": "Goodbye from TripSync",
+        "hi": "TripSync से विदाई",
+        "ar": "وداعاً من TripSync",
+        "fr": "Au revoir de TripSync",
+        "es": "Adiós de TripSync",
+    }
     context = {
         "username": username,
         "support_email": "support@tripsync.com",
         "app_url": "https://tripsync.com",
     }
-    _send_html_email(email, "Goodbye from TripSync", "goodbye.html", context,)
+    _send_html_email(email, subjects[lang], template, context,)
