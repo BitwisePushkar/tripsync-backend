@@ -31,6 +31,7 @@ INSTALLED_APPS = [
     'community',
     'trending',
     'chat',
+    'expense',
 ]
 
 MIDDLEWARE = [
