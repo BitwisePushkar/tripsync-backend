@@ -219,11 +219,17 @@ class VerifyRegistrationOTPView(APIView):
                 {"status": "error", "message": "This username is already taken."},
                 status=status.HTTP_409_CONFLICT,
             )
-        user = User.objects.create_user(
-            email=pending["email"],
-            username=pending["username"],
-            password=pending["password"],
-        )
+        try:
+            user = User.objects.create_user(
+                email=pending["email"],
+                username=pending["username"],
+                password=pending["password"],
+            )
+        except Exception:
+            return Response(
+                {"status": "error", "message": "An account with this email/username was just created. Please log in."},
+                status=status.HTTP_409_CONFLICT,
+            )
         user.is_email_verified = True
         user.save()
         otp_service.clear_all_otp_keys(email)
@@ -405,12 +411,21 @@ class UserLoginView(APIView):
 
 class UserLogoutView(APIView):
     permission_classes = [IsAuthenticated]
+
     @extend_schema(
         request={
             "application/json": {
                 "type": "object",
                 "required": ["refresh"],
-                "properties": {"refresh": {"type": "string", "example": "eyJ..."}},
+                "properties": {
+                    "refresh": {"type": "string", "example": "eyJ..."},
+                    "mode": {
+                        "type": "string", 
+                        "enum": ["current", "all"], 
+                        "default": "current", 
+                        "description": "Revoke current session or all sessions."
+                    }
+                },
             }
         },
         responses={
@@ -420,25 +435,45 @@ class UserLogoutView(APIView):
         },
         tags=["Authentication"],
         summary="Logout",
-        description="Blacklists the refresh token. Requires `Authorization: Bearer <access_token>`.",
+        description="Blacklists the refresh token (current session) or all active sessions for the user.",
     )
     def post(self, request):
         refresh_token = request.data.get("refresh")
+        mode = request.data.get("mode", "current")
         if not refresh_token:
             return Response(
                 {"status": "error", "message": "Refresh token is required.",
                  "errors": {"refresh": ["This field is required."]}},
                 status=status.HTTP_400_BAD_REQUEST,
             )
+        if mode not in ("current", "all"):
+            return Response(
+                {"status": "error", "message": "Invalid mode. Use 'current' or 'all'.",
+                 "errors": {"mode": ["Must be 'current' or 'all'."]}},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
         try:
             token = RefreshToken(refresh_token)
-            token.blacklist()
         except Exception:
             return Response(
                 {"status": "error", "message": "Invalid or expired refresh token.",
                  "errors": {"refresh": ["Token is invalid or already blacklisted."]}},
                 status=status.HTTP_400_BAD_REQUEST,
             )
+        if str(token.payload.get("user_id")) != str(request.user.id):
+            return Response(
+                {"status": "error", "message": "Refresh token does not belong to the authenticated user.",
+                 "errors": {"refresh": ["Token user mismatch."]}},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        if mode == "all":
+            _blacklist_all_user_tokens(request.user)
+            logger.info("User logged out from all devices: %s", request.user.email)
+            return Response({"status": "success", "message": "Logged out from all devices successfully."}, status=status.HTTP_200_OK)
+        try:
+            token.blacklist()
+        except Exception:
+            pass
         logger.info("User logged out: %s", request.user.email)
         return Response({"status": "success", "message": "Logged out successfully."}, status=status.HTTP_200_OK)
 
