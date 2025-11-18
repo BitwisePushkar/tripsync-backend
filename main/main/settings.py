@@ -32,6 +32,8 @@ INSTALLED_APPS = [
     'trending',
     'chat',
     'expense',
+    'Itinerary',
+    'tripmate',
 ]
 
 MIDDLEWARE = [

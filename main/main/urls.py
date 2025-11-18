@@ -25,6 +25,8 @@ urlpatterns = [
     path('api/trending/',include('trending.urls')),
     path('api/chat/', include('chat.urls')),
     path('api/expense/',include('expense.urls')),
+    path('api/itinerary/',include('Itinerary.urls')),
+    path('api/tripmate/',include('tripmate.urls')),
     path('api/schema/', SpectacularAPIView.as_view(), name='schema'),
     path('api/docs/', SpectacularSwaggerView.as_view(url_name='schema'), name='swagger-ui'),
     path('api/redoc/', SpectacularRedocView.as_view(url_name='schema'), name='redoc'),
