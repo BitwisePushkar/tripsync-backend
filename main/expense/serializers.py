@@ -22,7 +22,7 @@ class ExpenseCategorySerializer(serializers.ModelSerializer):
         model = ExpenseCategory
         fields = ['id', 'user_id', 'email', 'budget_id', 'category', 'allocated', 'percentage', 'created_at', 'updated_at']
         read_only_fields = ['id', 'user_id', 'email', 'budget_id', 'percentage', 'created_at', 'updated_at']    
-    def get_percentage(self, obj):
+    def get_percentage(self, obj)-> float:
         if obj.budget and obj.budget.total:
             return round((obj.allocated / obj.budget.total) * 100, 2)
         return 0   

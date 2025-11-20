@@ -34,6 +34,7 @@ INSTALLED_APPS = [
     'expense',
     'Itinerary',
     'tripmate',
+    'chatbot',
 ]
 
 MIDDLEWARE = [
