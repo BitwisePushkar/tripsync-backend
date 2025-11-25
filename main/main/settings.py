@@ -27,6 +27,7 @@ INSTALLED_APPS = [
     "account",
     "personal",
     "community",
+    "Itinerary",
 ]
 
 MIDDLEWARE = [
@@ -319,3 +320,11 @@ SUPPORTED_LANGUAGES = {
     "fr": "French",
     "es": "Spanish",
 }
+
+GEMINI_API_KEY     = config("GEMINI_API_KEY")
+GEMINI_MODEL = "gemini-2.0-flash"
+GEMINI_TEMPERATURE = 0.3
+GEMINI_MAX_TOKENS  = 8192
+
+GOOGLE_PLACES_API_KEY = config("GOOGLE_PLACES_API_KEY", default="")
+GOOGLE_PLACES_PHOTO_MAX_WIDTH = config("GOOGLE_PLACES_PHOTO_MAX_WIDTH", default=800, cast=int)
