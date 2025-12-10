@@ -172,7 +172,6 @@ Your responses must be brief, practical, and ONLY about travel.''')
     session_id = validated_data.get('session_id', str(uuid.uuid4()))
     
     try:
-<<<<<<< HEAD
         previous_messages = ChatMessage.objects.filter(
             session_id=session_id
         ).order_by('-created_at')[:5][::-1]
@@ -195,10 +194,6 @@ Your responses must be brief, practical, and ONLY about travel.''')
             "parts": [{"text": user_message}]
         })
         
-=======
-        gemini_url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent?key={settings.GOOGLE_API_KEY}"
-               
->>>>>>> f03ca41fa1dd46e2421eb99c0074ec8c6e38a5f3
         payload = {
             "contents": [
                 {
