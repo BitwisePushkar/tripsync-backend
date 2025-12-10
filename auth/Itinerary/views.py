@@ -538,23 +538,15 @@ class ManualItineraryCreateView(APIView):
             return Response({'success': False,'message': 'Validation failed','errors': serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
         
         try:
-<<<<<<< HEAD
-            if hasattr(trip, 'itinerary'):
-                trip.itinerary.day_plans.all().delete()
-                trip.itinerary.delete()
-=======
             try:
                 budget_obj = Budget.objects.get(user=request.user)
                 budget_amount = float(budget_obj.total)
             except Budget.DoesNotExist:
                 return Response({'success': False,'message': 'Please create a budget in expense tracker first'}, status=status.HTTP_400_BAD_REQUEST)
->>>>>>> f03ca41fa1dd46e2421eb99c0074ec8c6e38a5f3
             
             validated_data = serializer.validated_data
             day_plans_data = validated_data.pop('day_plans')
             
-<<<<<<< HEAD
-=======
             trip = Trip.objects.create(
                 user=request.user,
                 budget=budget_amount,
@@ -568,33 +560,11 @@ class ManualItineraryCreateView(APIView):
                 trip_preferences=validated_data['trip_preferences']
             )
             
->>>>>>> f03ca41fa1dd46e2421eb99c0074ec8c6e38a5f3
             itinerary = Itinerary.objects.create(trip=trip)
             for day_plan_data in day_plans_data:
                 activities_data = day_plan_data.pop('activities', [])  
                 day_plan = DayPlan.objects.create(itinerary=itinerary,day_number=day_plan_data['day_number'],title=day_plan_data['title'])
                 for activity_data in activities_data:
-<<<<<<< HEAD
-                    Activity.objects.create(
-                        day_plans=day_plan,
-                        **activity_data
-                    )
-            
-            response_serializer = TripSerializer(trip, context={'request': request})
-            return Response({
-                'success': True,
-                'message': 'Manual itinerary created successfully',
-                'data': response_serializer.data
-            }, status=status.HTTP_201_CREATED)
-            
-        except Exception as e:
-            logger.error(f"Error creating manual itinerary: {str(e)}")
-            return Response({
-                'success': False,
-                'message': 'Failed to create manual itinerary',
-                'error': str(e)
-            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-=======
                     Activity.objects.create(day_plans=day_plan,**activity_data)
             response_serializer = TripSerializer(trip)
             return Response({'success': True,'message': 'Trip and manual itinerary created successfully','data': response_serializer.data}, status=status.HTTP_201_CREATED)
@@ -604,4 +574,3 @@ class ManualItineraryCreateView(APIView):
             if 'trip' in locals():
                 trip.delete()
             return Response({'success': False,'message': 'Failed to create manual trip and itinerary','error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
->>>>>>> f03ca41fa1dd46e2421eb99c0074ec8c6e38a5f3

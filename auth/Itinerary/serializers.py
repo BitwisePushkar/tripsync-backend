@@ -6,10 +6,6 @@ class ActivitySerializer(serializers.ModelSerializer):
         model = Activity
         fields = ['id','title','time','timings','cost','category','location','description','created_at', 'updated_at']
         read_only_fields = ['id', 'created_at', 'updated_at']
-<<<<<<< HEAD:auth/ItenaryMaker/serializers.py
-
-=======
->>>>>>> development:auth/Itinerary/serializers.py
 
 class DayPlanSerializer(serializers.ModelSerializer):
     activities = ActivitySerializer(many=True, read_only=True)
@@ -35,11 +31,7 @@ class TripSerializer(serializers.ModelSerializer):
     
     class Meta:
         model = Trip
-<<<<<<< HEAD:auth/ItenaryMaker/serializers.py
-        fields = ['id', 'tripname', 'current_loc', 'destination', 'trending','start_date', 'end_date', 'days', 'trip_type', 'trip_preferences','budget', 'itinerary', 'created_at', 'updated_at']
-=======
         fields = ['id', 'tripname', 'current_loc', 'destination', 'trending', 'start_date', 'end_date', 'days', 'trip_type', 'trip_preferences', 'budget', 'itinerary', 'is_owner', 'user_permission', 'created_at', 'updated_at']
->>>>>>> development:auth/Itinerary/serializers.py
         read_only_fields = ['id', 'created_at', 'updated_at']
     
     def get_is_owner(self, obj):
@@ -48,7 +40,7 @@ class TripSerializer(serializers.ModelSerializer):
             return obj.user == request.user
         return False
     
-    def get_user_permission(self, obj):
+    #def get_user_permission(self, obj):
         request = self.context.get('request')
         if request:
             if obj.user == request.user:
@@ -85,10 +77,7 @@ class ActivityInputSerializer(serializers.Serializer):
     title = serializers.CharField(max_length=200)
     description = serializers.CharField()
     location = serializers.CharField(max_length=300)
-<<<<<<< HEAD:auth/ItenaryMaker/serializers.py
-=======
     timings = serializers.CharField(max_length=50)
->>>>>>> development:auth/Itinerary/serializers.py
     cost = serializers.FloatField()
     category = serializers.CharField(max_length=50)
   
