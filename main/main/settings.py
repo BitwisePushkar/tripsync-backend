@@ -28,6 +28,8 @@ INSTALLED_APPS = [
     "personal",
     "community",
     "Itinerary",
+    "chat",
+    "tripmate",
 ]
 
 MIDDLEWARE = [
