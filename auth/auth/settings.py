@@ -10,10 +10,10 @@ SECRET_KEY = os.environ.get("SECRET_KEY", "unsafe-dev-secret-key")
 
 DEBUG = config('DEBUG', default=False, cast=bool)
 
-ALLOWED_HOSTS = os.environ.get("ALLOWED_HOSTS", "localhost,127.0.0.1,51.20.254.52").split(',')
+ALLOWED_HOSTS = os.environ.get("ALLOWED_HOSTS", "localhost,127.0.0.1,51.20.254.52,52.66.238.76").split(',')
 
-INSTALLED_APPS = [#'channels',
-                  #'daphne',
+INSTALLED_APPS = ['channels',
+                  'daphne',
                   'storages',
                   'django.contrib.admin',
                   'django.contrib.auth',
