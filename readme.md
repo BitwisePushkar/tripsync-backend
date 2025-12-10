@@ -1,13 +1,14 @@
- TripSync 🚀
+# TripSync 
 
 A scalable, real-time collaborative trip planning platform built with **Django** and **Django REST Framework**.
+
 Designed for seamless collaboration — users → trips → chat rooms → itineraries → expenses.
 
 ---
 
 ## Tech Stack
 
-`Django : DRF : PostgreSQL : Redis : WebSockets : Django Channels : LangChain : AWS EC2 : Docker : Nginx : SMTP : SMS OTP`
+`Django : DRF : PostgreSQL : Redis : WebSockets : Django Channels : Celery : Celery Beat : LangChain : Firebase : AWS S3 : AWS EC2 : Docker : Nginx : uv : GoogleOauth`
 
 ---
 
@@ -15,11 +16,11 @@ Designed for seamless collaboration — users → trips → chat rooms → itine
 
 ### Auth
 
-Register · Login · Email Verification (SMTP) · Phone Verification (SMS OTP) · Role-Based Access Control
+Register · Login · Email Verification (SMTP) · Role-Based Access Control · GoogleOauth
 
 ### Users
 
-Profile Management · Preferences · Role Assignment · Secure Account Access
+Profile Management · Preferences · Secure Account Access
 
 ### Trips
 
@@ -41,6 +42,10 @@ Shared Expense Tracking · Cost Distribution · Trip Budget Management
 
 Community Interaction · Trending Trips · Public Content Discovery
 
+### Notifications
+
+Firebase Push Notifications · Background Scheduling (Celery Beat)
+
 ### Media
 
 Secure Media Uploads · Static & File Handling · S3 Storage Support
@@ -48,48 +53,44 @@ Secure Media Uploads · Static & File Handling · S3 Storage Support
 ### Performance Optimization
 
 Async WebSocket Consumers · Redis-backed Scaling · Optimized DB Queries
+
 Reduced Message Latency from **500ms → 280ms**
 
 ---
-
 ## Structure
 
-```
+```text
 TripSync/
 ├── Dockerfile
 ├── docker-compose.yml
-├── .gitignore
-├── readme.md
+├── entrypoint.sh
+├── pyproject.toml
+├── poetry.lock
+├── uv.lock
+├── README.md
 │
-├── auth/
+├── main/
 │   ├── manage.py
-│   ├── requirements.txt
-│   ├── .env.example
-│   ├── build.sh
 │   │
-│   ├── auth/
+│   ├── main/
 │   │   ├── settings.py
 │   │   ├── urls.py
 │   │   ├── asgi.py
 │   │   ├── wsgi.py
-│   │   └── storage_backends.py
+│   │   └── celery.py
 │   │
 │   ├── account/
 │   ├── chat/
-│   ├── chatbot/
 │   ├── community/
-│   ├── expense/
-│   ├── HomePage/
 │   ├── Itinerary/
 │   ├── personal/
-│   ├── trending/
 │   ├── tripmate/
-│   ├── media/
-│   ├── staticfiles/
-│   └── images/
+│   │
+│   └── templates/
+│       └── emails/
 │
 └── nginx/
-    └── default.conf
+    └── nginx.conf
 ```
 
 ---
@@ -97,11 +98,14 @@ TripSync/
 ## ▶ Setup (Local)
 
 ```bash
-git clone <repo>
+git clone https://github.com/BitwisePushkar/tripsync-backend.git
 cd tripsync
-python -m venv venv
-source venv/bin/activate   # Windows: venv\Scripts\Activate.ps1
-pip install -r auth/requirements.txt
+
+uv venv
+source .venv/bin/activate
+
+uv pip install -r auth/requirements.txt
+
 python auth/manage.py migrate
 python auth/manage.py runserver
 ```
@@ -126,8 +130,5 @@ Create `.env` file using `.env.example`
 
 ---
 
-## Deployment
 
-AWS EC2 (Ubuntu) · PostgreSQL (RDS) · Redis · Nginx · Docker · Render Deployment Support
-
----
+Built for scalable, real-time collaborative travel planning.
