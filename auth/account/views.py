@@ -124,11 +124,8 @@ class UserRegistrationView(APIView):
                 if not email_sent:
                     if not existing_user:
                         user.delete()
-                    return Response({'status': 'error','message': 'Failed to send verification email. Please try again.',
-                                     'errors': {'email': ['Email service unavailable']}},status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-                return Response({'status': 'success','message': 'OTP sent to your email. Please verify to complete registration.',
-                                 'data': {'email': user.email, 
-                                 'otp_expires_in': '10 minutes'}},status=status.HTTP_200_OK)
+                    return Response({'status': 'error','message': 'Failed to send verification email. Please try again.','errors': {'email': ['Email service unavailable']}},status=status.HTTP_503_SERVICE_UNAVAILABLE)
+                return Response({'status': 'success','message': 'OTP sent to your email. Please verify to complete registration.','data': {'email': user.email, 'otp_expires_in': '10 minutes'}},status=status.HTTP_200_OK)
         except Exception as e:
             return Response({'status': 'error', 'message': 'Registration failed', 'errors': str(e)},status=status.HTTP_400_BAD_REQUEST)
 

@@ -17,7 +17,6 @@ class ItineraryGenerator:
           temperature=0.7,
           max_output_tokens=20000,)
 
-
     def generate_itinerary(self, trip_data):
         prompt = f"""You are an expert travel planner. Create detailed itineraries in JSON format only.
 
