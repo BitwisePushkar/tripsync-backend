@@ -132,7 +132,7 @@ SPECTACULAR_SETTINGS = {
     },
     "LICENSE": {"name": "MIT License"},
     "SERVERS": [
-        {"url": "http://127.0.0.1:8000", "description": "Development server"},
+        {"url": "http://127.0.0.1:8080", "description": "Development server"},
     ],
     "COMPONENT_SPLIT_REQUEST": True,
     "SWAGGER_UI_SETTINGS": {
