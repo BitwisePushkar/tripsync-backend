@@ -296,3 +296,5 @@ LOGGING = {
         },
     },
 }
+
+GOOGLE_OAUTH_CLIENT_IDS = config("GOOGLE_OAUTH_CLIENT_IDS", default="", cast=lambda v: [s.strip() for s in v.split(",") if s.strip()],)

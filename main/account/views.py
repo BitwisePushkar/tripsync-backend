@@ -12,6 +12,10 @@ from drf_spectacular.utils import extend_schema, OpenApiResponse, OpenApiExample
 from account import otp_service
 from account import serializers
 from account import tasks
+import re as _re
+from google.oauth2 import id_token as google_id_token
+from google.auth.transport import requests as google_requests
+from account.models import UserSocialAccount
 
 User = get_user_model()
 logger = logging.getLogger("account")
@@ -31,6 +35,23 @@ def _blacklist_all_user_tokens(user) -> None:
         if created:
             count += 1
     logger.info("Blacklisted %d token(s) for user %s", count, user.email)
+
+
+def _generate_username_from_name(name: str, email: str) -> str:
+    base = _re.sub(r"[^a-z0-9_@#]", "", name.lower().replace(" ", ""))
+    if not base or len(base) < 3:
+        base = email.split("@")[0]
+        base = _re.sub(r"[^a-z0-9_@#]", "", base.lower())
+    base = base[:15]
+    if len(base) < 5:
+        base = base.ljust(5, "1")
+    candidate = base
+    counter = 1
+    while User.objects.filter(username=candidate).exists():
+        suffix = str(counter)
+        candidate = base[: 15 - len(suffix)] + suffix
+        counter += 1
+    return candidate
 
 _ERROR_400 = OpenApiResponse(
     response=OpenApiTypes.OBJECT,
@@ -672,5 +693,189 @@ class DeleteAccountView(APIView):
         logger.info("Account permanently deleted: %s (@%s)", email, username)
         return Response(
             {"status": "success", "message": "Your account has been permanently deleted."},
+            status=status.HTTP_200_OK,
+        )
+    
+class GoogleAuthView(APIView):
+    @extend_schema(
+        request=serializers.GoogleAuthSerializer,
+        responses={
+            200: OpenApiResponse(
+                response=OpenApiTypes.OBJECT,
+                description="Authenticated — JWT tokens returned",
+                examples=[
+                    OpenApiExample(
+                        "Existing user",
+                        value={
+                            "status": "success",
+                            "message": "Login successful.",
+                            "data": {
+                                "is_new_user": False,
+                                "user": {
+                                    "id": 1,
+                                    "email": "user@gmail.com",
+                                    "username": "johndoe",
+                                },
+                                "tokens": {
+                                    "access": "eyJ...",
+                                    "refresh": "eyJ...",
+                                },
+                            },
+                        },
+                    ),
+                    OpenApiExample(
+                        "New user registered via Google",
+                        value={
+                            "status": "success",
+                            "message": "Account created via Google.",
+                            "data": {
+                                "is_new_user": True,
+                                "user": {
+                                    "id": 2,
+                                    "email": "newuser@gmail.com",
+                                    "username": "janedoe",
+                                },
+                                "tokens": {
+                                    "access": "eyJ...",
+                                    "refresh": "eyJ...",
+                                },
+                            },
+                        },
+                    ),
+                ],
+            ),
+            400: _ERROR_400,
+            401: OpenApiResponse(description="Invalid or expired Google ID token"),
+            409: OpenApiResponse(description="Google account already linked to another TripSync account"),
+        },
+        tags=["Authentication"],
+        summary="Google Sign-In",
+        description="Google ID token login (Kotlin). Returns JWT + `is_new_user`.",
+    )
+    def post(self, request):
+        serializer = serializers.GoogleAuthSerializer(data=request.data)
+        try:
+            serializer.is_valid(raise_exception=True)
+        except DRFValidationError:
+            raise
+        raw_token = serializer.validated_data["id_token"]
+        client_ids = settings.GOOGLE_OAUTH_CLIENT_IDS
+        if not client_ids:
+            logger.error("GOOGLE_OAUTH_CLIENT_IDS not configured in settings")
+            return Response({"status": "error", "message": "Google authentication is not configured on this server.",},
+                            status=status.HTTP_500_INTERNAL_SERVER_ERROR,)
+        google_info = None
+        last_error = None
+        for client_id in client_ids:
+            try:
+                google_info = google_id_token.verify_oauth2_token(raw_token, google_requests.Request(),
+                                                                   audience=client_id,)
+                break
+            except ValueError as e:
+                last_error = str(e)
+                continue 
+        if google_info is None:
+            logger.warning("Google token verification failed: %s", last_error)
+            return Response(
+                {
+                    "status": "error",
+                    "message": "Invalid or expired Google token. Please sign in again.",
+                },
+                status=status.HTTP_401_UNAUTHORIZED,
+            )
+        google_uid = google_info.get("sub")
+        email = google_info.get("email", "").lower().strip()
+        name = google_info.get("name", "")
+        if not email:
+            return Response(
+                {
+                    "status": "error",
+                    "message": "Email permission is required. Please grant email access in Google Sign-In.",
+                    "errors": {"email": ["Email not provided by Google."]},
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        if not google_uid:
+            logger.error("Google token missing 'sub' claim — token: truncated for security")
+            return Response(
+                {
+                    "status": "error",
+                    "message": "Could not extract user identity from Google token.",
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        is_new_user = False
+        try:
+            social = UserSocialAccount.objects.select_related("user").get(
+                provider=UserSocialAccount.PROVIDER_GOOGLE,
+                provider_uid=google_uid,
+            )
+            user = social.user
+            if not User.objects.filter(pk=user.pk).exists():
+                social.delete()
+                raise UserSocialAccount.DoesNotExist
+        except UserSocialAccount.DoesNotExist:
+            try:
+                user = User.objects.get(email=email)
+                if UserSocialAccount.objects.filter(
+                    provider=UserSocialAccount.PROVIDER_GOOGLE,
+                    provider_uid=google_uid,
+                ).exclude(user=user).exists():
+                    return Response(
+                        {
+                            "status": "error",
+                            "message": "This Google account is already linked to a different TripSync account.",
+                        },
+                        status=status.HTTP_409_CONFLICT,
+                    )
+                UserSocialAccount.objects.create(
+                    user=user,
+                    provider=UserSocialAccount.PROVIDER_GOOGLE,
+                    provider_uid=google_uid,
+                )
+                logger.info(
+                    "Google account linked to existing user: %s (uid=%s)",
+                    email, google_uid,
+                )
+            except User.DoesNotExist:
+                username  = _generate_username_from_name(name, email)
+                user = User.objects.create_user(
+                    email=email,
+                    username=username,
+                    password=None,
+                )
+                user.is_email_verified = True
+                user.save(update_fields=["is_email_verified"])
+                UserSocialAccount.objects.create(
+                    user=user,
+                    provider=UserSocialAccount.PROVIDER_GOOGLE,
+                    provider_uid=google_uid,
+                )
+                tasks.send_welcome_email_task.delay(user.email, user.username)
+                is_new_user = True
+                logger.info(
+                    "New user created via Google Sign-In: %s (@%s)",
+                    email, username,
+                )
+        if not user.is_active:
+            user.is_active = True
+            user.save(update_fields=["is_active", "updated_at"])
+            logger.info("Account reactivated via Google Sign-In: %s", email)
+        tokens = _get_tokens_for_user(user)
+        logger.info("Google Sign-In successful: %s (new=%s)", email, is_new_user)
+        return Response(
+            {
+                "status": "success",
+                "message": "Account created via Google." if is_new_user else "Login successful.",
+                "data": {
+                    "is_new_user": is_new_user,
+                    "user": {
+                        "id": user.id,
+                        "email": user.email,
+                        "username": user.username,
+                    },
+                    "tokens": tokens,
+                },
+            },
             status=status.HTTP_200_OK,
         )

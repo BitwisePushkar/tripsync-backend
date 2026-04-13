@@ -50,3 +50,20 @@ class User(AbstractBaseUser):
         verbose_name = "User"
         verbose_name_plural = "Users"
         ordering = ["-created_at"]
+
+class UserSocialAccount(models.Model):
+    PROVIDER_GOOGLE = "google"
+    PROVIDER_CHOICES = [(PROVIDER_GOOGLE, "Google"),]
+    user = models.ForeignKey("account.User", on_delete=models.CASCADE, related_name="social_accounts",)
+    provider = models.CharField(max_length=20, choices=PROVIDER_CHOICES,)
+    provider_uid = models.CharField(max_length=255,)
+    created_at = models.DateTimeField(auto_now_add=True)
+ 
+    class Meta:
+        verbose_name = "Social Account"
+        verbose_name_plural = "Social Accounts"
+        unique_together = [("provider", "provider_uid")]
+        indexes = [models.Index(fields=["provider", "provider_uid"]),]
+ 
+    def __str__(self):
+        return f"{self.user.email} via {self.provider}"
