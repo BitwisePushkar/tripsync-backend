@@ -102,6 +102,3 @@ class PasswordResetConfirmSerializer(serializers.Serializer):
 
 class ConfirmPasswordSerializer(serializers.Serializer):
     password = serializers.CharField(write_only=True, required=True, style={"input_type": "password"})
-
-class GoogleAuthSerializer(serializers.Serializer):
-    id_token = serializers.CharField(required=True)
